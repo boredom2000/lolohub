@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#05010c">
+  <title>Alien in Space</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Orbitron:wght@500;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game"></div>
+  <div id="hurt"></div>
+  <div id="crosshair"><div class="ring"></div><i></i><i></i><i></i><i></i><b></b></div>
+
+  <div id="corner">
+    <button id="hubBtn" title="Back to the Lolo Hub">&#x2302; HUB</button>
+    <button id="fsBtn" title="Full screen"><svg class="enter" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><svg class="exit" viewBox="0 0 24 24"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg></button>
+  </div>
+
+  <div id="hud">
+
+    <div id="topCenter">
+      <div id="wave">WAVE 1</div>
+      <div id="hp"><div id="hpFill"></div><span id="hpText">100</span></div>
+    </div>
+
+    <div id="score"><small>SCORE</small><span id="scoreVal">0</span></div>
+
+    <div id="banner"></div>
+    <div id="floaters"></div>
+    <div id="weaponName"></div>
+    <nav id="weapons"></nav>
+  </div>
+
+  <div id="title" class="overlay">
+    <h1 class="logo"><span class="l1">ALIEN</span><span class="l2">IN</span><span class="l3">SPACE</span></h1>
+    <p class="tag">They come from behind the rocks. They fall from the sky. Hold the line.</p>
+    <button id="playBtn" class="big">PLAY</button>
+    <p class="help desk"><b>Mouse</b> aim &middot; <b>Hold click</b> fire &middot; <b>1-5</b> / <b>wheel</b> switch weapon</p>
+    <p class="help touch"><b>Touch</b> to aim &middot; <b>Hold</b> to fire &middot; <b>Tap</b> a weapon below to switch</p>
+  </div>
+
+  <div id="over" class="overlay hidden">
+    <h2 class="dead">ABDUCTED!</h2>
+    <p id="overStats"></p>
+    <div class="row">
+      <button id="againBtn" class="big">PLAY AGAIN</button>
+      <button id="overHub" class="small">&#x2302; HUB</button>
+    </div>
+  </div>
+
+  <div id="quitModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="quitTitle">
+    <div class="panel">
+      <h2 id="quitTitle">Back to the Hub?</h2>
+      <p>Your current run will be lost.</p>
+      <div class="row">
+        <button id="quitNo" class="small">Keep fighting</button>
+        <button id="quitYes" class="small danger">Leave</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/three.min.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

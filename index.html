@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#12001f">
+  <title>Lolo Hub</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="hub.css">
+</head>
+<body>
+  <div class="bg-rays"></div>
+  <div class="bg-grid"></div>
+  <div class="stars" aria-hidden="true"></div>
+
+  <main>
+    <h1 class="title" data-text="LOLO HUB">LOLO HUB</h1>
+    <p class="subtitle">&#9733; pick your game &#9733;</p>
+
+    <!-- Game list: one link per game folder. Add a new <a class="game-btn"> to add a game. -->
+    <nav class="games">
+      <a class="game-btn" href="lolocastle/"><span>CASTLE</span></a>
+      <a class="game-btn" href="lolospace/"><span>ALIEN IN SPACE</span></a>
+      <a class="game-btn" href="lolohook/"><span>HOOK</span></a>
+    </nav>
+
+    <!-- shown by offline.js only where offline play is possible (https) -->
+    <button class="offline-btn" type="button" hidden><span>&#11015; PLAY OFFLINE</span></button>
+  </main>
+
+  <div class="offline-tip" role="dialog" aria-label="Add to Home Screen" hidden>
+    <div class="offline-tip-box">
+      <p>On iPhone/iPad: tap <b>Share</b> <span aria-hidden="true">&#x2B06;&#xFE0E;</span> then <b>Add to Home Screen</b>.</p>
+      <p class="small">Open it once from the home screen while online, then it plays anywhere.</p>
+      <button type="button">GOT IT</button>
+    </div>
+  </div>
+
+  <script>
+    // sprinkle twinkling stars
+    (function () {
+      var box = document.querySelector('.stars');
+      for (var i = 0; i < 70; i++) {
+        var s = document.createElement('i');
+        s.style.left = Math.random() * 100 + '%';
+        s.style.top = Math.random() * 100 + '%';
+        s.style.animationDelay = (Math.random() * 3).toFixed(2) + 's';
+        s.style.animationDuration = (1.5 + Math.random() * 2.5).toFixed(2) + 's';
+        var size = 2 + Math.random() * 4;
+        s.style.width = s.style.height = size + 'px';
+        box.appendChild(s);
+      }
+    })();
+  </script>
+  <script src="offline.js"></script>
+</body>
+</html>

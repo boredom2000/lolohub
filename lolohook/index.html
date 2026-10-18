@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#12001f">
+  <title>Lolo Hook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Orbitron:wght@500;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="corner">
+    <button id="hubBtn" title="Back to the Lolo Hub">&#x2302; HUB</button>
+    <button id="fsBtn" title="Full screen"><svg class="enter" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><svg class="exit" viewBox="0 0 24 24"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg></button>
+  </div>
+
+  <div id="hud">
+    <div id="topCenter">
+      <div id="levelNum">LEVEL 1 / 10</div>
+      <div id="levelName">First Swing</div>
+    </div>
+    <div id="falls"><small>FALLS</small><span id="fallsVal">0</span></div>
+    <div id="banner"></div>
+    <div id="hint"></div>
+  </div>
+
+  <div id="title" class="overlay">
+    <h1 class="logo" data-text="LOLO HOOK"><span class="l1">LOLO</span><span class="l2">HOOK</span></h1>
+    <p class="tag">Grab the glowing dots. Swing. Let go. Fly. Don't touch the lasers!</p>
+    <div class="row">
+      <button id="playBtn" class="big">PLAY</button>
+    </div>
+    <div id="levelPick"></div>
+    <p class="help desk"><b>Hold click</b> or <b>Space</b> to hook &middot; <b>Release</b> to let go &middot; <b>R</b> restart level</p>
+    <p class="help touch"><b>Touch &amp; hold</b> anywhere to hook &middot; <b>Lift</b> to let go</p>
+  </div>
+
+  <div id="won" class="overlay hidden">
+    <h2 class="winner">YOU DID IT!</h2>
+    <p id="wonStats"></p>
+    <div class="row">
+      <button id="againBtn" class="big">PLAY AGAIN</button>
+      <button id="wonHub" class="small">&#x2302; HUB</button>
+    </div>
+  </div>
+
+  <div id="quitModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="quitTitle">
+    <div class="panel">
+      <h2 id="quitTitle">Back to the Hub?</h2>
+      <p>Your unlocked levels are saved.</p>
+      <div class="row">
+        <button id="quitNo" class="small">Keep swinging</button>
+        <button id="quitYes" class="small danger">Leave</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/physics.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

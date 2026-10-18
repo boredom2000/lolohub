@@ -1,0 +1,36 @@
+{
+  "version": "daf855dad0b9",
+  "files": [
+    "hub.css",
+    "icons/apple-touch-icon.png",
+    "icons/icon-192.png",
+    "icons/icon-512.png",
+    "index.html",
+    "./",
+    "lolocastle/ads.txt",
+    "lolocastle/index.html",
+    "lolocastle/",
+    "lolocastle/js/game.js",
+    "lolocastle/lib/three.min.js",
+    "lolocastle/style.css",
+    "lolohook/index.html",
+    "lolohook/",
+    "lolohook/js/game.js",
+    "lolohook/js/levels.js",
+    "lolohook/js/physics.js",
+    "lolohook/style.css",
+    "lolospace/index.html",
+    "lolospace/",
+    "lolospace/js/game.js",
+    "lolospace/lib/three.min.js",
+    "lolospace/style.css",
+    "manifest.json",
+    "offline.js",
+    "sw.js"
+  ],
+  "fonts": [
+    "https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&display=swap",
+    "https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Orbitron:wght@500;800&display=swap",
+    "https://fonts.googleapis.com/css2?family=Bungee&family=Orbitron:wght@500;800&display=swap"
+  ]
+}
