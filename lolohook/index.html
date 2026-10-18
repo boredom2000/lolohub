@@ -17,6 +17,7 @@
 
   <div id="corner">
     <button id="hubBtn" title="Back to the Lolo Hub">&#x2302; HUB</button>
+    <button id="levelsBtn" title="Pick a level">&#9776; LEVELS</button>
     <button id="fsBtn" title="Full screen"><svg class="enter" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><svg class="exit" viewBox="0 0 24 24"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg></button>
   </div>
 
@@ -36,7 +37,7 @@
     <div class="row">
       <button id="playBtn" class="big">PLAY</button>
     </div>
-    <div id="levelPick"></div>
+    <div id="levelPick" class="level-grid"></div>
     <p class="help desk"><b>Hold click</b> or <b>Space</b> to hook &middot; <b>Release</b> to let go &middot; <b>R</b> restart level</p>
     <p class="help touch"><b>Touch &amp; hold</b> anywhere to hook &middot; <b>Lift</b> to let go</p>
   </div>
@@ -53,11 +54,19 @@
   <div id="quitModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="quitTitle">
     <div class="panel">
       <h2 id="quitTitle">Back to the Hub?</h2>
-      <p>Your unlocked levels are saved.</p>
+      <p>Your progress is saved.</p>
       <div class="row">
         <button id="quitNo" class="small">Keep swinging</button>
         <button id="quitYes" class="small danger">Leave</button>
       </div>
+    </div>
+  </div>
+
+  <div id="levelsModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="levelsTitle">
+    <div class="panel">
+      <h2 id="levelsTitle">Pick a Level</h2>
+      <div id="levelGrid" class="level-grid"></div>
+      <button id="levelsClose" class="small">Close</button>
     </div>
   </div>
 

@@ -34,7 +34,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   left: calc(12px + env(safe-area-inset-left));
   display: flex; gap: 8px;
 }
-#hubBtn, #fsBtn {
+#hubBtn, #levelsBtn, #fsBtn {
   font-family: 'Bungee', sans-serif; font-size: 15px; letter-spacing: 1px;
   padding: 9px 14px; border-radius: 12px;
   background: rgba(20, 0, 45, 0.7);
@@ -43,8 +43,8 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   box-shadow: 0 0 10px rgba(25, 247, 255, 0.6), inset 0 0 10px rgba(25, 247, 255, 0.35);
   transition: transform 0.12s;
 }
-#hubBtn:hover, #fsBtn:hover { transform: scale(1.06); }
-#hubBtn:active, #fsBtn:active { transform: scale(0.95); }
+#hubBtn:hover, #levelsBtn:hover, #fsBtn:hover { transform: scale(1.06); }
+#hubBtn:active, #levelsBtn:active, #fsBtn:active { transform: scale(0.95); }
 #fsBtn { padding: 0; width: 42px; display: flex; align-items: center; justify-content: center; }
 #fsBtn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px var(--cyan)); }
 #fsBtn .exit, #fsBtn.on .enter { display: none; }
@@ -98,7 +98,7 @@ body.playing #hud { display: block; }
 @keyframes hintPulse { 50% { transform: scale(1.06); } }
 
 /* ---------- overlays ---------- */
-#quitModal { z-index: 30; }
+#quitModal, #levelsModal { z-index: 30; }
 .overlay {
   position: fixed; inset: 0; z-index: 20;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
@@ -136,17 +136,17 @@ body.playing #hud { display: block; }
 body.touch .help.desk { display: none; }
 body:not(.touch) .help.touch { display: none; }
 
-#levelPick { display: grid; grid-template-columns: repeat(5, 52px); gap: 10px; }
-#levelPick button {
+.level-grid { display: grid; grid-template-columns: repeat(5, 52px); gap: 10px; }
+.level-grid button {
   font-family: 'Bungee', sans-serif; font-size: 20px; height: 52px; border-radius: 12px;
   border: 2px solid var(--cyan); background: rgba(20, 0, 45, 0.75); color: #fff;
   text-shadow: 0 0 8px var(--cyan); box-shadow: 0 0 10px rgba(25, 247, 255, 0.5);
   transition: transform 0.12s;
 }
-#levelPick button:hover:not(:disabled) { transform: scale(1.1) rotate(-3deg); background: rgba(255, 47, 214, 0.4); }
-#levelPick button.done { border-color: var(--lime); box-shadow: 0 0 10px rgba(125, 255, 47, 0.6); }
-#levelPick button.cur { border-color: var(--yellow); box-shadow: 0 0 14px var(--yellow), inset 0 0 10px rgba(255, 232, 26, 0.4); }
-#levelPick button:disabled { opacity: 0.3; cursor: default; box-shadow: none; border-color: #6a4c8a; }
+.level-grid button:hover:not(:disabled) { transform: scale(1.1) rotate(-3deg); background: rgba(255, 47, 214, 0.4); }
+.level-grid button.done { border-color: var(--lime); box-shadow: 0 0 10px rgba(125, 255, 47, 0.6); }
+.level-grid button.cur { border-color: var(--yellow); box-shadow: 0 0 14px var(--yellow), inset 0 0 10px rgba(255, 232, 26, 0.4); }
+.level-grid button:disabled { opacity: 0.3; cursor: default; box-shadow: none; border-color: #6a4c8a; }
 
 button.big {
   font-family: 'Bungee', sans-serif; font-size: clamp(24px, 6vw, 38px); letter-spacing: 3px;
@@ -188,13 +188,13 @@ button.small.danger { border-color: var(--pink); color: var(--pink); text-shadow
   #falls { font-size: 20px; }
   #levelNum { font-size: 15px; }
   #levelName { font-size: 9px; letter-spacing: 2px; }
-  #hubBtn { font-size: 12px; padding: 7px 10px; }
+  #hubBtn, #levelsBtn { font-size: 12px; padding: 7px 10px; }
   #fsBtn { width: 34px; }
   #fsBtn svg { width: 16px; height: 16px; }
   #corner { gap: 6px; }
   #topCenter { top: calc(60px + env(safe-area-inset-top)); }
-  #levelPick { grid-template-columns: repeat(5, 44px); gap: 8px; }
-  #levelPick button { height: 44px; font-size: 17px; }
+  .level-grid { grid-template-columns: repeat(5, 44px); gap: 8px; }
+  .level-grid button { height: 44px; font-size: 17px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

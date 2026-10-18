@@ -200,6 +200,8 @@
       if (!e.repeat) pressDown();
     } else if (e.code === 'KeyR' && game.mode === 'play' && !game.paused) {
       loadLevel(game.li, true);
+    } else if (e.code === 'Escape' && !$('levelsModal').classList.contains('hidden')) {
+      setLevelsOpen(false);
     } else if (e.code === 'Escape' && game.mode === 'play') {
       setQuitOpen($('quitModal').classList.contains('hidden'));
     }
@@ -218,22 +220,36 @@
   $('quitNo').addEventListener('click', () => setQuitOpen(false));
   $('quitYes').addEventListener('click', goHub);
   $('quitModal').addEventListener('click', (ev) => { if (ev.target.id === 'quitModal') setQuitOpen(false); });
+
+  // level picker (top-left LEVELS button): every level can be played, cleared or not
+  function setLevelsOpen(open) {
+    if (open) fillLevels($('levelGrid'));
+    $('levelsModal').classList.toggle('hidden', !open);
+    game.paused = open;
+    if (open) { activePointer = null; pressUp(); }
+  }
+  $('levelsBtn').addEventListener('click', () => setLevelsOpen($('levelsModal').classList.contains('hidden')));
+  $('levelsClose').addEventListener('click', () => setLevelsOpen(false));
+  $('levelsModal').addEventListener('click', (ev) => { if (ev.target.id === 'levelsModal') setLevelsOpen(false); });
   $('playBtn').addEventListener('click', () => startAt(current));
   $('againBtn').addEventListener('click', () => startAt(0));
   $('wonHub').addEventListener('click', goHub);
 
   function buildTitle() {
     $('playBtn').textContent = current > 0 ? `PLAY LEVEL ${current + 1}` : 'PLAY';
-    const box = $('levelPick');
+    fillLevels($('levelPick'));
+  }
+
+  // one button per level; cleared levels glow green, the current one yellow
+  function fillLevels(box) {
     box.innerHTML = '';
     LEVELS.forEach((_, i) => {
       const b = document.createElement('button');
       b.textContent = i + 1;
-      b.title = i <= unlocked ? NAMES[i] : 'Locked';
-      b.disabled = i > unlocked;
+      b.title = NAMES[i];
       if (i < unlocked) b.classList.add('done');
       if (i === current) b.classList.add('cur');
-      b.addEventListener('click', () => startAt(i));
+      b.addEventListener('click', () => { setLevelsOpen(false); startAt(i); });
       box.appendChild(b);
     });
   }
