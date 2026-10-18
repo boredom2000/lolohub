@@ -1,5 +1,5 @@
 {
-  "version": "b8116f8759ac",
+  "version": "f07180455e13",
   "files": [
     "hub.css",
     "icons/apple-touch-icon.png",
@@ -19,6 +19,27 @@
     "lolohook/js/levels.js",
     "lolohook/js/physics.js",
     "lolohook/style.css",
+    "lolokart/index.html",
+    "lolokart/",
+    "lolokart/js/audio.js",
+    "lolokart/js/controllers.js",
+    "lolokart/js/core.js",
+    "lolokart/js/drivers.js",
+    "lolokart/js/input.js",
+    "lolokart/js/kartmodel.js",
+    "lolokart/js/main.js",
+    "lolokart/js/net.js",
+    "lolokart/js/physics.js",
+    "lolokart/js/race.js",
+    "lolokart/js/scenery.js",
+    "lolokart/js/track.js",
+    "lolokart/js/ui.js",
+    "lolokart/lib/three.min.js",
+    "lolokart/style.css",
+    "lolokart/tracks/01-sunny-circuit/track.js",
+    "lolokart/tracks/02-candy-canyon/track.js",
+    "lolokart/tracks/03-cloud-coaster/track.js",
+    "lolokart/tracks/04-volcano-vault/track.js",
     "lolospace/index.html",
     "lolospace/",
     "lolospace/js/game.js",
@@ -31,6 +52,7 @@
   "fonts": [
     "https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&display=swap",
     "https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Orbitron:wght@500;800&display=swap",
+    "https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Shade&family=Orbitron:wght@500;800&display=swap",
     "https://fonts.googleapis.com/css2?family=Bungee&family=Orbitron:wght@500;800&display=swap"
   ]
 }
