@@ -328,8 +328,11 @@
     } else if (s.won) {
       game.winT -= dt;
       if (game.winT <= 0) {
-        if (game.li + 1 < LEVELS.length) loadLevel(game.li + 1);
-        else finishAll();
+        game.winT = Infinity; // wait here while the ad break (if any) runs
+        const next = () => { if (game.li + 1 < LEVELS.length) loadLevel(game.li + 1); else finishAll(); };
+        // ad break every 3 levels (the hub's ../ads.js; skipped when ads are off or missing)
+        if (window.loloAd && (game.li + 1) % 3 === 0) loloAd('level-' + (game.li + 1), next);
+        else next();
       }
     } else {
       game.acc += dt;

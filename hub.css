@@ -17,9 +17,6 @@ body {
   color: #fff;
   font-family: 'Bungee', system-ui, sans-serif;
   overflow-x: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   text-align: center;
 }
 
@@ -74,8 +71,9 @@ body {
 /* ---------- content ---------- */
 
 main {
-  padding: 16px;
-  max-width: 100%;
+  margin: 0 auto;
+  padding: clamp(24px, 6vh, 56px) 16px 16px;
+  max-width: 1100px;
 }
 
 .title {
@@ -116,13 +114,190 @@ main {
   animation: flicker 3.5s linear infinite;
 }
 
+.intro {
+  max-width: 40em;
+  margin: 1.2em auto 0;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.05rem, 3.6vw, 1.3rem);
+  line-height: 1.5;
+  text-shadow: 0 2px 6px #000;
+}
+
+/* ---------- game cards ---------- */
+
 .games {
-  margin-top: clamp(2rem, 7vh, 4rem);
+  margin-top: clamp(2rem, 6vh, 3.5rem);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 24px;
+}
+
+.game-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 18px 22px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(75, 0, 128, 0.92), rgba(29, 0, 51, 0.95));
+  border: 3px solid var(--c1, var(--pink));
+  box-shadow: 0 0 22px color-mix(in srgb, var(--c1, var(--pink)) 55%, transparent);
+  transition: transform 0.15s ease;
+}
+.game-card:hover { transform: translateY(-6px) rotate(-1deg); }
+
+.card-art {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  font-size: clamp(4rem, 14vw, 6rem);
+  text-decoration: none;
+  background:
+    radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--c2, var(--yellow)) 55%, transparent), transparent 65%),
+    repeating-conic-gradient(from 0deg at 50% 60%, color-mix(in srgb, var(--c1, var(--pink)) 45%, #12001f) 0deg 12deg, #12001f 12deg 24deg);
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.4));
+}
+
+.game-card h2 {
+  margin-top: 0.6em;
+  font-size: clamp(1.4rem, 5vw, 1.9rem);
+  letter-spacing: 0.08em;
+}
+.game-card h2 a {
+  color: #fff;
+  text-decoration: none;
+  text-shadow: 0 0 6px var(--c1, var(--cyan)), 0 0 18px var(--c1, var(--cyan));
+}
+
+.game-card p {
+  margin-top: 0.5em;
+  flex: 1;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  color: #f1e6ff;
+}
+
+.card-btns {
+  margin-top: 1em;
   display: flex;
   flex-wrap: wrap;
-  gap: 24px;
+  gap: 12px 16px;
+  align-items: center;
   justify-content: center;
 }
+.card-btns .game-btn span { font-size: clamp(1.3rem, 5vw, 1.7rem); padding: 0.45em 1.4em; }
+
+.info-btn {
+  color: var(--yellow);
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  text-underline-offset: 4px;
+}
+.info-btn:hover { color: #fff; }
+
+/* phones: compact cards (art on the left) so several games fit on the first screen */
+@media (max-width: 600px) {
+  .games { gap: 16px; }
+  .game-card {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    grid-template-areas: 'art title' 'art text' 'btns btns';
+    column-gap: 14px;
+    align-items: start;
+    padding: 14px;
+    text-align: left;
+  }
+  .card-art { grid-area: art; width: 92px; aspect-ratio: 1; font-size: 3.2rem; border-radius: 14px; }
+  .game-card h2 { grid-area: title; margin-top: 0; font-size: 1.25rem; }
+  .game-card p { grid-area: text; margin-top: 0.3em; font-size: 0.95rem; line-height: 1.35; }
+  .card-btns { grid-area: btns; margin-top: 12px; justify-content: space-between; }
+  .card-btns .game-btn span { font-size: 1.2rem; padding: 0.35em 1.3em; }
+}
+
+/* ---------- text panels (hub, about, privacy, game info pages) ---------- */
+
+.panel {
+  margin: clamp(2rem, 6vh, 3rem) auto 0;
+  max-width: 820px;
+  padding: clamp(18px, 4vw, 32px);
+  border: 3px solid var(--cyan);
+  border-radius: 24px;
+  background: rgba(29, 0, 51, 0.9);
+  box-shadow: 0 0 26px rgba(25, 247, 255, 0.35);
+}
+
+.text {
+  text-align: left;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 1.08rem;
+  line-height: 1.6;
+  color: #f1e6ff;
+}
+.text h2,
+.text h3 {
+  font-family: 'Bungee', system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+}
+.text h2 { margin: 1.4em 0 0.5em; font-size: clamp(1.3rem, 4.5vw, 1.7rem); color: var(--yellow); text-shadow: 0 0 10px var(--orange); }
+.text h3 { margin: 1.1em 0 0.3em; font-size: 1.1rem; color: var(--cyan); }
+.text > :first-child { margin-top: 0; }
+.text p, .text ul { margin-top: 0.7em; }
+.text ul { padding-left: 1.3em; }
+.text li + li { margin-top: 0.35em; }
+.text b { color: #fff; }
+.text a { color: var(--yellow); }
+.text kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 0.4em;
+  border: 2px solid var(--cyan);
+  border-radius: 6px;
+  font: 0.9em 'Bungee', system-ui, sans-serif;
+  text-align: center;
+  color: var(--cyan);
+}
+
+.perks { list-style: none; padding-left: 0 !important; }
+.perks li { padding-left: 1.6em; position: relative; }
+.perks li::before { content: '\2605'; position: absolute; left: 0; color: var(--yellow); }
+
+/* page header on the smaller pages: little hub logo + big rainbow title */
+.page-head { padding-top: 4px; }
+.home-link {
+  display: inline-block;
+  font-family: 'Bungee Shade', 'Bungee', sans-serif;
+  font-size: clamp(1.4rem, 5vw, 2rem);
+  color: var(--pink);
+  text-decoration: none;
+  text-shadow: 0 0 12px rgba(255, 47, 214, 0.8);
+}
+.home-link:hover { color: var(--yellow); }
+.page-title { margin-top: 0.2em; font-size: clamp(2.4rem, 11vw, 5.5rem); }
+.page-head .game-btn { margin-top: clamp(1.2rem, 4vh, 2rem); }
+
+/* ad units, filled by ads.js (stays empty and hidden while ads are off) */
+.ad-slot { display: none; margin: 2rem auto 0; max-width: 820px; min-height: 100px; }
+.ad-slot.on { display: block; }
+
+.site-footer {
+  margin-top: clamp(2.5rem, 8vh, 4rem);
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+  background: rgba(18, 0, 31, 0.85);
+  border-top: 3px solid var(--pink);
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+}
+.site-footer nav { display: flex; flex-wrap: wrap; gap: 8px 28px; justify-content: center; }
+.site-footer a { color: var(--cyan); text-decoration: none; letter-spacing: 0.05em; }
+.site-footer a:hover { color: var(--yellow); text-decoration: underline; }
+.site-footer p { margin-top: 10px; font-size: 0.85rem; opacity: 0.6; }
 
 .game-btn {
   position: relative;

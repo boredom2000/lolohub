@@ -161,8 +161,10 @@
   $('pResume').addEventListener('click', () => setPaused(false));
   $('pRestart').addEventListener('click', () => startRace());
   $('pQuit').addEventListener('click', quitToTracks);
-  $('resTracks').addEventListener('click', quitToTracks);
-  $('resAgain').addEventListener('click', () => startRace());
+  // ad break after a race (the hub's ../ads.js; skipped when ads are off or missing)
+  const afterAd = (fn) => (window.loloAd ? loloAd('race-over', fn) : fn());
+  $('resTracks').addEventListener('click', () => afterAd(quitToTracks));
+  $('resAgain').addEventListener('click', () => afterAd(startRace));
 
   // hub + full screen + mute
   function goHub() { location.href = '../'; }
@@ -208,7 +210,7 @@
       else if (e.code === 'Escape' || e.code === 'Backspace') { Sfx.click(); setScreen('driver'); }
     } else if (S.screen === 'race') {
       if (S.resultsShown) {
-        if (e.code === 'Enter') quitToTracks();
+        if (e.code === 'Enter') afterAd(quitToTracks);
       } else if (e.code === 'Escape' || e.code === 'KeyP') {
         if (!$('quitModal').classList.contains('hidden')) { $('quitModal').classList.add('hidden'); S.paused = false; }
         else setPaused(!S.paused);

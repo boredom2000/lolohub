@@ -1401,7 +1401,8 @@ $('quitNo').addEventListener('click', () => setQuitOpen(false));
 $('quitYes').addEventListener('click', goHub);
 $('quitModal').addEventListener('click', (ev) => { if (ev.target.id === 'quitModal') setQuitOpen(false); });
 $('playBtn').addEventListener('click', startGame);
-$('againBtn').addEventListener('click', startGame);
+// ad break before a new run (the hub's ../ads.js; skipped when ads are off or missing)
+$('againBtn').addEventListener('click', () => (window.loloAd ? loloAd('game-over', startGame) : startGame()));
 $('overHub').addEventListener('click', goHub);
 
 // Full screen toggle. Hidden where the browser can't do it (e.g. iPhone Safari).

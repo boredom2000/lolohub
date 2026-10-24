@@ -500,7 +500,8 @@ function fit() {
     const right = _v.setFromMatrixColumn(camera.matrixWorld, 0).clone(), up = _w.setFromMatrixColumn(camera.matrixWorld, 1).clone();
     tgt.addScaledVector(right, cx * halfW).addScaledVector(up, (cy - (yMax + yMin) / 2) * halfH);
   }
-  camTarget = tgt; camDist = dist; place(camTarget, camDist);
+  // zoom in past the "everything fits" distance: the cake base and plate may crop at the edges
+  camTarget = tgt; camDist = dist * (tall ? 0.93 : 0.82); place(camTarget, camDist);
 }
 function resize() {
   W = window.innerWidth; H = window.innerHeight;

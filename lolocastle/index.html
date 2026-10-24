@@ -8,28 +8,8 @@
   <meta name="theme-color" content="#2a2418">
   <title>Lolo Castle</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Google AdSense (H5 Games Ads / Ad Placement API).
-       Set ADSENSE_CLIENT to your publisher ID (also in ads.txt); while it is the placeholder, ads are skipped.
-       Set ADSENSE_TEST to false once the site is approved to serve real ads. -->
-  <script>
-    (function () {
-      var ADSENSE_CLIENT = 'ca-pub-XXXXXXXXXXXXXXXX';
-      var ADSENSE_TEST = true;
-      window.adsReady = false; // game.js skips the ad break unless this is true
-      if (!/^ca-pub-\d{16}$/.test(ADSENSE_CLIENT)) return;
-      window.adsbygoogle = window.adsbygoogle || [];
-      window.adBreak = window.adConfig = function (o) { adsbygoogle.push(o); };
-      var s = document.createElement('script');
-      s.async = true;
-      s.crossOrigin = 'anonymous';
-      s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + ADSENSE_CLIENT;
-      if (ADSENSE_TEST) s.setAttribute('data-adbreak-test', 'on');
-      s.onload = function () { window.adsReady = true; };
-      s.onerror = function () { window.adsReady = false; }; // blocked or offline
-      document.head.appendChild(s);
-      adConfig({ preloadAdBreaks: 'on', sound: 'off' });
-    })();
-  </script>
+  <!-- Google AdSense (H5 Games Ads): the hub's shared loader, configured in ../ads.js -->
+  <script src="../ads.js"></script>
 </head>
 <body>
   <div id="game"></div>

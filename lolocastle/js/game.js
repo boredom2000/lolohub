@@ -2062,23 +2062,13 @@ function resetGame() {
   toast('Defend the castle!');
 }
 
-// Interstitial ad between games (AdSense H5 Games Ads, see index.html). Ads are skipped when
-// AdSense isn't configured or didn't load; adBreakDone fires whether or not an ad was shown,
-// and the timeout covers the case where it never answers.
+// Interstitial ad between games (the hub's ../ads.js). loloAd calls back right away when ads
+// are off, blocked or offline, so the game also works without that file.
 function showAdThenReset() {
-  if (!window.adsReady || typeof window.adBreak !== 'function') return resetGame();
+  if (typeof window.loloAd !== 'function') return resetGame();
   S.adPending = true;
   $('goCountdown').textContent = '';
-  let done = false;
-  const finish = () => { if (done) return; done = true; clearTimeout(fallback); resetGame(); };
-  const fallback = setTimeout(() => { if (!S.adShowing) finish(); }, 3000);
-  try { window.adBreak({
-    type: 'next',
-    name: 'game-over',
-    beforeAd: () => { S.adShowing = true; },
-    afterAd: () => { S.adShowing = false; },
-    adBreakDone: finish,
-  }); } catch (e) { finish(); }
+  window.loloAd('game-over', resetGame);
 }
 
 function update(dt) {

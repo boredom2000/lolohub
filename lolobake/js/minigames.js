@@ -235,8 +235,8 @@ G.POUR = {
   cmd: 'POUR!', hint: 'It fills by itself • TAP to stop in the green!', dur: 5,
   create(c) {
     const ing = INGS[c.p.ing] || INGS.FLOUR;
-    const half = lerp(0.075, 0.045, c.d), center = rand(0.5 + half, 0.84 - half);
-    const rate0 = lerp(0.2, 0.3, c.d) * rand(0.9, 1.1), accel = lerp(0.07, 0.12, c.d);
+    const half = lerp(0.075, 0.045, c.d) * c.k, center = rand(0.5 + half, 0.84 - half);
+    const rate0 = lerp(0.2, 0.3, c.d) * rand(0.9, 1.1) * c.slow, accel = lerp(0.07, 0.12, c.d) * c.slow;
     const J = { x: 400, top: 225, bot: 515, w: 190 }, BP = { x: 180, y: 205 };
     let level = 0, flight = 0, tilt = 0, flow = 0, pouring = true, stopped = false, over = false, done = false, t = 0, pt = 0, slosh = 0;
     const P = Parts();
@@ -328,7 +328,7 @@ function drawEgg(g, x, y, rot, mood, s = 1) {
 G.CRACK = {
   cmd: 'CRACK!', hint: 'Drag the egg into the bowl edge • not too slow, not too fast!', dur: 6.5,
   create(c) {
-    const lo = lerp(520, 640, c.d), hi = lerp(1200, 1000, c.d), VMAX = 1700;
+    const mid0 = lerp(860, 820, c.d), half0 = lerp(340, 180, c.d) * c.k, lo = mid0 - half0, hi = mid0 + half0, VMAX = 1700;
     const B = { x: 445, rim: 300, rx: 140 }, RIMX = B.x - B.rx - 30, home = { x: 105, y: 300 };
     let egg = { x: home.x, y: home.y, state: 'ready', rot: 0, t: 0 }, grab = null, samples = [], left = 2, scores = [];
     let done = false, t = 0, wait = 0, msg = null, spd = 0, lastHit = null;
@@ -488,7 +488,7 @@ G.CATCH = {
       const bad = badIdx.has(i);
       items.push({ at: 0.1 + i * (4.1 / total) + rand(-0.06, 0.06), bad, kind: bad ? pick(bads) : pick(goods), x: rand(70, 530), y: -50, vy: rand(0, 80), rot: rand(-1, 1), vr: rand(-3, 3), state: 'wait', t: 0 });
     }
-    const bk = { x: 300, tx: 300, w: lerp(80, 64, c.d) }, grav = lerp(560, 800, c.d), keys = { l: false, r: false };
+    const bk = { x: 300, tx: 300, w: lerp(80, 64, c.d) * Math.min(c.k, 1.3) }, grav = lerp(560, 800, c.d) * c.slow, keys = { l: false, r: false };
     let t = 0, caught = 0, badHit = 0, done = false, heap = [], wince = 0;
     const P = Parts();
     return {
@@ -551,7 +551,7 @@ G.CATCH = {
 G.SHAKE = {
   cmd: 'SHAKE!', hint: 'Tap, tap, TAP! • or wiggle like crazy', dur: 4,
   create(c) {
-    const target = Math.round(lerp(20, 30, c.d)), A = '#fff3dc', B = c.p.ing === 'COCOA' ? '#7a4528' : '#ffb0d2';
+    const target = Math.round(lerp(20, 30, c.d) / c.k), A = '#fff3dc', B = c.p.ing === 'COCOA' ? '#7a4528' : '#ffb0d2';
     let count = 0, energy = 0, t = 0, done = false, wig = 0, last = null;
     const P = Parts();
     function hit() {
@@ -604,7 +604,7 @@ G.SHAKE = {
 G.WHISK = {
   cmd: 'WHISK!', hint: 'Drag round and round the bowl!', dur: 5,
   create(c) {
-    const C = { x: 300, y: 320 }, target = lerp(4, 6, c.d);
+    const C = { x: 300, y: 320 }, target = Math.max(2, Math.round(lerp(4, 6, c.d) / c.k));
     let ang = 0, lastA = null, held = false, ptr = { x: 440, y: 320 }, t = 0, done = false, ticks = 0, spin = 0;
     const lumps = []; for (let i = 0; i < 14; i++) lumps.push({ a: rand(0, TAU), r: rand(30, 150), s: rand(8, 15), c: pick(['#fffaf0', '#e9c58f', '#ffd36b']) });
     const P = Parts();
@@ -673,7 +673,7 @@ function mitt(g, x, y, flip, col = '#ff8fc4') {
 G.KNEAD = {
   cmd: 'KNEAD!', hint: 'Tap LEFT, RIGHT, LEFT, RIGHT… (or ← →)', dur: 4.5,
   create(c) {
-    const target = Math.round(lerp(14, 20, c.d));
+    const target = Math.round(lerp(14, 20, c.d) / c.k);
     let count = 0, last = null, sq = 0, sqv = 0, t = 0, done = false, pl = 0, pr = 0, wrong = 0;
     const P = Parts();
     function hit(side) {
@@ -724,7 +724,7 @@ G.KNEAD = {
 G.ROLL = {
   cmd: 'ROLL!', hint: 'Drag the pin back & forth • stop in the green', dur: 5.5,
   create(c) {
-    const half = lerp(0.07, 0.045, c.d), center = rand(0.3 + half, 0.42), k = lerp(0.08, 0.095, c.d) / 360;
+    const half = lerp(0.07, 0.045, c.d) * c.k, center = rand(0.3 + half, Math.max(0.3 + half, 0.42)), k = lerp(0.08, 0.095, c.d) / 360;
     let th = 1, pin = 300, held = false, lastX = null, rolled = false, idle = 0, tore = false, done = false, t = 0, rot = 0;
     const keys = { l: false, r: false }, P = Parts();
     function roll(nx) {
@@ -795,7 +795,7 @@ G.SHAPE = {
   cmd: 'SHAPE!', hint: 'Trace the dotted shape to form the dough', dur: 6,
   create(c) {
     const kind = SHAPES[c.p.shape] ? c.p.shape : 'loaf', closed = kind !== 'pretzel';
-    const tr = Tracer(resample(SHAPES[kind](), 14), { R: lerp(28, 22, c.d), stray: lerp(46, 38, c.d), closed });
+    const tr = Tracer(resample(SHAPES[kind](), 14), { R: lerp(28, 22, c.d) * c.k, stray: lerp(46, 38, c.d) * c.k, closed });
     let done = false, t = 0;
     const P = Parts();
     return {
@@ -842,7 +842,7 @@ function drawLoaf(g, item, x0, x1, y0, y1) {
 G.SLICE = {
   cmd: 'SLICE!', hint: 'Swipe DOWN along each dotted guide', dur: 5,
   create(c) {
-    const item = c.p.item || 'bread', n = 3, tol = lerp(40, 28, c.d);
+    const item = c.p.item || 'bread', n = 3, tol = lerp(40, 28, c.d) * c.k;
     const S = { x0: 90, x1: 510, y0: 200, y1: 450 }, mid = (S.y0 + S.y1) / 2;
     const lines = []; for (let i = 0; i < n; i++) lines.push({ x: S.x0 + (S.x1 - S.x0) * (i + 1) / (n + 1), tl: c.d > 0.4 ? rand(-0.15, 0.15) : 0, cut: false, score: 0, gap: 0 });
     const lx = (L, y) => L.x + (y - mid) * Math.tan(L.tl);
@@ -910,7 +910,7 @@ G.MELT = {
   cmd: 'MELT!', hint: 'Hold for heat • keep the needle in the green', dur: 5.5,
   create(c) {
     const col = c.p.what === 'jam' ? '#e8344e' : '#7a4528';
-    const zw = lerp(0.22, 0.15, c.d), z0 = rand(0.48, 0.62), need = lerp(2.3, 2.7, c.d);
+    const zw = lerp(0.22, 0.15, c.d) * c.k, z0 = rand(0.48, 0.62), need = lerp(2.3, 2.7, c.d) / Math.sqrt(c.k);
     let temp = 0.15, vel = 0, held = false, prog = 0, over = 0, done = false, t = 0, flame = 0;
     const P = Parts();
     const zone = () => temp >= z0 && temp <= z0 + zw;
@@ -967,13 +967,13 @@ G.MELT = {
 G.FLIP = {
   cmd: 'FLIP!', hint: 'Tap to toss • move the pan to catch ×3', dur: 6.5,
   create(c) {
-    const need = 3, pw = lerp(82, 64, c.d), grav = 1500, PY = 470;
+    const need = 3, pw = lerp(82, 64, c.d) * Math.min(c.k, 1.3), grav = 1500, PY = 470;
     const pan = { x: 300, tx: 300 }, keys = { l: false, r: false };
     let pk = { state: 'pan', x: 300, y: PY - 14, vx: 0, vy: 0, rot: 0, vr: 0, side: 0 }, caught = 0, drops = 0, wait = 0, done = false, t = 0, splats = [];
     const P = Parts();
     function toss() {
       if (pk.state !== 'pan' || done) return;
-      pk.state = 'air'; pk.vy = -lerp(950, 1080, c.d); pk.vx = rand(-1, 1) * lerp(110, 230, c.d); pk.vr = (Math.random() < 0.5 ? -1 : 1) * rand(9, 12);
+      pk.state = 'air'; pk.vy = -lerp(950, 1080, c.d); pk.vx = rand(-1, 1) * lerp(110, 230, c.d) * c.slow; pk.vr = (Math.random() < 0.5 ? -1 : 1) * rand(9, 12);
       c.sfx.whoosh();
     }
     return {
@@ -1062,7 +1062,7 @@ function drawBake(g, item, x, y, s, col, mood) {
 G.OVEN = {
   cmd: 'PULL!', hint: 'Tap the moment it turns GOLDEN', dur: 4.6,
   create(c) {
-    const item = c.p.item || 'cake', T0 = lerp(3.3, 2.4, c.d), pt = rand(0.55, 0.78), tol = lerp(0.11, 0.07, c.d);
+    const item = c.p.item || 'cake', T0 = lerp(3.3, 2.4, c.d) / c.slow, pt = rand(0.55, 0.78), tol = lerp(0.11, 0.07, c.d) * c.k;
     let b = 0, pulled = null, t = 0, done = false, door = 0;
     const P = Parts();
     const score = () => { const dd = Math.abs((pulled === null ? b : pulled) - pt); return dd <= tol ? 1 - dd / tol * 0.35 : Math.max(0, 0.6 - (dd - tol) * 6); };
@@ -1131,7 +1131,7 @@ G.FROST = {
     const C = { x: 300, y: 330 }, k = pick([3, 4, 5]), amp = lerp(18, 30, c.d), R0 = c.p.cup ? 95 : 130, raw = [];
     if (c.p.cup) { for (let i = 0; i <= 90; i++) { const a = i / 90 * TAU * 2.2 - Math.PI / 2, r = R0 - i * 0.85; raw.push({ x: C.x + Math.cos(a) * r, y: C.y + Math.sin(a) * r }); } }
     else { for (let i = 0; i <= 80; i++) { const a = i / 80 * TAU - Math.PI / 2, r = R0 + amp * Math.sin(k * a); raw.push({ x: C.x + Math.cos(a) * r, y: C.y + Math.sin(a) * r }); } }
-    const tr = Tracer(resample(raw, 14), { R: lerp(26, 21, c.d), stray: lerp(40, 32, c.d), ordered: true, closed: false });
+    const tr = Tracer(resample(raw, 14), { R: lerp(26, 21, c.d) * c.k, stray: lerp(40, 32, c.d) * c.k, ordered: true, closed: false });
     let done = false, t = 0;
     const P = Parts();
     return {
@@ -1173,7 +1173,7 @@ function drawCherry(g, x, y, rot, mood) {
 G.CHERRY = {
   cmd: 'DROP!', hint: 'Tap to drop the cherry right on top', dur: 4.2,
   create(c) {
-    const A = lerp(150, 195, c.d), w = lerp(2.0, 3.0, c.d), ph = rand(0, TAU), top = 380;
+    const A = lerp(150, 195, c.d), w = lerp(2.0, 3.0, c.d) * c.slow, ph = rand(0, TAU), top = 380;
     let t = 0, ch = { state: 'hold', x: 300, y: 112, vy: 0, vx: 0, rot: 0, off: 0 }, cake = 300 + A * Math.sin(ph), done = false, sc = null;
     const P = Parts();
     return {
@@ -1186,7 +1186,7 @@ G.CHERRY = {
           if (ch.y >= top - 18) {
             const dx = ch.x - cake;
             if (Math.abs(dx) < 105) {
-              ch.state = 'stuck'; ch.off = dx; ch.y = top - 18; sc = clamp(1.25 - Math.abs(dx) / lerp(80, 68, c.d), 0, 1); done = true;
+              ch.state = 'stuck'; ch.off = dx; ch.y = top - 18; sc = clamp(1.25 - Math.abs(dx) / (lerp(80, 68, c.d) * c.k), 0, 1); done = true;
               c.sfx.pop(); if (sc >= 0.88) sparkle(P, ch.x, top - 30, 16);
             } else { ch.state = 'miss'; ch.vx = dx > 0 ? 160 : -160; ch.vy = -200; sc = 0; done = true; c.sfx.bad(); }
           }
@@ -1238,7 +1238,7 @@ G.TOPPING = {
   cmd: 'DECORATE!', hint: 'Drag toppings from the tray onto the glowing spots', dur: 6.5,
   create(c) {
     const kind = TOPS[c.p.kind] ? c.p.kind : 'sprinkles', K = TOPS[kind], C = { x: 300, y: 260 }, R = 170;
-    const n = Math.round(lerp(5, 6, c.d)), snap = lerp(42, 34, c.d), spots = [];
+    const n = Math.round(lerp(5, 6, c.d)), snap = lerp(42, 34, c.d) * c.k, spots = [];
     for (let i = 0; i < n; i++) {
       let x, y, tries = 0;
       do { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * (R - 40); x = C.x + Math.cos(a) * r; y = C.y + Math.sin(a) * r * 0.9; tries++; }
@@ -1299,6 +1299,13 @@ G.TOPPING = {
 const $ = (id) => document.getElementById(id);
 let canvas, g, el = {}, W = 1, H = 1, dpr = 1, scale = 1, ox = 0, oy = 0, view = { x0: 0, y0: 0, x1: 600, y1: 600 };
 let cur = null, last = 0, paused = false, ptr = { x: 300, y: 300 }, covering = false;
+// difficulty modes: k = leniency (hit areas, target zones, fewer reps), slow = speed of moving things,
+// dur = length of the fuse timer. Medium is the baseline every game is tuned for.
+const MODES = {
+  easy: { k: 1.45, slow: 0.75, dur: 1.3 },
+  medium: { k: 1, slow: 1, dur: 1 },
+  hard: { k: 0.8, slow: 1.15, dur: 0.88 },
+};
 const GRADES = [['PERFECT', 0.88], ['GOOD', 0.65], ['OK', 0.35], ['BAD', -1]];
 const live = () => !!cur && cur.phase === 'play' && !paused;
 function gradeOf(s) { for (const [n, th] of GRADES) if (s >= th) return n; return 'BAD'; }
@@ -1358,8 +1365,9 @@ function iris(open, origin, done) {
 function run(id, opts = {}) {
   return new Promise((resolve) => {
     const def = G[id];
-    const inst = def.create({ d: opts.d || 0, p: opts.p || {}, sfx: Sfx });
-    cur = { def, inst, phase: 'intro', t: 0, T: 0, resolve, opts, score: 0, grade: 'BAD', closing: false };
+    const M = MODES[opts.mode] || MODES.medium;
+    const inst = def.create({ d: opts.d || 0, p: opts.p || {}, sfx: Sfx, k: M.k, slow: M.slow });
+    cur = { def, inst, dur: def.dur * M.dur, phase: 'intro', t: 0, T: 0, resolve, opts, score: 0, grade: 'BAD', closing: false };
     el.root.classList.remove('hidden');
     el.cmd.textContent = def.cmd; el.cmd.className = 'pop';
     el.hint.textContent = def.hint; el.hint.className = 'show';
@@ -1402,7 +1410,7 @@ function frame(now) {
   const c = cur;
   c.T += dt;
   if (c.phase === 'intro') { c.t += dt; if (c.t >= 1.0) { c.phase = 'play'; c.t = 0; el.cmd.className = 'up'; } }
-  else if (c.phase === 'play') { c.t += dt; c.inst.update(dt, true); if (c.inst.done || c.t >= c.def.dur) finish(); }
+  else if (c.phase === 'play') { c.t += dt; c.inst.update(dt, true); if (c.inst.done || c.t >= c.dur) finish(); }
   else if (c.phase === 'outro') { c.t += dt; c.inst.update(dt, false); if (c.t >= 1.3 && !c.closing) close(); }
   draw();
   if (cur) requestAnimationFrame(frame);
@@ -1429,7 +1437,7 @@ function draw() {
   g.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * ox, dpr * oy);
   c.inst.draw(g, view, c.T);
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  drawFuse(c.phase === 'intro' ? 1 : c.phase === 'play' ? 1 - c.t / c.def.dur : 0);
+  drawFuse(c.phase === 'intro' ? 1 : c.phase === 'play' ? 1 - c.t / c.dur : 0);
 }
 
 function setPaused(p) { paused = p; }

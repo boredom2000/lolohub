@@ -11,6 +11,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <!-- Google AdSense (H5 Games Ads): the hub's shared loader, configured in ../ads.js -->
+  <script src="../ads.js"></script>
 </head>
 <body>
   <div id="sky"></div>
@@ -40,6 +42,11 @@
   <div id="title" class="overlay">
     <h1 class="logo"><span class="l1">SUPER</span><span class="l2">BAKING</span></h1>
     <p class="tag">Run a wacky little bakery! Take orders, follow the colored numbers and nail each mini-game before the clock runs out.</p>
+    <div id="diffPick" role="group" aria-label="Difficulty">
+      <button data-d="easy">&#x1F9C1; EASY</button>
+      <button data-d="medium">&#x1F382; MEDIUM</button>
+      <button data-d="hard">&#x1F525; HARD</button>
+    </div>
     <button id="playBtn" class="big">PLAY</button>
     <div class="howto">
       <div><b class="em">&#x1F43B;</b>Tap a <b>customer</b> to take their order (up to 3 at once).</div>

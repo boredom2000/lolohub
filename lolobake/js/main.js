@@ -9,7 +9,17 @@ const pick = (a) => a[(Math.random() * a.length) | 0];
 const IS_TOUCH = Kitchen.isTouch;
 document.body.classList.toggle('touch', IS_TOUCH);
 
-const START_TIME = 45, MAX_TIME = 99, SERVE_TIME = 5, ANGRY_PENALTY = 5;
+const MAX_TIME = 99, SERVE_TIME = 5, ANGRY_PENALTY = 5;
+// difficulty: start time, how fast the clock speeds up per order, customer patience and how fast the
+// mini-games ramp up. The mini-games also read the mode for their timers and hit areas.
+const DIFFS = {
+  easy: { name: 'EASY', start: 60, ramp: 0.05, rampMax: 0.8, pat: 1.4, d0: 0, dStep: 14 },
+  medium: { name: 'MEDIUM', start: 45, ramp: 0.08, rampMax: 1.2, pat: 1, d0: 0, dStep: 10 },
+  hard: { name: 'HARD', start: 40, ramp: 0.1, rampMax: 1.5, pat: 0.8, d0: 0.3, dStep: 8 },
+};
+let diff = 'medium';
+try { if (DIFFS[localStorage.getItem('lolobake.diff')]) diff = localStorage.getItem('lolobake.diff'); } catch (e) {}
+const D = () => DIFFS[diff];
 const BONUS = { PERFECT: { t: 6, pts: 300 }, GOOD: { t: 4, pts: 200 }, OK: { t: 2, pts: 100 }, BAD: { t: 0, pts: 0 } };
 const BONUS_T = { PERFECT: 6, GOOD: 4, OK: 2, BAD: 0 };
 const COLORS = ['#ff4f9a', '#1fb0ff', '#ffa800'];
@@ -57,7 +67,7 @@ const RECIPES = [
 function makeOrder(recipe, slot) {
   const steps = recipe.steps.map(([st, g, p]) => Object.assign({ st, g, p: p || {} }, stepInfo(g, p || {})));
   steps.push({ st: 'SERVE', g: null, icon: '🛎️', label: 'Serve it!' });
-  const patMax = 30 + 10 * recipe.steps.length;
+  const patMax = Math.round((30 + 10 * recipe.steps.length) * D().pat);
   return { slot, recipe, steps, idx: 0, pat: patMax, patMax, color: COLORS[slot] };
 }
 
@@ -66,16 +76,18 @@ const S = { mode: 'title', paused: false };
 let dirty = true;
 function reset() {
   Object.assign(S, {
-    mode: 'hub', paused: false, time: START_TIME, score: 0, served: 0, perfects: 0, steps: 0, lost: 0,
-    slots: [null, null, null], spawnT: [0.5, 5, 11], d: 0, lowBeep: 0, tips: { accepted: false, ready: false, stepped: false },
+    mode: 'hub', paused: false, time: D().start, score: 0, served: 0, perfects: 0, steps: 0, lost: 0,
+    slots: [null, null, null], spawnT: [0.5, 5, 11], d: D().d0, lowBeep: 0, tips: { accepted: false, ready: false, stepped: false },
   });
   Kitchen.reset();
   popups.forEach((p) => p.el.remove()); popups.length = 0;
   dirty = true;
 }
 const orders = () => S.slots ? S.slots.filter((s) => s && s.order).map((s) => s.order) : [];
-const drain = () => 1 + Math.min(1.2, S.served * 0.08);
-let best = 0; try { best = +localStorage.getItem('lolobake.best') || 0; } catch (e) {}
+const drain = () => 1 + Math.min(D().rampMax, S.served * D().ramp);
+const bestKey = () => (diff === 'medium' ? 'lolobake.best' : 'lolobake.best.' + diff);
+function loadBest() { try { return +localStorage.getItem(bestKey()) || 0; } catch (e) { return 0; } }
+let best = loadBest();
 
 // ------------------------------------------------------------------ labels (station markers, bubbles, popups)
 const labelsEl = $('labels');
@@ -213,7 +225,7 @@ function arrive(o, idx) {
   S.mode = 'mini';
   Kitchen.poke(step.st);
   const origin = Kitchen.toScreen(Kitchen.chefAnchor());
-  MG.run(step.g, { d: S.d, p: step.p, origin, bonus: BONUS_T }).then((res) => {
+  MG.run(step.g, { d: S.d, p: step.p, origin, bonus: BONUS_T, mode: diff }).then((res) => {
     if (S.mode !== 'mini') return;
     S.mode = 'hub';
     const b = BONUS[res.grade];
@@ -232,7 +244,7 @@ function arrive(o, idx) {
 }
 function serve(o) {
   const tip = Math.round(300 * Math.max(0, o.pat / o.patMax) / 10) * 10;
-  S.score += 500 + tip; S.served++; S.d = Math.min(1, S.served / 10);
+  S.score += 500 + tip; S.served++; S.d = Math.min(1, D().d0 + S.served / D().dStep);
   S.time = Math.min(MAX_TIME, S.time + SERVE_TIME);
   Sfx.serve();
   Kitchen.chef.carry(null); Kitchen.chef.cheer('PERFECT');
@@ -267,8 +279,8 @@ function gameOver() {
   Kitchen.faint();
   document.body.classList.remove('playing');
   const isBest = S.score > best;
-  if (isBest) { best = S.score; try { localStorage.setItem('lolobake.best', best); } catch (e) {} }
-  $('overStats').innerHTML = `Score <b>${S.score}</b><br>Orders served <b>${S.served}</b> &middot; Perfects <b>${S.perfects}</b><br><span class="best">${isBest ? '★ NEW BEST! ★' : `Best ${best}`}</span>`;
+  if (isBest) { best = S.score; try { localStorage.setItem(bestKey(), best); } catch (e) {} }
+  $('overStats').innerHTML = `Score <b>${S.score}</b><br>Orders served <b>${S.served}</b> &middot; Perfects <b>${S.perfects}</b><br><span class="best">${D().name} &middot; ${isBest ? '★ NEW BEST! ★' : `Best ${best}`}</span>`;
   setTimeout(() => $('over').classList.remove('hidden'), 1100);
 }
 function startGame() {
@@ -322,7 +334,8 @@ $('quitNo').addEventListener('click', () => setQuitOpen(false));
 $('quitYes').addEventListener('click', goHub);
 $('quitModal').addEventListener('click', (ev) => { if (ev.target.id === 'quitModal') setQuitOpen(false); });
 $('playBtn').addEventListener('click', startGame);
-$('againBtn').addEventListener('click', startGame);
+// ad break before a new shift (the hub's ../ads.js; skipped when ads are off or missing)
+$('againBtn').addEventListener('click', () => (window.loloAd ? loloAd('game-over', startGame) : startGame()));
 $('overHub').addEventListener('click', goHub);
 const muteSync = () => { $('muteBtn').innerHTML = Sfx.muted ? '🔇' : '🔊'; $('muteBtn').title = Sfx.muted ? 'Sound on' : 'Mute'; };
 $('muteBtn').addEventListener('click', () => { Sfx.unlock(); Sfx.setMuted(!Sfx.muted); muteSync(); });
@@ -360,7 +373,19 @@ muteSync();
     s.style.animationDelay = (-Math.random() * 16).toFixed(1) + 's';
     sky.appendChild(s);
   }
-  if (best) $('titleBest').textContent = `Best ${best}`;
+  // difficulty picker on the title screen
+  const syncDiff = () => {
+    document.querySelectorAll('#diffPick button').forEach((b) => b.classList.toggle('on', b.dataset.d === diff));
+    best = loadBest();
+    $('titleBest').textContent = best ? `${D().name} best ${best}` : '';
+  };
+  $('diffPick').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    diff = b.dataset.d; Sfx.unlock(); Sfx.tap();
+    try { localStorage.setItem('lolobake.diff', diff); } catch (err) {}
+    syncDiff();
+  });
+  syncDiff();
   const syncMargins = () => { const small = window.innerWidth < 600; Kitchen.setMargins({ top: small ? 150 : 110, bottom: small ? 140 : 150 }); };
   window.addEventListener('resize', syncMargins); syncMargins();
   // a couple of customers hang around on the title screen

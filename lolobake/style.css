@@ -81,6 +81,7 @@ body.hover-hit #game canvas { cursor: pointer; }
   position: absolute; left: 0; bottom: 0; transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; gap: 4px;
 }
+.st:not(.on) .st-tag { display: none; }
 .st-tag {
   pointer-events: auto;
   font: 700 12px 'Fredoka', sans-serif; white-space: nowrap;
@@ -306,6 +307,18 @@ body.playing #hud { display: block; }
   max-width: 560px; font: 700 18px 'Fredoka', sans-serif; color: var(--choc);
   background: rgba(255, 255, 255, 0.85); border: 3px solid var(--choc); border-radius: 16px; padding: 8px 14px;
 }
+#diffPick {
+  display: flex; padding: 5px; gap: 5px;
+  background: var(--cream); border: 4px solid var(--choc); border-radius: 18px; box-shadow: 0 5px 0 var(--choc);
+}
+#diffPick button {
+  font-family: 'Bungee', sans-serif; font-size: 16px; padding: 7px 14px; border-radius: 12px;
+  color: var(--choc); border: 3px solid transparent; transition: transform 0.12s, background 0.12s;
+}
+#diffPick button:hover { transform: scale(1.05); }
+#diffPick button.on { background: var(--yellow); border-color: var(--choc); box-shadow: 0 3px 0 var(--choc); }
+#diffPick button[data-d="easy"].on { background: var(--mint); }
+#diffPick button[data-d="hard"].on { background: #ff6b8a; color: #fff; text-shadow: 0 2px 0 var(--choc); }
 .howto { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 760px; }
 .howto div {
   width: 220px; padding: 8px 12px; font: 500 14px 'Fredoka', sans-serif;
@@ -378,6 +391,7 @@ button.danger { background: #ff4f6a; color: #fff; }
   .bubble .pat { width: 38px; height: 7px; }
   .howto div { width: 100%; max-width: 340px; padding: 6px 10px; font-size: 13px; }
   .overlay > p.tag { font-size: 15px; }
+  #diffPick button { font-size: 12px; padding: 6px 8px; }
   #mgHint { font-size: 13px; white-space: normal; text-align: center; width: max-content; border-radius: 14px; }
   #mgCmd.up { top: calc(84px + env(safe-area-inset-top)); }
 }
