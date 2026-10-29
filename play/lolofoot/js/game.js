@@ -1444,7 +1444,7 @@
   }
 
   // ---------- menus ----------
-  function goHub() { location.href = '../'; }
+  function goHub() { location.href = '../../'; }
   function setQuitOpen(open) {
     $('quitModal').classList.toggle('hidden', !open);
     G.paused = open;
@@ -1456,7 +1456,7 @@
   $('quitYes').addEventListener('click', goHub);
   $('quitModal').addEventListener('click', (ev) => { if (ev.target.id === 'quitModal') setQuitOpen(false); });
   $('playBtn').addEventListener('click', () => { Sfx.init(); startMatch(); });
-  // ad break before a new match (the hub's ../ads.js; skipped when ads are off or missing)
+  // ad break before a new match (the hub's ../../core/ads.js; skipped when ads are off or missing)
   $('againBtn').addEventListener('click', () => (window.loloAd ? loloAd('game-over', startMatch) : startMatch()));
   $('overHub').addEventListener('click', goHub);
   document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'play' && !G.paused) setQuitOpen(true); });

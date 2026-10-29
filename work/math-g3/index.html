@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grade 3 Math | Lolo Hub WORK HARD</title>
+<meta name="description" content="Grade 3 math practice on Lolo Hub: add and subtract three-digit numbers, times tables, division facts and word problems. Earn gold for every lesson.">
+<link rel="icon" href="../../icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Patrick+Hand&family=Nunito:wght@800;900&display=swap" rel="stylesheet">
+<script src="../../core/wallet.js"></script>
+<style>
+  :root { --paper: #fbf6e9; --ink: #1f2a44; --soft: #4a5672; --rule: #b9d3ee; --margin: #e86a6a; --good: #1f9d55; --bad: #d63a3a; --gold: #b07a00; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { min-height: 100%; }
+  body {
+    color: var(--ink);
+    font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
+    background:
+      linear-gradient(90deg, transparent 0 46px, var(--margin) 46px 48px, transparent 48px),
+      repeating-linear-gradient(180deg, transparent 0 31px, var(--rule) 31px 32px),
+      var(--paper);
+    background-attachment: local;
+    user-select: none;
+    overflow-x: hidden;
+  }
+  body.flash-good { animation: flash-good 0.5s; }
+  body.flash-bad { animation: flash-bad 0.45s; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 12px 16px 40px 60px; }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .bar a { font: 900 17px 'Nunito', sans-serif; color: var(--ink); text-decoration: none; background: #fff; border-radius: 999px; padding: 7px 14px; box-shadow: 0 3px 0 #0002; }
+  .gold { display: flex; align-items: center; gap: 6px; font: 900 20px 'Nunito', sans-serif; color: var(--gold); background: #fff6c9; border-radius: 999px; padding: 4px 14px 4px 6px; box-shadow: 0 3px 0 #e0a80066; }
+  h1 { margin-top: 18px; font: 900 clamp(30px, 7vw, 48px)/1 'Fraunces', Georgia, serif; text-shadow: 3px 3px 0 rgba(232, 106, 106, 0.3); animation: stamp-in 0.7s cubic-bezier(0.2, 1.6, 0.4, 1); }
+  .sub { font-size: 21px; color: var(--soft); margin-top: 4px; }
+  .hud { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; flex-wrap: wrap; gap: 8px; }
+  .dots { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dots span { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--soft); background: #fff; transition: transform 0.3s; }
+  .dots span.ok { background: var(--good); border-color: var(--good); }
+  .dots span.miss { background: var(--bad); border-color: var(--bad); }
+  .dots span.now { transform: scale(1.4); border-color: var(--margin); }
+  .combo { font: 900 22px 'Nunito', sans-serif; color: #e8590c; min-height: 30px; }
+  .combo.pop { animation: pop 0.5s cubic-bezier(0.2, 1.8, 0.4, 1); }
+
+  /* the question, written on an index card */
+  .card {
+    position: relative; margin-top: 16px; padding: 22px 20px 20px; min-height: 230px;
+    background: linear-gradient(180deg, transparent 0 46px, #f2b8b8 46px 47px, transparent 47px), #fff;
+    border-radius: 6px; box-shadow: 0 2px 0 #0001, 0 12px 26px rgba(31, 42, 68, 0.2);
+    text-align: center;
+    animation: card-in 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
+  }
+  .card.shake { animation: shake 0.45s; }
+  .card .tag { position: absolute; left: 16px; top: 12px; font: 900 16px 'Nunito', sans-serif; color: var(--soft); letter-spacing: 0.05em; }
+  .story { margin: 24px auto 4px; max-width: 520px; font-size: clamp(22px, 5vw, 28px); line-height: 1.35; text-align: left; }
+  .story .pic { float: right; font-size: 54px; margin: -6px 0 4px 10px; animation: bob 2s ease-in-out infinite; }
+  .inline { margin-top: 34px; font: 900 clamp(48px, 13vw, 84px)/1 'Fraunces', Georgia, serif; letter-spacing: 0.02em; }
+  .column { display: inline-grid; margin-top: 30px; font: 900 clamp(46px, 12vw, 72px)/1.05 'Fraunces', Georgia, serif; text-align: right; }
+  .column .op { display: flex; justify-content: space-between; gap: 18px; }
+  .column .line { border-top: 5px solid var(--ink); margin-top: 6px; }
+  .answer {
+    display: inline-block; min-width: 2.4em; margin-top: 10px; padding: 0 10px; border-bottom: 4px dashed #9ab;
+    font: 900 clamp(46px, 12vw, 72px)/1.15 'Fraunces', Georgia, serif; color: #2f6fd6;
+  }
+  .answer.empty::after { content: '?'; color: #c9d3e0; }
+  .answer.right { color: var(--good); border-color: var(--good); }
+  .answer.wrong { color: var(--bad); border-color: var(--bad); }
+  .feedback { min-height: 34px; margin-top: 10px; font-size: 26px; }
+  .feedback.good { color: var(--good); } .feedback.bad { color: var(--bad); }
+  .boom {
+    position: fixed; left: 50%; top: 42%; z-index: 30; pointer-events: none;
+    font: 900 clamp(54px, 15vw, 120px)/1 'Fraunces', Georgia, serif; color: var(--good);
+    -webkit-text-stroke: 3px #fff; paint-order: stroke;
+    text-shadow: 0 6px 0 #0d5c30, 0 0 40px rgba(31, 157, 85, 0.6);
+    animation: boom 1s cubic-bezier(0.2, 1.6, 0.4, 1) forwards;
+  }
+  .boom.bad { color: var(--bad); text-shadow: 0 6px 0 #7a1d1d; }
+  .bit { position: fixed; z-index: 29; pointer-events: none; font: 900 28px 'Fraunces', serif; animation: burst 1s ease-out forwards; }
+
+  /* number pad */
+  .pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 360px; margin: 18px auto 0; }
+  .pad button {
+    height: 64px; border: 0; border-radius: 16px; cursor: pointer;
+    font: 900 30px 'Nunito', sans-serif; color: var(--ink);
+    background: #fff; box-shadow: 0 5px 0 #c9d3e0, 0 6px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.08s;
+  }
+  .pad button:active { transform: translateY(4px); box-shadow: 0 1px 0 #c9d3e0; }
+  .pad .del { background: #ffe1e1; box-shadow: 0 5px 0 #f0a8a8; }
+  .pad .go { background: var(--good); color: #fff; box-shadow: 0 5px 0 #136b39; }
+  .next { display: block; margin: 16px auto 0; padding: 12px 34px; border: 0; border-radius: 999px; cursor: pointer; font: 900 22px 'Nunito', sans-serif; color: #fff; background: #2f6fd6; box-shadow: 0 5px 0 #1d4a96; }
+  .hidden { display: none !important; }
+
+  /* menu + results */
+  .menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 22px; }
+  .menu a { display: block; padding: 18px; border-radius: 6px; background: #fff; color: var(--ink); text-decoration: none; box-shadow: 0 10px 20px rgba(31, 42, 68, 0.15); transform: rotate(var(--t, 0deg)); transition: transform 0.2s; }
+  .menu a:hover { transform: rotate(0) translateY(-5px) scale(1.03); }
+  .menu b { display: block; font: 900 22px 'Fraunces', serif; }
+  .menu span { font-size: 19px; color: var(--soft); }
+  .results { margin-top: 24px; text-align: center; }
+  .grade {
+    display: inline-block; margin-top: 10px; padding: 6px 26px;
+    border: 7px solid var(--bad); border-radius: 16px;
+    font: 900 90px/1 'Fraunces', serif; color: var(--bad);
+    transform: rotate(-10deg); animation: stamp-in 0.7s cubic-bezier(0.2, 1.8, 0.4, 1);
+  }
+  .results p { margin-top: 18px; font-size: 26px; }
+  .results .row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+  .results a, .results button { padding: 12px 24px; border-radius: 999px; border: 0; cursor: pointer; font: 900 19px 'Nunito', sans-serif; text-decoration: none; color: #fff; background: #2f6fd6; box-shadow: 0 5px 0 #1d4a96; }
+  .results a.alt { background: #fff; color: var(--ink); box-shadow: 0 5px 0 #c9d3e0; }
+
+  @media (max-width: 520px) { .wrap { padding-left: 54px; padding-right: 10px; } .pad button { height: 56px; } }
+  @keyframes stamp-in { from { transform: scale(2.4) rotate(-12deg); opacity: 0; } }
+  @keyframes card-in { from { transform: translateX(60px) rotate(4deg); opacity: 0; } }
+  @keyframes shake { 20% { transform: translateX(-14px) rotate(-2deg); } 40% { transform: translateX(12px) rotate(2deg); } 60% { transform: translateX(-8px); } 80% { transform: translateX(5px); } }
+  @keyframes pop { 0% { transform: scale(0.4); } 60% { transform: scale(1.4) rotate(-6deg); } }
+  @keyframes boom { 0% { transform: translate(-50%, -50%) scale(0.2) rotate(-20deg); opacity: 0; } 25% { transform: translate(-50%, -50%) scale(1.15) rotate(-6deg); opacity: 1; }
+    70% { transform: translate(-50%, -50%) scale(1) rotate(-6deg); opacity: 1; } 100% { transform: translate(-50%, -70%) scale(0.9) rotate(-6deg); opacity: 0; } }
+  @keyframes burst { from { transform: translate(0, 0) scale(0.5); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) scale(1.3) rotate(var(--r)); opacity: 0; } }
+  @keyframes bob { 50% { transform: translateY(-8px) rotate(-6deg); } }
+  @keyframes flash-good { 30% { background-color: #d9f7e3; } }
+  @keyframes flash-bad { 30% { background-color: #ffe0e0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar"><a href="../../?tab=work">⬅ WORK HARD</a><span class="gold" id="gold"></span></div>
+  <h1 id="title">Grade 3 Math</h1>
+  <div class="sub" id="sub">Pick a lesson</div>
+
+  <div class="menu" id="menu"></div>
+
+  <div id="play" class="hidden">
+    <div class="hud"><div class="dots" id="dots"></div><div class="combo" id="combo"></div></div>
+    <div class="card" id="card"></div>
+    <div class="feedback" id="fb"></div>
+    <div class="pad" id="pad"></div>
+    <button class="next hidden" id="next">Next ➡</button>
+  </div>
+
+  <div class="results hidden" id="results"></div>
+</div>
+
+<script>
+'use strict';
+/* ---------- the four lessons (ids match the hub's catalog.json) ---------- */
+const LESSONS = {
+  'add-sub': { id: 'math-add-sub', title: 'Add & Subtract', sub: 'Three-digit numbers. Carry and borrow like a pro!', count: 10, make: makeAddSub },
+  times: { id: 'math-times', title: 'Times Tables', sub: 'Answer in 5 seconds for a ⚡ lightning combo!', count: 12, make: makeTimes, fast: 5000 },
+  divide: { id: 'math-divide', title: 'Division Facts', sub: 'Share it out equally.', count: 10, make: makeDivide, fast: 6000 },
+  words: { id: 'math-words', title: 'Word Problems', sub: 'Read the story, find the numbers, solve it.', count: 6, make: makeWord },
+};
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const $ = (id) => document.getElementById(id);
+
+function makeAddSub(i) {
+  if (i % 2 === 0) {
+    // addition, usually with a carry
+    let a, b;
+    do { a = rnd(105, 789); b = rnd(26, 899 - a + 100); } while (a + b > 999 || (Math.random() < 0.8 && (a % 10) + (b % 10) < 10 && (a % 100) + (b % 100) < 100));
+    return { kind: 'column', a, b, op: '+', ans: a + b };
+  }
+  let a, b;
+  do { a = rnd(201, 999); b = rnd(19, a - 11); } while (Math.random() < 0.8 && (a % 10) >= (b % 10)); // usually a borrow
+  return { kind: 'column', a, b, op: '−', ans: a - b };
+}
+let used = new Set();
+function makeTimes() {
+  let a, b;
+  do { a = rnd(2, 10); b = rnd(2, 10); } while (used.has(a * 100 + b) && used.size < 60);
+  used.add(a * 100 + b);
+  return { kind: 'inline', text: `${a} × ${b}`, ans: a * b };
+}
+function makeDivide() {
+  let d, q;
+  do { d = rnd(2, 10); q = rnd(2, 10); } while (used.has(d * 100 + q) && used.size < 60);
+  used.add(d * 100 + q);
+  return { kind: 'inline', text: `${d * q} ÷ ${d}`, ans: q };
+}
+const NAMES = ['Mia', 'Leo', 'Zoe', 'Sam', 'Ava', 'Noah', 'Lily', 'Max', 'Ella', 'Theo'];
+const WORDS = [
+  () => { const n = pick(NAMES), a = rnd(120, 480), b = rnd(35, 400); return { pic: '⭐', text: `${n} has ${a} stickers. A friend gives ${n} ${b} more. How many stickers does ${n} have now?`, ans: a + b }; },
+  () => { const a = rnd(300, 900), b = rnd(45, a - 50); return { pic: '🍎', text: `An orchard picked ${a} apples. ${b} were sold at the market. How many apples are left?`, ans: a - b }; },
+  () => { const n = rnd(3, 9), k = rnd(4, 10); return { pic: '🖍️', text: `There are ${n} boxes of crayons with ${k} crayons in each box. How many crayons is that in all?`, ans: n * k }; },
+  () => { const n = rnd(3, 8), q = rnd(3, 9); return { pic: '🍪', text: `${n * q} cookies are shared equally by ${n} friends. How many cookies does each friend get?`, ans: q }; },
+  () => { const r = rnd(4, 9), s = rnd(4, 8); return { pic: '🚌', text: `A school bus has ${r} rows with ${s} seats in each row. How many seats are on the bus?`, ans: r * s }; },
+  () => { const n = pick(NAMES), p = rnd(6, 12), d = rnd(3, 7); return { pic: '📖', text: `${n} reads ${p} pages every day for ${d} days. How many pages does ${n} read?`, ans: p * d }; },
+  () => { const n = pick(NAMES), a = rnd(20, 60), b = rnd(3, 6), k = rnd(5, 10); return { pic: '🔵', text: `${n} had ${a} marbles, then bought ${b} bags with ${k} marbles in each bag. How many marbles now?`, ans: a + b * k }; },
+  () => { const t = rnd(500, 950), a = rnd(120, 300), b = rnd(80, 200); return { pic: '🚂', text: `A train carries ${t} people. At the first stop ${a} get off, at the second ${b} get off. How many are still on the train?`, ans: t - a - b }; },
+  () => { const w = rnd(3, 9), q = rnd(4, 9); return { pic: '🐕', text: `${w * q} dog treats go into bags of ${w}. How many bags can be filled?`, ans: q }; },
+];
+function makeWord(i) {
+  const order = makeWord.order || (makeWord.order = WORDS.map((_, k) => k).sort(() => Math.random() - 0.5));
+  const q = WORDS[order[i % order.length]]();
+  return { kind: 'story', ...q };
+}
+
+/* ---------- sounds + fireworks ---------- */
+let actx = null;
+function tone(freqs, type, step = 0.08, len = 0.18, vol = 0.12) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    freqs.forEach((f, i) => {
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * step;
+      o.type = type; o.frequency.value = f;
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + len + 0.02);
+    });
+  } catch (e) { /* no sound, still fun */ }
+}
+const yay = (combo) => tone([523, 659, 784, 1046, 1318].slice(0, 3 + Math.min(2, combo)).map((f) => f * Math.pow(1.06, Math.min(combo, 6))), 'triangle');
+const nope = () => tone([220, 165], 'sawtooth', 0.12, 0.22, 0.1);
+function boom(text, bad) {
+  const b = document.createElement('div');
+  b.className = 'boom' + (bad ? ' bad' : '');
+  b.textContent = text;
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 1000);
+  document.body.classList.remove('flash-good', 'flash-bad'); void document.body.offsetWidth;
+  document.body.classList.add(bad ? 'flash-bad' : 'flash-good');
+}
+function burst(n, bits) {
+  const cx = innerWidth / 2, cy = innerHeight * 0.42;
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('div');
+    s.className = 'bit';
+    s.textContent = pick(bits);
+    s.style.left = cx + 'px'; s.style.top = cy + 'px';
+    s.style.color = pick(['#e8590c', '#1f9d55', '#2f6fd6', '#d63a3a', '#b07a00', '#8e44ec']);
+    const a = Math.random() * Math.PI * 2, d = 120 + Math.random() * 280;
+    s.style.setProperty('--dx', Math.cos(a) * d + 'px'); s.style.setProperty('--dy', Math.sin(a) * d + 'px');
+    s.style.setProperty('--r', rnd(-360, 360) + 'deg');
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 1000);
+  }
+}
+const CHEERS = ['BOOM!', 'NAILED IT!', 'GENIUS!', 'YES!!', 'PERFECT!', 'WOW!', 'MATH WIZ!', 'BRAIN POWER!'];
+
+/* ---------- a lesson ---------- */
+let L, qs, qi, typed, tries, firstTry, results, combo, best, askedAt, locked;
+function startLesson(key) {
+  L = LESSONS[key];
+  used = new Set(); makeWord.order = null;
+  qs = Array.from({ length: L.count }, (_, i) => L.make(i));
+  qi = 0; combo = 0; best = 0; results = [];
+  $('title').textContent = L.title;
+  $('sub').textContent = L.sub;
+  $('menu').classList.add('hidden'); $('results').classList.add('hidden'); $('play').classList.remove('hidden');
+  ask();
+}
+function dots() {
+  $('dots').innerHTML = qs.map((_, i) => `<span class="${i < results.length ? (results[i] ? 'ok' : 'miss') : i === qi ? 'now' : ''}"></span>`).join('');
+}
+function ask() {
+  const q = qs[qi];
+  typed = ''; tries = 0; firstTry = true; locked = false;
+  dots();
+  const tag = `Question ${qi + 1} of ${qs.length}`;
+  if (q.kind === 'column') {
+    $('card').innerHTML = `<span class="tag">${tag}</span><div class="column"><div class="op"><span></span><span>${q.a}</span></div>
+      <div class="op"><span>${q.op}</span><span>${q.b}</span></div><div class="line"></div><div class="answer empty" id="ans"></div></div>`;
+  } else if (q.kind === 'inline') {
+    $('card').innerHTML = `<span class="tag">${tag}</span><div class="inline">${q.text} = <span class="answer empty" id="ans"></span></div>`;
+  } else {
+    $('card').innerHTML = `<span class="tag">${tag}</span><div class="story"><span class="pic">${q.pic}</span>${q.text}</div>
+      <div><span class="answer empty" id="ans"></span></div>`;
+  }
+  const card = $('card'); card.classList.remove('shake'); card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+  $('fb').textContent = ''; $('fb').className = 'feedback';
+  $('next').classList.add('hidden'); $('pad').classList.remove('hidden');
+  askedAt = performance.now();
+}
+function render() {
+  const a = $('ans');
+  a.textContent = typed;
+  a.classList.toggle('empty', !typed);
+}
+function key(k) {
+  if (locked) return;
+  if (k === 'del') typed = typed.slice(0, -1);
+  else if (k === 'go') return check();
+  else if (typed.length < 4) typed += k;
+  render();
+  tone([880], 'square', 0, 0.04, 0.03);
+}
+function check() {
+  if (!typed || locked) return;
+  const q = qs[qi], a = $('ans');
+  if (Number(typed) === q.ans) {
+    locked = true;
+    a.classList.add('right');
+    const fast = L.fast && firstTry && performance.now() - askedAt < L.fast;
+    if (firstTry) { combo++; best = Math.max(best, combo); } else combo = 0;
+    results.push(firstTry);
+    boom(fast ? '⚡ FAST!' : pick(CHEERS));
+    burst(firstTry ? 14 + Math.min(combo, 6) * 4 : 8, ['★', '✦', String(q.ans), '+', '✔', '🎉', '⭐']);
+    yay(combo);
+    $('fb').textContent = firstTry ? (combo >= 3 ? `${combo} in a row!` : 'Right on the first try!') : 'Got it!';
+    $('fb').className = 'feedback good';
+    showCombo();
+    $('pad').classList.add('hidden');
+    $('next').classList.remove('hidden');
+    $('next').focus();
+    return;
+  }
+  // wrong
+  tries++; firstTry = false; combo = 0; showCombo();
+  a.classList.add('wrong');
+  $('card').classList.remove('shake'); void $('card').offsetWidth; $('card').classList.add('shake');
+  boom(pick(['OOPS!', 'NOPE!', 'HMM…', 'TRY AGAIN!']), true);
+  nope();
+  if (tries >= 2) {
+    locked = true;
+    results.push(false);
+    $('fb').innerHTML = `The answer is <b>${q.ans}</b>. You'll get the next one!`;
+    $('fb').className = 'feedback bad';
+    typed = String(q.ans);
+    setTimeout(() => { a.classList.remove('wrong'); render(); }, 450);
+    $('pad').classList.add('hidden');
+    $('next').classList.remove('hidden');
+  } else {
+    $('fb').textContent = q.kind === 'column' ? 'Check each column, ones first!' : 'Not quite. One more try!';
+    $('fb').className = 'feedback bad';
+    setTimeout(() => { typed = ''; a.classList.remove('wrong'); render(); }, 450);
+  }
+}
+function showCombo() {
+  const c = $('combo');
+  c.textContent = combo >= 2 ? `🔥 COMBO ×${combo}` : '';
+  c.classList.remove('pop'); void c.offsetWidth; if (combo >= 2) c.classList.add('pop');
+}
+function next() {
+  qi++;
+  if (qi < qs.length) ask(); else finish();
+}
+function finish() {
+  dots();
+  const right = results.filter(Boolean).length, score = right / qs.length;
+  const grade = score === 1 ? 'A+' : score >= 0.85 ? 'A' : score >= 0.7 ? 'B' : score >= 0.5 ? 'C' : 'Try again';
+  $('play').classList.add('hidden');
+  const r = $('results');
+  r.classList.remove('hidden');
+  r.innerHTML = `<div class="grade" style="${score >= 0.7 ? 'color:var(--good);border-color:var(--good)' : ''}">${grade}</div>
+    <p>${right} of ${qs.length} right on the first try${best >= 3 ? ` · best combo 🔥 ×${best}` : ''}</p>
+    <div class="row"><button id="again">🔁 Again</button><a class="alt" href="./">Other math</a><a class="alt" href="../../?tab=work">WORK HARD</a></div>`;
+  $('again').onclick = () => startLesson(currentKey);
+  if (score === 1) { burst(40, ['🏆', '⭐', 'A+', '💯', '🎉']); yay(6); }
+  setTimeout(() => LoloWallet.lessonDone(L.id, score, {
+    message: score === 1 ? 'A perfect sheet! Full gold!' : score >= 0.5 ? `${right} of ${qs.length}. Nice work!` : undefined,
+  }), 700);
+}
+
+/* ---------- pad, keyboard, menu ---------- */
+['7', '8', '9', '4', '5', '6', '1', '2', '3', 'del', '0', 'go'].forEach((k) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = k === 'del' ? '⌫' : k === 'go' ? '✔' : k;
+  if (k === 'del') b.className = 'del';
+  if (k === 'go') b.className = 'go';
+  b.onclick = () => key(k);
+  $('pad').appendChild(b);
+});
+$('next').onclick = next;
+addEventListener('keydown', (e) => {
+  if ($('play').classList.contains('hidden') || document.querySelector('.lolo-cele')) return;
+  if (/^[0-9]$/.test(e.key)) key(e.key);
+  else if (e.key === 'Backspace') { e.preventDefault(); key('del'); }
+  else if (e.key === 'Enter') { e.preventDefault(); locked ? next() : check(); }
+});
+
+let currentKey = new URLSearchParams(location.search).get('lesson');
+LoloWallet.onChange((w) => {
+  $('gold').innerHTML = `${w.coin(24)} ${w.gold}`;
+  $('menu').innerHTML = Object.entries(LESSONS).map(([k, l], i) => {
+    const c = w.lesson(l.id);
+    const v = c ? w.lessonValue(c) : { gold: 0 };
+    return `<a href="?lesson=${k}" style="--t:${(i % 2 ? 1.5 : -1.5)}deg"><b>${c ? c.emoji : ''} ${l.title}</b><span>${l.sub}</span><br><span style="color:var(--gold)">+${v.gold} gold</span></a>`;
+  }).join('');
+});
+if (LESSONS[currentKey]) startLesson(currentKey);
+</script>
+</body>
+</html>

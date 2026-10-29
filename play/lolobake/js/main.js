@@ -1,4 +1,4 @@
-﻿// SUPER BAKING: game rules, HUD and input. Customers order recipes at the counter; each recipe is a
+// SUPER BAKING: game rules, HUD and input. Customers order recipes at the counter; each recipe is a
 // list of station steps, and every step is one short mini-game (minigames.js). Up to three orders
 // run at once, each with its own color. Good grades add time to the global countdown.
 (() => {
@@ -324,7 +324,7 @@ window.addEventListener('keydown', (e) => {
   if (!sl.order) accept(n); else doStep(sl.order);
 });
 
-function goHub() { location.href = '../'; }
+function goHub() { location.href = '../../'; }
 function setQuitOpen(open) {
   $('quitModal').classList.toggle('hidden', !open);
   S.paused = open; MG.setPaused(open);
@@ -334,7 +334,7 @@ $('quitNo').addEventListener('click', () => setQuitOpen(false));
 $('quitYes').addEventListener('click', goHub);
 $('quitModal').addEventListener('click', (ev) => { if (ev.target.id === 'quitModal') setQuitOpen(false); });
 $('playBtn').addEventListener('click', startGame);
-// ad break before a new shift (the hub's ../ads.js; skipped when ads are off or missing)
+// ad break before a new shift (the hub's ../../core/ads.js; skipped when ads are off or missing)
 $('againBtn').addEventListener('click', () => (window.loloAd ? loloAd('game-over', startGame) : startGame()));
 $('overHub').addEventListener('click', goHub);
 const muteSync = () => { $('muteBtn').innerHTML = Sfx.muted ? '🔇' : '🔊'; $('muteBtn').title = Sfx.muted ? 'Sound on' : 'Mute'; };

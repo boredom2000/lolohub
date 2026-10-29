@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#1a0b3a">
+  <title>Lolo Foot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bungee&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Google AdSense (H5 Games Ads): the hub's shared loader, configured in ../../core/ads.js -->
+  <script src="../../core/ads.js"></script>
+  <script src="../../core/wallet.js"></script>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+
+  <div id="corner">
+    <button id="hubBtn" title="Back to the Lolo Hub">&#x2302; HUB</button>
+    <button id="fsBtn" title="Full screen"><svg class="enter" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><svg class="exit" viewBox="0 0 24 24"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg></button>
+  </div>
+
+  <div id="hud">
+    <div id="board">
+      <span class="tm you">YOU</span><b id="s0">0</b>
+      <span id="clock">2:00</span>
+      <b id="s1">0</b><span class="tm cpu">CPU</span>
+    </div>
+    <div id="ticker"></div>
+    <div id="banner"></div>
+  </div>
+
+  <div id="title" class="overlay">
+    <h1 class="logo"><span class="l1">LOLO</span><span class="l2">FOOT</span></h1>
+    <p class="tag">4 vs 4 super-mega football! Super shots, flying tackles, giant mushrooms and the occasional cow.</p>
+    <button id="playBtn" class="big">KICK OFF!</button>
+    <div class="help">
+      <p><b>Your ball:</b> tap to pass or kick there &middot; <b>hold</b> to charge a SUPER SHOT &middot; hold on a teammate for a LOB pass</p>
+      <p><b>Their ball:</b> tap to dash &amp; tackle in that direction (2 s cooldown)</p>
+    </div>
+  </div>
+
+  <div id="over" class="overlay hidden">
+    <h2 id="overTitle" class="result">VICTORY!</h2>
+    <p id="overStats"></p>
+    <div class="row">
+      <button id="againBtn" class="big">PLAY AGAIN</button>
+      <button id="overHub" class="small">&#x2302; HUB</button>
+    </div>
+  </div>
+
+  <div id="quitModal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="quitTitle">
+    <div class="panel">
+      <h2 id="quitTitle">Back to the Hub?</h2>
+      <p>The match will be lost.</p>
+      <div class="row">
+        <button id="quitNo" class="small">Keep playing</button>
+        <button id="quitYes" class="small danger">Leave</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/game.js"></script>
+</body>
+</html>

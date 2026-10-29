@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#12001f">
-  <title>Lolo Hub - Free Games for Kids, Play in Your Browser</title>
-  <meta name="description" content="Lolo Hub: free, colorful games for kids that run in your browser on phones, tablets and computers. Build a castle, race karts, bake cakes, swing with a grappling hook, zap aliens and play wacky football.">
+  <title>Lolo Hub - Work Hard, Play Hard: Lessons and Games for Kids</title>
+  <meta name="description" content="Lolo Hub: WORK HARD on short school lessons (math, Chinese pinyin) to earn gold, then PLAY HARD with it: castle defense, karts, baking, grappling hooks, aliens and wacky football. Free, in your browser.">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -13,105 +13,103 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Nunito:wght@600;800;900&family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Patrick+Hand&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="hub.css">
-  <script src="ads.js"></script>
+  <link rel="stylesheet" href="home.css">
+  <script src="core/ads.js"></script>
+  <script src="core/wallet.js"></script>
 </head>
-<body>
-  <div class="bg-rays"></div>
-  <div class="bg-grid"></div>
-  <div class="stars" aria-hidden="true"></div>
+<body class="home">
+  <!-- top bar: logo, gold, profile -->
+  <header class="topbar">
+    <a class="logo" href="./" data-text="LOLOHUB">LOLOHUB</a>
+    <div class="top-right">
+      <div class="gold-pill" title="Your gold"><span class="coin-slot"></span><b id="goldAmt">0</b></div>
+      <button class="me" id="meBtn" type="button" aria-haspopup="dialog">
+        <span class="portrait" id="mePortrait">👤</span>
+        <span class="me-name" id="meName">Guest</span>
+      </button>
+    </div>
+  </header>
 
-  <main>
-    <header class="hero">
-      <h1 class="title" data-text="LOLO HUB">LOLO HUB</h1>
-      <p class="subtitle">&#9733; pick your game &#9733;</p>
-      <p class="intro">Free, colorful games you can play right in your browser. No download, no account: tap a game and play on a phone, a tablet or a computer.</p>
-    </header>
-
-    <!-- Game list: one .game-card per game folder (see CLAUDE.md "Adding a game"). -->
-    <section class="games" aria-label="Games">
-      <article class="game-card" style="--c1: #ff7a1a; --c2: #ffe81a">
-        <a class="card-art" href="lolocastle/" tabindex="-1" aria-hidden="true">&#x1F3F0;</a>
-        <h2><a href="lolocastle/">CASTLE</a></h2>
-        <p>Build farms, walls and towers around your castle, then hold off an endless army. A boss shows up every two minutes!</p>
-        <div class="card-btns">
-          <a class="game-btn" href="lolocastle/"><span>PLAY</span></a>
-          <a class="info-btn" href="lolocastle/about.html">How to play</a>
-        </div>
-      </article>
-
-      <article class="game-card" style="--c1: #7dff2f; --c2: #19f7ff">
-        <a class="card-art" href="lolospace/" tabindex="-1" aria-hidden="true">&#x1F47D;</a>
-        <h2><a href="lolospace/">ALIEN IN SPACE</a></h2>
-        <p>Aliens pop out from behind the rocks and drop from the sky. Aim, pick the right space gun and survive wave after wave.</p>
-        <div class="card-btns">
-          <a class="game-btn" href="lolospace/"><span>PLAY</span></a>
-          <a class="info-btn" href="lolospace/about.html">How to play</a>
-        </div>
-      </article>
-
-      <article class="game-card" style="--c1: #19f7ff; --c2: #ff2fd6">
-        <a class="card-art" href="lolohook/" tabindex="-1" aria-hidden="true">&#x1FA9D;</a>
-        <h2><a href="lolohook/">HOOK</a></h2>
-        <p>Hold to grab a glowing dot, let go to fly! Swing over lasers through 10 levels to reach the exit portal.</p>
-        <div class="card-btns">
-          <a class="game-btn" href="lolohook/"><span>PLAY</span></a>
-          <a class="info-btn" href="lolohook/about.html">How to play</a>
-        </div>
-      </article>
-
-      <article class="game-card" style="--c1: #ff2fd6; --c2: #ffe81a">
-        <a class="card-art" href="lolokart/" tabindex="-1" aria-hidden="true">&#x1F3CE;&#xFE0F;</a>
-        <h2><a href="lolokart/">KART</a></h2>
-        <p>Pick one of 8 drivers and race 7 rivals for 3 laps on sunny, candy, cloud and volcano tracks. Can you start last and finish first?</p>
-        <div class="card-btns">
-          <a class="game-btn" href="lolokart/"><span>PLAY</span></a>
-          <a class="info-btn" href="lolokart/about.html">How to play</a>
-        </div>
-      </article>
-
-      <article class="game-card" style="--c1: #ff2fd6; --c2: #ff7a1a">
-        <a class="card-art" href="lolobake/" tabindex="-1" aria-hidden="true">&#x1F9C1;</a>
-        <h2><a href="lolobake/">SUPER BAKING</a></h2>
-        <p>Customers are lining up! Crack eggs, whisk, roll and decorate in quick mini-games to serve every order before time runs out.</p>
-        <div class="card-btns">
-          <a class="game-btn" href="lolobake/"><span>PLAY</span></a>
-          <a class="info-btn" href="lolobake/about.html">How to play</a>
-        </div>
-      </article>
-
-      <article class="game-card" style="--c1: #2f8bff; --c2: #ff3b55">
-        <a class="card-art" href="lolofoot/" tabindex="-1" aria-hidden="true">&#x26BD;</a>
-        <h2><a href="lolofoot/">FOOT</a></h2>
-        <p>Wacky 4 vs 4 football! Tap to pass, hold for a flaming super shot, dash to tackle. Watch out for giant mushrooms and cows.</p>
-        <div class="card-btns">
-          <a class="game-btn" href="lolofoot/"><span>PLAY</span></a>
-          <a class="info-btn" href="lolofoot/about.html">How to play</a>
-        </div>
-      </article>
+  <!-- the two halves: WORK HARD (paper) and PLAY HARD (neon). Clicking one widens it to 3/4. -->
+  <main class="split" id="split">
+    <section class="half work" id="work" aria-label="Work hard: lessons">
+      <div class="paper-doodles" aria-hidden="true"></div>
+      <div class="half-inner">
+        <button class="half-title" type="button" data-tab="work">
+          <span class="ht-main">WORK HARD</span>
+          <svg class="scribble" viewBox="0 0 300 24" aria-hidden="true"><path d="M4 16 C 60 4, 110 22, 160 12 S 250 6, 296 14"/></svg>
+          <span class="ht-sub">finish lessons, earn gold</span>
+        </button>
+        <div class="teaser" id="workTeaser"></div>
+        <div class="list" id="workList"></div>
+      </div>
     </section>
 
+    <section class="half play" id="play" aria-label="Play hard: games">
+      <div class="play-bg" aria-hidden="true"><div class="rays"></div><div class="grid"></div><div class="stars"></div></div>
+      <div class="half-inner">
+        <button class="half-title" type="button" data-tab="play">
+          <span class="ht-main" data-text="PLAY HARD">PLAY HARD</span>
+          <span class="ht-sub">&#9733; spend gold, have fun &#9733;</span>
+        </button>
+        <div class="teaser" id="playTeaser"></div>
+        <div class="list games" id="playList"></div>
+      </div>
+    </section>
+  </main>
+
+  <noscript><p class="noscript">Lolo Hub needs JavaScript to show its lessons and games.</p></noscript>
+
+  <div class="below">
     <!-- shown by offline.js only where offline play is possible (https) -->
     <button class="offline-btn" type="button" hidden><span>&#11015; PLAY OFFLINE</span></button>
-
     <section class="panel text">
-      <h2>Why Lolo games?</h2>
+      <h2>How Lolo Hub works</h2>
       <ul class="perks">
-        <li><b>Free to play.</b> Every game is free, with short ad breaks between rounds to keep it that way.</li>
-        <li><b>Play anywhere.</b> Touch controls on phones and tablets, mouse and keyboard on computers.</li>
-        <li><b>No sign-up.</b> No accounts and no chat. Best scores are only saved on your own device.</li>
-        <li><b>Works offline.</b> Press <b>PLAY OFFLINE</b> once and the games keep working without internet.</li>
+        <li><b>Work hard.</b> Short lessons that follow what kids learn at school this week, plus math practice. Each finished lesson earns gold.</li>
+        <li><b>Play hard.</b> Every game costs a little gold per round. Longer rounds cost a bit more.</li>
+        <li><b>Mix it up.</b> A lesson pays less each time you repeat it in the same week, so doing all of them pays best.</li>
+        <li><b>Guest or profile.</b> Guests keep their gold until they close the page. On the home server you can make a profile (name, password, avatar) to keep it.</li>
       </ul>
     </section>
-
     <div class="ad-slot" data-slot=""></div>
-  </main>
+  </div>
 
   <footer class="site-footer">
     <nav><a href="about.html">About</a><a href="privacy.html">Privacy</a><a href="contact.html">Contact</a></nav>
     <p>&copy; Lolo Hub</p>
   </footer>
+
+  <!-- profile: create / log in / me -->
+  <div class="modal" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="pmTitle" hidden>
+    <div class="modal-box">
+      <button class="modal-x" type="button" aria-label="Close">&times;</button>
+      <h2 id="pmTitle">Profile</h2>
+      <div class="pm-tabs" id="pmTabs">
+        <button type="button" data-mode="create" class="on">Create profile</button>
+        <button type="button" data-mode="login">Log in</button>
+      </div>
+      <form id="pmForm" autocomplete="on">
+        <label>Name <input name="name" maxlength="20" autocomplete="username" required></label>
+        <label>Password <input name="password" type="password" maxlength="64" autocomplete="current-password" required></label>
+        <div class="pm-avatars" id="pmAvatars" role="radiogroup" aria-label="Avatar"></div>
+        <p class="pm-note" id="pmNote"></p>
+        <p class="pm-err" id="pmErr" role="alert"></p>
+        <button class="pm-go" type="submit" id="pmGo">LET'S GO!</button>
+      </form>
+      <div id="pmMe" hidden>
+        <div class="pm-me-head"><span class="portrait big" id="pmMePortrait"></span><div><b id="pmMeName"></b><br><span id="pmMeGold"></span></div></div>
+        <p class="pm-label">Change your avatar</p>
+        <div class="pm-avatars" id="pmMeAvatars"></div>
+        <button class="pm-out" type="button" id="pmLogout">Log out</button>
+      </div>
+      <div id="pmNoServer" hidden>
+        <p>Profiles live on the Lolo home server. Here you play as a <b>guest</b>: your gold stays until you close this page.</p>
+      </div>
+    </div>
+  </div>
 
   <div class="offline-tip" role="dialog" aria-label="Add to Home Screen" hidden>
     <div class="offline-tip-box">
@@ -121,22 +119,7 @@
     </div>
   </div>
 
-  <script>
-    // sprinkle twinkling stars
-    (function () {
-      var box = document.querySelector('.stars');
-      for (var i = 0; i < 70; i++) {
-        var s = document.createElement('i');
-        s.style.left = Math.random() * 100 + '%';
-        s.style.top = Math.random() * 100 + '%';
-        s.style.animationDelay = (Math.random() * 3).toFixed(2) + 's';
-        s.style.animationDuration = (1.5 + Math.random() * 2.5).toFixed(2) + 's';
-        var size = 2 + Math.random() * 4;
-        s.style.width = s.style.height = size + 'px';
-        box.appendChild(s);
-      }
-    })();
-  </script>
+  <script src="home.js"></script>
   <script src="offline.js"></script>
 </body>
 </html>

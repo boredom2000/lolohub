@@ -21,6 +21,8 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // the home server's API/dashboard and the Atlas (another site on the same server) are never cached here
+  if (url.pathname.startsWith('/_') || url.pathname.startsWith('/atlas/')) return;
   if (url.origin === self.location.origin) e.respondWith(networkFirst(req));
   else if (FONT_HOSTS.has(url.hostname)) e.respondWith(cacheFirst(req));
   // anything else (ads, etc.) goes straight to the network

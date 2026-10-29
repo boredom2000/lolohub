@@ -1,4 +1,5 @@
-// Shared Google AdSense loader for the hub pages and every game (games load it as ../ads.js).
+// Shared Google AdSense loader for the hub pages and every game (games load it as ../../core/ads.js).
+// On the home server it also reports game opens and rounds to the dashboard (see count() below).
 // Ads stay OFF while ADSENSE_CLIENT is the placeholder, so nothing is loaded from Google yet.
 // To turn ads on (needs a custom domain, see CLAUDE.md):
 //   1. put your real publisher ID here and in /ads.txt
@@ -16,11 +17,12 @@
   // done() exactly once. Without ads (placeholder ID, blocked, offline) done() runs right away.
   // on the local server (plain http) tell its dashboard when a game is opened and each round break;
   // GitHub Pages is https, so nothing is sent there
+  var gamePage = /\/play\/([\w-]+)\/(index\.html)?$/.exec(location.pathname);
   function count(kind) {
-    if (location.protocol !== 'http:' || !navigator.sendBeacon) return;
-    try { navigator.sendBeacon('/_api/' + kind + '?game=' + encodeURIComponent(location.pathname.split('/')[1])); } catch (e) {}
+    if (!gamePage || location.protocol !== 'http:' || !navigator.sendBeacon) return;
+    try { navigator.sendBeacon('/_api/' + kind + '?game=' + encodeURIComponent(gamePage[1])); } catch (e) {}
   }
-  if (/\/(index\.html)?$/.test(location.pathname)) count('play');
+  count('play');
 
   window.loloAd = function (name, done) {
     count('round');

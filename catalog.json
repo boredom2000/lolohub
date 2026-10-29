@@ -1,0 +1,64 @@
+{
+  "_comment": "The one list of lessons (WORK HARD) and games (PLAY HARD). The hub page, core/wallet.js and the server's gold API all read it. gold = reward for a fresh lesson at a perfect score; price = gold per round of a game. See CLAUDE.md 'Gold'.",
+  "rewards": {
+    "decay": 0.6,
+    "windowDays": 7,
+    "passScore": 0.5,
+    "guestGoldOnSignup": 300
+  },
+  "work": [
+    {
+      "section": "This week at school",
+      "subtitle": "Week 6 · Chinese dictation 第六周 听写五",
+      "lessons": [
+        { "id": "w6-chinese-tones", "name": "Tone Ride", "emoji": "🎢", "href": "work/chinese-w6/?mode=tones", "minutes": 4, "gold": 25,
+          "blurb": "Listen and pick which way the tone goes: flat, up, down-and-up or down." },
+        { "id": "w6-chinese-pick", "name": "Listen & Pick", "emoji": "👂", "href": "work/chinese-w6/?mode=pick", "minutes": 5, "gold": 30,
+          "blurb": "Hear a word from this week's sheet and tap the right pinyin." },
+        { "id": "w6-chinese-spell", "name": "Dictation Practice", "emoji": "✏️", "href": "work/chinese-w6/?mode=spell", "minutes": 8, "gold": 45,
+          "blurb": "Write what you hear, tones and all, just like the real 听写 test." }
+      ],
+      "extra": { "name": "Study the words first", "href": "work/chinese-w6/?mode=learn" }
+    },
+    {
+      "section": "Math · Grade 3",
+      "subtitle": "Always open: keep those skills sharp",
+      "lessons": [
+        { "id": "math-add-sub", "name": "Add & Subtract", "emoji": "➕", "href": "work/math-g3/?lesson=add-sub", "minutes": 5, "gold": 30,
+          "blurb": "Three-digit numbers, with carrying and borrowing." },
+        { "id": "math-times", "name": "Times Tables", "emoji": "✖️", "href": "work/math-g3/?lesson=times", "minutes": 4, "gold": 25,
+          "blurb": "From 2 × 2 to 10 × 10. Answer fast for a combo!" },
+        { "id": "math-divide", "name": "Division Facts", "emoji": "➗", "href": "work/math-g3/?lesson=divide", "minutes": 4, "gold": 25,
+          "blurb": "Share things out equally: the times tables backwards." },
+        { "id": "math-words", "name": "Word Problems", "emoji": "📖", "href": "work/math-g3/?lesson=words", "minutes": 6, "gold": 35,
+          "blurb": "Read the story, find the numbers, solve it." }
+      ]
+    }
+  ],
+  "play": [
+    { "id": "lolocastle", "name": "CASTLE", "emoji": "🏰", "colors": ["#ff7a1a", "#ffe81a"], "price": 12, "round": "one battle, 5-15 min",
+      "blurb": "Build farms, walls and towers around your castle, then hold off an endless army. A boss shows up every two minutes!" },
+    { "id": "lolospace", "name": "ALIEN IN SPACE", "emoji": "👽", "colors": ["#7dff2f", "#19f7ff"], "price": 8, "round": "one run, about 4 min",
+      "blurb": "Aliens pop out from behind the rocks and drop from the sky. Aim, pick the right space gun and survive wave after wave." },
+    { "id": "lolohook", "name": "HOOK", "emoji": "🪝", "colors": ["#19f7ff", "#ff2fd6"], "price": 8, "round": "3 levels, about 4 min",
+      "blurb": "Hold to grab a glowing dot, let go to fly! Swing over lasers through 10 levels to reach the exit portal." },
+    { "id": "lolokart", "name": "KART", "emoji": "🏎️", "colors": ["#ff2fd6", "#ffe81a"], "price": 8, "round": "one 3-lap race, about 4 min",
+      "blurb": "Pick one of 8 drivers and race 7 rivals for 3 laps on sunny, candy, cloud and volcano tracks." },
+    { "id": "lolobake", "name": "SUPER BAKING", "emoji": "🧁", "colors": ["#ff2fd6", "#ff7a1a"], "price": 6, "round": "one shift, about 3 min",
+      "blurb": "Customers are lining up! Crack eggs, whisk, roll and decorate in quick mini-games before time runs out." },
+    { "id": "lolofoot", "name": "FOOT", "emoji": "⚽", "colors": ["#2f8bff", "#ff3b55"], "price": 6, "round": "one 2-min match",
+      "blurb": "Wacky 4 vs 4 football! Tap to pass, hold for a flaming super shot, dash to tackle. Watch out for giant mushrooms and cows." }
+  ],
+  "avatars": [
+    { "id": "fox", "emoji": "🦊", "name": "Fox", "bg": ["#ff7a1a", "#ffd166"] },
+    { "id": "panda", "emoji": "🐼", "name": "Panda", "bg": ["#9be7ff", "#ffffff"] },
+    { "id": "lion", "emoji": "🦁", "name": "Lion", "bg": ["#ffb703", "#fb8500"] },
+    { "id": "frog", "emoji": "🐸", "name": "Frog", "bg": ["#7dff2f", "#2a9d8f"] },
+    { "id": "octopus", "emoji": "🐙", "name": "Octopus", "bg": ["#ff2fd6", "#7a00c2"] },
+    { "id": "unicorn", "emoji": "🦄", "name": "Unicorn", "bg": ["#ffafcc", "#cdb4db"] },
+    { "id": "dragon", "emoji": "🐲", "name": "Dragon", "bg": ["#06d6a0", "#118ab2"] },
+    { "id": "robot", "emoji": "🤖", "name": "Robot", "bg": ["#8d99ae", "#19f7ff"] },
+    { "id": "alien", "emoji": "👽", "name": "Alien", "bg": ["#b5e48c", "#3a0063"] },
+    { "id": "trex", "emoji": "🦖", "name": "T-Rex", "bg": ["#52b788", "#ffe81a"] }
+  ]
+}

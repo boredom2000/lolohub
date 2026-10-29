@@ -1,4 +1,4 @@
-﻿// Game flow + rendering: driver select -> track select -> race -> results.
+// Game flow + rendering: driver select -> track select -> race -> results.
 'use strict';
 (function (LK) {
   const UI = LK.UI, $ = UI.$, Input = LK.Input, Sfx = LK.Sfx;
@@ -161,13 +161,13 @@
   $('pResume').addEventListener('click', () => setPaused(false));
   $('pRestart').addEventListener('click', () => startRace());
   $('pQuit').addEventListener('click', quitToTracks);
-  // ad break after a race (the hub's ../ads.js; skipped when ads are off or missing)
+  // ad break after a race (the hub's ../../core/ads.js; skipped when ads are off or missing)
   const afterAd = (fn) => (window.loloAd ? loloAd('race-over', fn) : fn());
   $('resTracks').addEventListener('click', () => afterAd(quitToTracks));
   $('resAgain').addEventListener('click', () => afterAd(startRace));
 
   // hub + full screen + mute
-  function goHub() { location.href = '../'; }
+  function goHub() { location.href = '../../'; }
   $('hubBtn').addEventListener('click', () => {
     if (S.screen === 'race' && S.race && !S.resultsShown) { $('quitModal').classList.remove('hidden'); S.paused = true; Sfx.engine(0, 1, 0, false); }
     else goHub();

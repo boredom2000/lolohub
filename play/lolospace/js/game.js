@@ -1390,7 +1390,7 @@ function gameOver() {
   Sfx.boom();
 }
 
-function goHub() { location.href = '../'; }
+function goHub() { location.href = '../../'; }
 function setQuitOpen(open) {
   $('quitModal').classList.toggle('hidden', !open);
   state.paused = open;
@@ -1401,7 +1401,7 @@ $('quitNo').addEventListener('click', () => setQuitOpen(false));
 $('quitYes').addEventListener('click', goHub);
 $('quitModal').addEventListener('click', (ev) => { if (ev.target.id === 'quitModal') setQuitOpen(false); });
 $('playBtn').addEventListener('click', startGame);
-// ad break before a new run (the hub's ../ads.js; skipped when ads are off or missing)
+// ad break before a new run (the hub's ../../core/ads.js; skipped when ads are off or missing)
 $('againBtn').addEventListener('click', () => (window.loloAd ? loloAd('game-over', startGame) : startGame()));
 $('overHub').addEventListener('click', goHub);
 

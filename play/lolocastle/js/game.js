@@ -1997,7 +1997,7 @@ function setQuitOpen(open) {
 }
 $('hubBtn').addEventListener('click', () => setQuitOpen(true));
 $('quitNo').addEventListener('click', () => setQuitOpen(false));
-$('quitYes').addEventListener('click', () => { location.href = '../'; });
+$('quitYes').addEventListener('click', () => { location.href = '../../'; });
 $('quitModal').addEventListener('click', (ev) => { if (ev.target.id === 'quitModal') setQuitOpen(false); });
 
 // Full screen toggle. Hidden where the browser can't do it (e.g. iPhone Safari).
@@ -2062,7 +2062,7 @@ function resetGame() {
   toast('Defend the castle!');
 }
 
-// Interstitial ad between games (the hub's ../ads.js). loloAd calls back right away when ads
+// Interstitial ad between games (the hub's ../../core/ads.js). loloAd calls back right away when ads
 // are off, blocked or offline, so the game also works without that file.
 function showAdThenReset() {
   if (typeof window.loloAd !== 'function') return resetGame();

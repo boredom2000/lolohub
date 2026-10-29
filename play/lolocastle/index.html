@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#2a2418">
+  <title>Lolo Castle</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Google AdSense (H5 Games Ads): the hub's shared loader, configured in ../../core/ads.js -->
+  <script src="../../core/ads.js"></script>
+  <script src="../../core/wallet.js"></script>
+</head>
+<body>
+  <div id="game"></div>
+
+  <div id="hud">
+    <button id="hubBtn" title="Leave the game and go back to the Lolo Hub">&#x2302; Hub</button>
+    <button id="fsBtn" title="Full screen"><svg class="enter" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><svg class="exit" viewBox="0 0 24 24"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg></button>
+
+    <div id="topCenter">
+      <div id="castleHp"><div id="castleHpFill"></div><span id="castleHpText">Castle</span></div>
+      <div id="stats"></div>
+      <div id="bossHp" class="hidden"><div id="bossHpFill"></div><span id="bossHpText">BOSS</span></div>
+    </div>
+
+    <div id="gold"><span class="coin"></span><span id="goldValue">0</span></div>
+
+    <div id="toast"></div>
+    <div id="floaters"></div>
+    <div id="tooltip"></div>
+    <button id="confirmBtn" title="Build here">&#x2713;</button>
+
+    <div id="buildBar">
+      <button id="cancelBtn" title="Stop building (Esc)">&#x2715;</button>
+      <div id="buttons"></div>
+    </div>
+
+    <div id="help">
+      <b>Left-drag</b> pan &middot; <b>Right-drag</b> / <b>Q E</b> rotate &middot; <b>Wheel</b> zoom &middot; <b>WASD</b> move<br>
+      <b>1-9, 0</b> pick building &middot; <b>Esc</b> stop building &middot; <b>Click</b> ready farms, wharfs &amp; mines to collect gold
+    </div>
+    <div id="helpTouch">
+      <b>Drag</b> move &middot; <b>Pinch</b> zoom / rotate &middot; <b>Tap</b> coins to collect<br>
+      Building: tap or drag the ghost, then press <b>&#x2713;</b>
+    </div>
+
+    <div id="gameOver" class="hidden">
+      <h1>GAME LOST</h1>
+      <p id="goStats"></p>
+      <p id="goCountdown"></p>
+    </div>
+
+    <div id="quitModal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="quitTitle">
+      <div class="panel">
+        <h2 id="quitTitle">Back to the Hub?</h2>
+        <p>Are you sure? Your current game will be lost.</p>
+        <div class="row">
+          <button id="quitNo">Keep playing</button>
+          <button id="quitYes">Yes, leave</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/three.min.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

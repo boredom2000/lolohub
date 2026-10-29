@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pinyin Party - Week 6 Dictation | Lolo Hub WORK HARD</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐼</text></svg>">
+<style>
+  :root {
+    --bg1: #ffe7f3; --bg2: #e3f4ff; --ink: #2b2140; --card: #fff;
+    --t1: #e53935; --t2: #f08c00; --t3: #2e9e44; --t4: #1e6fe0; --t0: #8a8a9a;
+    --good: #2e9e44; --bad: #e53935; --accent: #8e44ec;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: "Comic Sans MS", "Chalkboard SE", "Segoe UI Rounded", "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(160deg, var(--bg1), var(--bg2)) fixed;
+    user-select: none;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 12px 16px 40px; }
+  header { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
+  .workbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .workbar a { font-size: 18px; font-weight: bold; color: #2b2140; text-decoration: none; background: #fff; border-radius: 999px; padding: 6px 14px; box-shadow: 0 3px 0 #0002; }
+  .workbar .gold { display: flex; align-items: center; gap: 6px; font-size: 20px; font-weight: bold; color: #8a5a00; background: #fff6c9; border-radius: 999px; padding: 4px 14px 4px 6px; box-shadow: 0 3px 0 #e0a80066; }
+  h1 { margin: 6px 0; font-size: clamp(28px, 6vw, 46px); letter-spacing: 1px; }
+  h1 .zh { color: var(--accent); }
+  .stars { font-size: 24px; background: #fff; border-radius: 999px; padding: 6px 16px; box-shadow: 0 3px 0 #0001; }
+  button { font-family: inherit; color: inherit; cursor: pointer; border: none; }
+  .back, .back-look { font-size: 20px; padding: 8px 16px; border-radius: 14px; background: #fff; box-shadow: 0 3px 0 #0002; }
+  .hidden { display: none !important; }
+  .voice-warn { background: #fff3cd; border: 2px dashed #f0ad4e; border-radius: 14px; padding: 10px 14px; margin: 10px 0; font-size: 15px; }
+
+  /* home */
+  .mascot { display: flex; align-items: center; gap: 12px; margin: 10px 0 18px; }
+  .mascot .panda { font-size: 64px; animation: bob 2s ease-in-out infinite; }
+  .bubble { background: #fff; border-radius: 20px; padding: 12px 18px; font-size: 20px; position: relative; box-shadow: 0 3px 0 #0001; }
+  .bubble::before { content: ""; position: absolute; left: -10px; top: 22px; border: 10px solid transparent; border-right-color: #fff; border-left: 0; }
+  @keyframes bob { 50% { transform: translateY(-8px) rotate(-4deg); } }
+  .menu { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
+  .menu button {
+    border-radius: 24px; padding: 22px 14px; font-size: 24px; font-weight: bold; color: #fff;
+    box-shadow: 0 6px 0 #0003; transition: transform .1s;
+  }
+  .menu button:active { transform: translateY(4px); box-shadow: 0 2px 0 #0003; }
+  .menu .big { font-size: 54px; display: block; margin-bottom: 6px; }
+  .menu small { display: block; font-size: 15px; font-weight: normal; opacity: .95; margin-top: 4px; }
+  .m1 { background: #ff7eb6; } .m2 { background: #ffb02e; } .m3 { background: #3cc0f0; } .m4 { background: #8e44ec; }
+
+  /* tones */
+  .t1 { color: var(--t1); } .t2 { color: var(--t2); } .t3 { color: var(--t3); } .t4 { color: var(--t4); } .t0 { color: var(--t0); }
+  .tone-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0 20px; }
+  .tone-card { background: #fff; border-radius: 18px; padding: 10px 6px; text-align: center; box-shadow: 0 4px 0 #0001; font-size: 15px; }
+  .tone-card .mark { font-size: 44px; font-weight: bold; line-height: 1.1; }
+  .tone-card svg { width: 60px; height: 34px; }
+
+  /* learn */
+  h2 { margin: 14px 0 8px; font-size: 26px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .wcard { background: #fff; border-radius: 20px; padding: 12px 8px; text-align: center; box-shadow: 0 5px 0 #0001; transition: transform .1s; }
+  .wcard:active { transform: scale(.96); }
+  .wcard .emo { font-size: 44px; }
+  .wcard .py { font-size: 30px; font-weight: bold; margin: 2px 0; }
+  .wcard .hz { font-size: 18px; color: #777; }
+  .wcard .en { font-size: 13px; color: #999; }
+  .chips { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
+  .chip { background: #f3eefe; border-radius: 10px; padding: 4px 10px; font-size: 18px; font-weight: bold; }
+  .fcard .py { font-size: 38px; }
+
+  /* game common */
+  .stage { background: #fff; border-radius: 28px; padding: 18px 16px 22px; box-shadow: 0 6px 0 #0001; text-align: center; margin-top: 12px; }
+  .progress { display: flex; gap: 6px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .progress span { width: 16px; height: 16px; border-radius: 50%; background: #eee; }
+  .progress span.done { background: var(--good); }
+  .progress span.now { background: var(--accent); transform: scale(1.25); }
+  .listen { display: flex; justify-content: center; gap: 12px; margin: 8px 0 14px; }
+  .listen button { font-size: 40px; width: 92px; height: 92px; border-radius: 50%; background: #ffd84d; box-shadow: 0 6px 0 #d9a800; }
+  .listen button.slow { background: #b8f2c8; box-shadow: 0 6px 0 #6cc785; font-size: 34px; width: 74px; height: 74px; align-self: center; }
+  .listen button:active { transform: translateY(4px); box-shadow: none; }
+  .question { font-size: 20px; margin: 4px 0 12px; min-height: 26px; }
+  .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .choices button { font-size: 34px; font-weight: bold; padding: 18px 8px; border-radius: 20px; background: #f3eefe; box-shadow: 0 5px 0 #d8ccf5; }
+  .choices button:active { transform: translateY(3px); }
+  .choices button.right { background: #c9f5d3; box-shadow: 0 5px 0 #6cc785; }
+  .choices button.wrong { background: #ffd0d0; box-shadow: 0 5px 0 #f08a8a; animation: shake .4s; }
+  @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+  .feedback { font-size: 26px; min-height: 36px; margin-top: 12px; font-weight: bold; }
+  .feedback.good { color: var(--good); } .feedback.bad { color: var(--bad); }
+  .next { margin-top: 12px; font-size: 24px; font-weight: bold; padding: 12px 30px; border-radius: 18px; background: var(--accent); color: #fff; box-shadow: 0 5px 0 #5d22a8; }
+
+  /* tone train choices */
+  .tchoices { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .tchoices button { background: #fff; border: 4px solid #eee; border-radius: 18px; padding: 8px 4px; font-size: 14px; }
+  .tchoices button .mark { font-size: 40px; font-weight: bold; display: block; }
+  .tchoices button svg { width: 56px; height: 30px; }
+  .tchoices button.right { border-color: var(--good); background: #e9fbee; }
+  .tchoices button.wrong { border-color: var(--bad); animation: shake .4s; }
+
+  /* spell */
+  .answer-box {
+    min-height: 84px; border: 4px dashed #cdbff0; border-radius: 20px; margin: 4px auto 12px; padding: 8px 12px;
+    font-size: 52px; font-weight: bold; display: flex; align-items: center; justify-content: center; max-width: 520px;
+    letter-spacing: 2px; background: #fbf9ff;
+  }
+  .answer-box.right { border-color: var(--good); background: #e9fbee; }
+  .answer-box.wrong { border-color: var(--bad); animation: shake .4s; }
+  .cursor { display: inline-block; width: 4px; height: 50px; background: var(--accent); margin-left: 3px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .ghost { color: #c9c2dd; font-size: 30px; margin-top: -4px; min-height: 36px; }
+  .keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 620px; margin: 0 auto; }
+  .keys button { width: 60px; height: 60px; font-size: 32px; font-weight: bold; border-radius: 14px; background: #e3f4ff; box-shadow: 0 4px 0 #a8d4f0; }
+  .keys button.vowel { background: #ffe7f3; box-shadow: 0 4px 0 #f5aacd; }
+  .keys button:active { transform: translateY(3px); box-shadow: none; }
+  .tonekeys { display: flex; justify-content: center; gap: 8px; margin: 12px 0 8px; flex-wrap: wrap; }
+  .tonekeys button { width: 74px; height: 66px; font-size: 34px; border-radius: 14px; background: #fff; border: 3px solid #eee; font-weight: bold; }
+  .tonekeys button:active { transform: translateY(3px); }
+  .tonekeys .tk1 { border-color: var(--t1); color: var(--t1); } .tonekeys .tk2 { border-color: var(--t2); color: var(--t2); }
+  .tonekeys .tk3 { border-color: var(--t3); color: var(--t3); } .tonekeys .tk4 { border-color: var(--t4); color: var(--t4); }
+  .actions { display: flex; justify-content: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .actions button { font-size: 20px; padding: 12px 18px; border-radius: 16px; font-weight: bold; }
+  .del { background: #ffe1e1; box-shadow: 0 4px 0 #f0a8a8; }
+  .hint { background: #fff4c2; box-shadow: 0 4px 0 #e6cf6b; }
+  .check { background: var(--good); color: #fff; box-shadow: 0 4px 0 #1f7a33; font-size: 24px !important; padding: 12px 28px !important; }
+  .setpick { display: flex; gap: 10px; justify-content: center; margin: 10px 0; flex-wrap: wrap; }
+  .setpick button { font-size: 20px; padding: 14px 18px; border-radius: 18px; background: #fff; box-shadow: 0 4px 0 #0002; font-weight: bold; }
+  .setpick button.on { background: var(--accent); color: #fff; }
+  .note { font-size: 15px; color: #777; margin-top: 6px; }
+
+  .trophy { font-size: 100px; animation: bob 1.5s ease-in-out infinite; }
+  .confetti { position: fixed; top: -40px; font-size: 28px; pointer-events: none; z-index: 9; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); } }
+
+  @media (max-width: 520px) {
+    .keys button { width: 50px; height: 54px; font-size: 28px; }
+    .tonekeys button { width: 62px; }
+    .answer-box { font-size: 40px; }
+    .tchoices button .mark { font-size: 30px; }
+  }
+</style>
+<script src="../../core/wallet.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="workbar"><a id="backWork" href="../../?tab=work">⬅ WORK HARD</a><span class="gold" id="goldBox"></span></div>
+  <header>
+    <h1><span class="zh">拼音</span> Pinyin Party 🎉</h1>
+    <div class="stars">⭐ <span id="starCount">0</span></div>
+  </header>
+  <div id="voiceWarn" class="voice-warn hidden">
+    🔇 No Chinese voice found, so the panda can't talk yet.<br>
+    <b>Android:</b> Settings → Accessibility → Text-to-speech → engine <b>Speech Services by Google</b> → ⚙ → Install voice data → <b>Chinese (Mandarin)</b>. Then reload this page.<br>
+    <b>Windows:</b> use Microsoft Edge, or add Chinese (Simplified) in Settings → Time &amp; language → Speech.
+  </div>
+
+  <!-- HOME -->
+  <section id="home">
+    <div class="mascot">
+      <div class="panda">🐼</div>
+      <div class="bubble" id="homeBubble">你好! Let's get ready for the 听写 test!</div>
+    </div>
+    <div class="menu">
+      <button class="m1" data-go="learn"><span class="big">📚</span>Learn<small>Tap & listen</small></button>
+      <button class="m2" data-go="tones"><span class="big">🎢</span>Tone Ride<small>Which way does it go?</small></button>
+      <button class="m3" data-go="pick"><span class="big">👂</span>Listen & Pick<small>Find the right one</small></button>
+      <button class="m4" data-go="spell"><span class="big">✏️</span>Test Practice<small>Write what you hear!</small></button>
+    </div>
+    <p class="note" style="text-align:center;margin-top:22px">
+      <button class="back-look" id="voiceTest">🔊 Test the voice</button><br><span id="voiceInfo"></span>
+    </p>
+  </section>
+
+  <!-- LEARN -->
+  <section id="learn" class="hidden">
+    <button class="back">⬅ Home</button>
+    <h2>🎢 The 4 tone rides</h2>
+    <div class="tone-row" id="toneRow"></div>
+    <h2>🔤 Sounds</h2>
+    <div class="grid" id="finalGrid"></div>
+    <h2>🌟 Words for the test</h2>
+    <div class="grid" id="wordGrid"></div>
+    <p class="note">Tap a card to hear it. Tap a little bubble to hear one part.</p>
+  </section>
+
+  <!-- TONE RIDE -->
+  <section id="tones" class="hidden">
+    <button class="back">⬅ Home</button>
+    <div class="stage">
+      <div class="progress" id="toneProg"></div>
+      <div class="question">Listen! Which ride is it? 🎢</div>
+      <div class="listen"><button id="toneSay">🔊</button><button class="slow" id="toneSlow">🐢</button></div>
+      <div class="tchoices" id="toneChoices"></div>
+      <div class="feedback" id="toneFb"></div>
+      <button class="next hidden" id="toneNext">Next ➡</button>
+    </div>
+  </section>
+
+  <!-- LISTEN & PICK -->
+  <section id="pick" class="hidden">
+    <button class="back">⬅ Home</button>
+    <div class="stage">
+      <div class="progress" id="pickProg"></div>
+      <div class="question">Listen and tap the right one!</div>
+      <div class="listen"><button id="pickSay">🔊</button><button class="slow" id="pickSlow">🐢</button></div>
+      <div class="choices" id="pickChoices"></div>
+      <div class="feedback" id="pickFb"></div>
+      <button class="next hidden" id="pickNext">Next ➡</button>
+    </div>
+  </section>
+
+  <!-- SPELL -->
+  <section id="spell" class="hidden">
+    <button class="back">⬅ Home</button>
+    <div class="setpick" id="setPick">
+      <button data-set="words" class="on">🌟 Words</button>
+      <button data-set="finals">🔤 Sounds</button>
+    </div>
+    <div class="stage">
+      <div class="progress" id="spellProg"></div>
+      <div class="question" id="spellQ">Listen, then write it!</div>
+      <div class="listen"><button id="spellSay">🔊</button><button class="slow" id="spellSlow">🐢</button></div>
+      <div class="answer-box" id="answerBox"></div>
+      <div class="ghost" id="ghost"></div>
+      <div class="keys" id="keys"></div>
+      <div class="tonekeys" id="toneKeys"></div>
+      <div class="actions">
+        <button class="del" id="delBtn">⌫ Oops</button>
+        <button class="hint" id="hintBtn">💡 Hint</button>
+        <button class="check" id="checkBtn">✔ Check</button>
+      </div>
+      <div class="feedback" id="spellFb"></div>
+      <button class="next hidden" id="spellNext">Next ➡</button>
+      <p class="note">Type the letters of one part, then tap its tone. Example: <b>a n</b> then <b class="t1">ˉ</b> → <b class="t1">ān</b></p>
+    </div>
+  </section>
+
+  <!-- DONE -->
+  <section id="done" class="hidden">
+    <div class="stage">
+      <div class="trophy">🏆</div>
+      <h2 id="doneTitle">You did it!</h2>
+      <div id="doneScore" style="font-size:24px"></div>
+      <div class="actions" style="margin-top:18px">
+        <button class="next" id="againBtn">🔁 Play again</button>
+        <button class="next" style="background:#ff7eb6;box-shadow:0 5px 0 #c2427e" id="homeBtn">🏠 Home</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+
+/* ---------- data (from the 第六周 听写五 sheet) ---------- */
+// Pinyin is stored with tone numbers after each syllable ("an1jing4"); no number = neutral tone.
+const WORDS = [
+  { py: 'an1jing4',    hz: '安静', emo: '🤫', en: 'quiet',      parts: ['安', '静'] },
+  { py: 'en1dian3',    hz: '恩典', emo: '🎁', en: 'grace / gift', parts: ['恩', '典'] },
+  { py: 'yin1wei4',    hz: '因为', emo: '🤔', en: 'because',    parts: ['因', null] },
+  { py: 'ang1zang1',   hz: '肮脏', emo: '🐷', en: 'dirty',      parts: ['肮', null] },
+  { py: 'cheng2wei2',  hz: '成为', emo: '🦋', en: 'to become',  parts: ['成', null] },
+  { py: 'ying1wen2',   hz: '英文', emo: '🔤', en: 'English',    parts: ['英', '文'] },
+  { py: 'dong4wu4',    hz: '动物', emo: '🐼', en: 'animal',     parts: ['动', '物'] },
+  { py: 'ye4zi',       hz: '叶子', emo: '🍃', en: 'leaf',       parts: ['叶', null] },
+];
+// The sounds part of the sheet. "say" is what the voice reads; there is no Chinese character for plain "ong".
+const FINALS = [
+  { fin: 'an',  say: '安', hz: '安', py: 'an1' },
+  { fin: 'en',  say: '恩', hz: '恩', py: 'en1' },
+  { fin: 'in',  say: '因', hz: '因', py: 'yin1' },
+  { fin: 'ang', say: '肮', hz: '肮', py: 'ang1' },
+  { fin: 'eng', say: '鞥', hz: '鞥', py: 'eng1' },
+  { fin: 'ing', say: '英', hz: '英', py: 'ying1' },
+  { fin: 'ong', say: '东', hz: '',   py: 'ong', note: 'the end of 东 dōng' },
+  { fin: 'ie',  say: '耶', hz: '耶', py: 'ye1' },
+];
+// Single characters whose tone is clear when said alone (for the Tone Ride).
+const SYLLABLES = [
+  ['安', 'an1'], ['静', 'jing4'], ['恩', 'en1'], ['典', 'dian3'], ['因', 'yin1'], ['肮', 'ang1'],
+  ['成', 'cheng2'], ['英', 'ying1'], ['文', 'wen2'], ['动', 'dong4'], ['物', 'wu4'], ['叶', 'ye4'],
+  ['妈', 'ma1'], ['麻', 'ma2'], ['马', 'ma3'], ['骂', 'ma4'], ['好', 'hao3'], ['你', 'ni3'], ['小', 'xiao3'], ['我', 'wo3'],
+];
+const TONES = [
+  null,
+  { mark: 'ˉ', name: 'flat road',   say: '妈', ex: 'mā', path: 'M5 10 H55' },
+  { mark: 'ˊ', name: 'going up',    say: '麻', ex: 'má', path: 'M5 28 L55 4' },
+  { mark: 'ˇ', name: 'down & up',   say: '马', ex: 'mǎ', path: 'M5 8 Q22 34 30 28 Q40 22 55 6' },
+  { mark: 'ˋ', name: 'going down',  say: '骂', ex: 'mà', path: 'M5 4 L55 28' },
+];
+const MARKS = {
+  a: ['a', 'ā', 'á', 'ǎ', 'à'], e: ['e', 'ē', 'é', 'ě', 'è'], i: ['i', 'ī', 'í', 'ǐ', 'ì'],
+  o: ['o', 'ō', 'ó', 'ǒ', 'ò'], u: ['u', 'ū', 'ú', 'ǔ', 'ù'], 'ü': ['ü', 'ǖ', 'ǘ', 'ǚ', 'ǜ'],
+};
+const PRAISE = ['Super! 🌟', 'Amazing! 🎉', '太棒了! 👏', 'Wow! 🚀', 'You got it! 💪', 'Perfect! 🦄', '好极了! 🐼'];
+
+/* ---------- pinyin helpers ---------- */
+function syllables(num) {
+  const out = [];
+  num.replace(/([a-zü]+)([1-4]?)/g, (_, s, t) => out.push([s, t ? +t : 0]));
+  return out;
+}
+function markSyllable(s, t) {
+  if (!t) return s;
+  let i = s.indexOf('a');
+  if (i < 0) i = s.indexOf('e');
+  if (i < 0) i = s.indexOf('ou');
+  if (i < 0) for (let k = s.length - 1; k >= 0; k--) if (MARKS[s[k]]) { i = k; break; }
+  if (i < 0) return s;
+  return s.slice(0, i) + MARKS[s[i]][t] + s.slice(i + 1);
+}
+function toHtml(num) {
+  return syllables(num).map(([s, t]) => `<span class="t${t}">${markSyllable(s, t)}</span>`).join('');
+}
+function toPlain(num) { return syllables(num).map(([s, t]) => markSyllable(s, t)).join(''); }
+
+/* ---------- speech ---------- */
+// Voice languages look different per system: "zh-CN" (Windows), "zh_CN" or "cmn-Hans-CN" (Android).
+const hasTTS = 'speechSynthesis' in window;
+let zhVoice = null, voicesSeen = 0, lastUtter = null;
+const isMandarin = v => {
+  const l = v.lang.replace(/_/g, '-').toLowerCase();
+  return /^(zh|cmn)/.test(l) && !/(hk|tw|yue|mo)/.test(l);
+};
+function pickVoice() {
+  const vs = speechSynthesis.getVoices();
+  voicesSeen = vs.length;
+  const zh = vs.filter(isMandarin);
+  zhVoice = zh.find(v => /online|natural|xiaoxiao/i.test(v.name)) || zh.find(v => v.localService) || zh[0] || null;
+  // only complain once the voice list has really loaded (Android fills it in late)
+  if (zhVoice || !voicesSeen) $('voiceWarn').classList.add('hidden');
+  else $('voiceWarn').classList.remove('hidden');
+}
+if (hasTTS) {
+  speechSynthesis.addEventListener('voiceschanged', pickVoice);
+  setTimeout(pickVoice, 100);
+  setTimeout(pickVoice, 2500);
+} else {
+  setTimeout(() => $('voiceWarn').classList.remove('hidden'));
+}
+function say(text, slow) {
+  if (!hasTTS) return;
+  if (!voicesSeen) pickVoice();
+  const go = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = zhVoice ? zhVoice.lang : 'zh-CN';  // with no voice match, Android still uses Google TTS's Chinese if it's installed
+    if (zhVoice) u.voice = zhVoice;
+    u.rate = slow ? 0.5 : 0.8;
+    lastUtter = u;                              // keep a reference: Chrome can drop an utterance it garbage-collects
+    speechSynthesis.resume();
+    speechSynthesis.speak(u);
+  };
+  // Android Chrome swallows a speak() that comes right after cancel(), so wait a moment.
+  if (speechSynthesis.speaking || speechSynthesis.pending) { speechSynthesis.cancel(); setTimeout(go, 120); }
+  else go();
+}
+
+/* ---------- little sounds + rewards ---------- */
+let actx = null;
+function beep(good) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const notes = good ? [523, 659, 784, 1046] : [300, 220];
+    notes.forEach((f, i) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = good ? 'triangle' : 'sawtooth';
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.12, actx.currentTime + i * 0.09);
+      g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + i * 0.09 + 0.2);
+      o.connect(g); g.connect(actx.destination);
+      o.start(actx.currentTime + i * 0.09); o.stop(actx.currentTime + i * 0.09 + 0.22);
+    });
+  } catch (e) { /* no audio, no problem */ }
+}
+function confetti(n = 24) {
+  const bits = ['🎉', '⭐', '🌟', '🎈', '🍬', '🐼', '💖', '✨'];
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div');
+    d.className = 'confetti';
+    d.textContent = bits[Math.floor(Math.random() * bits.length)];
+    d.style.left = Math.random() * 100 + 'vw';
+    d.style.animationDuration = 1.6 + Math.random() * 1.6 + 's';
+    d.style.animationDelay = Math.random() * 0.4 + 's';
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 4000);
+  }
+}
+let stars = 0;
+try { stars = +localStorage.getItem('pinyinStars') || 0; } catch (e) {}
+function addStar(n = 1) {
+  stars += n;
+  document.getElementById('starCount').textContent = stars;
+  try { localStorage.setItem('pinyinStars', stars); } catch (e) {}
+}
+document.getElementById('starCount').textContent = stars;
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const $ = id => document.getElementById(id);
+
+$('voiceTest').onclick = () => {
+  if (!hasTTS) { $('voiceInfo').textContent = 'This browser cannot speak at all.'; return; }
+  pickVoice();
+  say('你好，我们一起学拼音！');
+  $('voiceInfo').textContent = zhVoice
+    ? `Voice: ${zhVoice.name} (${zhVoice.lang})`
+    : `No Chinese voice in the list (${voicesSeen} voices). Trying anyway — if you hear nothing, see the yellow note.`;
+};
+
+/* ---------- screens ---------- */
+const SCREENS = ['home', 'learn', 'tones', 'pick', 'spell', 'done'];
+let lastGame = null;
+function show(name) {
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== name));
+  window.scrollTo(0, 0);
+  if (name === 'tones') startTones();
+  if (name === 'pick') startPick();
+  if (name === 'spell') startSpell();
+  if (['tones', 'pick', 'spell'].includes(name)) lastGame = name;
+}
+document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => show(b.dataset.go));
+document.querySelectorAll('.back').forEach(b => b.onclick = () => show('home'));
+$('homeBtn').onclick = () => show('home');
+$('againBtn').onclick = () => show(lastGame || 'home');
+$('homeBubble').textContent = pick(['你好! Let\'s get ready for the 听写 test!', 'Hi! Want to earn some stars? ⭐', 'I love pinyin! Do you? 🐼']);
+
+function progress(el, total, idx, doneUpTo) {
+  el.innerHTML = '';
+  for (let i = 0; i < total; i++) {
+    const s = document.createElement('span');
+    if (i < doneUpTo) s.className = 'done';
+    if (i === idx) s.className = 'now';
+    el.appendChild(s);
+  }
+}
+// each exercise is its own WORK HARD lesson (ids in the hub's catalog.json)
+const LESSON_IDS = { tones: 'w6-chinese-tones', pick: 'w6-chinese-pick', spell: 'w6-chinese-spell' };
+function finish(score, total) {
+  const pct = score / total;
+  $('doneTitle').textContent = pct === 1 ? 'PERFECT! You are a pinyin star! 🌟' : pct >= 0.6 ? 'Great job! 🎉' : 'Good try! Practice makes perfect 💪';
+  $('doneScore').textContent = `${score} / ${total} right on the first try`;
+  const game = lastGame;
+  show('done');
+  confetti(pct === 1 ? 60 : 30);
+  beep(true);
+  if (window.LoloWallet && LESSON_IDS[game]) {
+    setTimeout(() => LoloWallet.lessonDone(LESSON_IDS[game], pct, {
+      message: pct === 1 ? '满分! Full marks, full gold!' : `${score} of ${total} on the first try. 加油!`,
+    }), 900);
+  }
+}
+// gold in the corner
+if (window.LoloWallet) LoloWallet.onChange((w) => { $('goldBox').innerHTML = `${w.coin(24)} ${w.gold}`; });
+function toneSvg(t, color) {
+  return `<svg viewBox="0 0 60 34"><path d="${TONES[t].path}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round"/></svg>`;
+}
+
+/* ---------- LEARN ---------- */
+(function buildLearn() {
+  const row = $('toneRow');
+  [1, 2, 3, 4].forEach(t => {
+    const c = document.createElement('button');
+    c.className = 'tone-card';
+    c.innerHTML = `<div class="mark t${t}">${TONES[t].ex}</div>${toneSvg(t, `var(--t${t})`)}<div>${TONES[t].name}</div>`;
+    c.onclick = () => say(TONES[t].say, true);
+    row.appendChild(c);
+  });
+  const fg = $('finalGrid');
+  FINALS.forEach(f => {
+    const c = document.createElement('button');
+    c.className = 'wcard fcard';
+    c.innerHTML = `<div class="py">${f.fin}</div><div class="hz">${f.hz ? f.hz + ' · ' + toPlain(f.py) : f.note}</div>`;
+    c.onclick = () => say(f.say);
+    fg.appendChild(c);
+  });
+  const wg = $('wordGrid');
+  WORDS.forEach(w => {
+    const c = document.createElement('div');
+    c.className = 'wcard';
+    const syl = syllables(w.py);
+    c.innerHTML = `<div class="emo">${w.emo}</div><div class="py">${toHtml(w.py)}</div><div class="hz">${w.hz}</div><div class="en">${w.en}</div>
+      <div class="chips">${syl.map(([s, t], i) => `<button class="chip t${t}" data-i="${i}">${markSyllable(s, t)}</button>`).join('')}</div>`;
+    c.onclick = e => {
+      const chip = e.target.closest('.chip');
+      if (chip) { e.stopPropagation(); say(w.parts[+chip.dataset.i] || w.hz, true); }
+      else say(w.hz);
+    };
+    wg.appendChild(c);
+  });
+})();
+
+/* ---------- TONE RIDE ---------- */
+let tq, ti, tscore, tfirst;
+function startTones() {
+  // make sure every tone shows up, then fill to 10
+  const byTone = t => SYLLABLES.filter(s => syllables(s[1])[0][1] === t);
+  let list = [1, 2, 3, 4].map(t => pick(byTone(t)));
+  list = shuffle(list.concat(shuffle(SYLLABLES).slice(0, 6)));
+  tq = list; ti = 0; tscore = 0;
+  const box = $('toneChoices');
+  box.innerHTML = '';
+  [1, 2, 3, 4].forEach(t => {
+    const b = document.createElement('button');
+    b.dataset.t = t;
+    b.innerHTML = `<span class="mark t${t}">${TONES[t].mark}</span>${toneSvg(t, `var(--t${t})`)}<div>${TONES[t].name}</div>`;
+    b.onclick = () => answerTone(b, t);
+    box.appendChild(b);
+  });
+  toneRound();
+}
+function toneRound() {
+  tfirst = true;
+  progress($('toneProg'), tq.length, ti, ti);
+  $('toneFb').textContent = ''; $('toneFb').className = 'feedback';
+  $('toneNext').classList.add('hidden');
+  document.querySelectorAll('#toneChoices button').forEach(b => { b.className = ''; b.disabled = false; });
+  setTimeout(() => say(tq[ti][0]), 300);
+}
+function answerTone(btn, t) {
+  const [hz, num] = tq[ti];
+  const right = syllables(num)[0][1];
+  if (t === right) {
+    btn.className = 'right';
+    document.querySelectorAll('#toneChoices button').forEach(b => b.disabled = true);
+    $('toneFb').innerHTML = `${pick(PRAISE)} <span class="t${right}">${toPlain(num)}</span> ${hz}`;
+    $('toneFb').className = 'feedback good';
+    if (tfirst) { tscore++; addStar(); }
+    beep(true); confetti(10);
+    $('toneNext').classList.remove('hidden');
+  } else {
+    tfirst = false;
+    btn.className = 'wrong'; btn.disabled = true;
+    $('toneFb').textContent = 'Hmm, listen again! 👂'; $('toneFb').className = 'feedback bad';
+    beep(false);
+    setTimeout(() => say(hz, true), 500);
+  }
+}
+$('toneSay').onclick = () => say(tq[ti][0]);
+$('toneSlow').onclick = () => say(tq[ti][0], true);
+$('toneNext').onclick = () => { ti++; ti < tq.length ? toneRound() : finish(tscore, tq.length); };
+
+/* ---------- LISTEN & PICK ---------- */
+let pq, pi, pscore, pfirst;
+function swapFinal(s) {
+  if (s.endsWith('ng')) return s.slice(0, -1);
+  if (s.endsWith('n')) return s + 'g';
+  return null;
+}
+function distractors(num) {
+  const syl = syllables(num);
+  const out = new Set();
+  let guard = 0;
+  while (out.size < 2 && guard++ < 50) {
+    const copy = syl.map(x => x.slice());
+    const k = Math.floor(Math.random() * copy.length);
+    const sw = swapFinal(copy[k][0]);
+    if (sw && Math.random() < 0.5) copy[k][0] = sw;
+    else if (copy[k][1]) copy[k][1] = pick([1, 2, 3, 4].filter(t => t !== copy[k][1]));
+    else continue;
+    const str = copy.map(([s, t]) => s + (t || '')).join('');
+    if (str !== num) out.add(str);
+  }
+  return [...out];
+}
+function startPick() {
+  pq = shuffle(WORDS.map(w => ({ say: w.hz, py: w.py })).concat(shuffle(FINALS.filter(f => f.hz)).slice(0, 4).map(f => ({ say: f.say, py: f.py }))));
+  pi = 0; pscore = 0;
+  pickRound();
+}
+function pickRound() {
+  pfirst = true;
+  progress($('pickProg'), pq.length, pi, pi);
+  $('pickFb').textContent = ''; $('pickFb').className = 'feedback';
+  $('pickNext').classList.add('hidden');
+  const q = pq[pi];
+  const opts = shuffle([q.py, ...distractors(q.py)]);
+  const box = $('pickChoices');
+  box.innerHTML = '';
+  opts.forEach(o => {
+    const b = document.createElement('button');
+    b.innerHTML = toHtml(o);
+    b.onclick = () => {
+      if (o === q.py) {
+        b.className = 'right';
+        box.querySelectorAll('button').forEach(x => x.disabled = true);
+        $('pickFb').textContent = pick(PRAISE); $('pickFb').className = 'feedback good';
+        if (pfirst) { pscore++; addStar(); }
+        beep(true); confetti(12); say(q.say);
+        $('pickNext').classList.remove('hidden');
+      } else {
+        pfirst = false;
+        b.className = 'wrong'; b.disabled = true;
+        $('pickFb').textContent = 'Not that one — listen again! 👂'; $('pickFb').className = 'feedback bad';
+        beep(false);
+        setTimeout(() => say(q.say, true), 500);
+      }
+    };
+    box.appendChild(b);
+  });
+  setTimeout(() => say(q.say), 300);
+}
+$('pickSay').onclick = () => say(pq[pi].say);
+$('pickSlow').onclick = () => say(pq[pi].say, true);
+$('pickNext').onclick = () => { pi++; pi < pq.length ? pickRound() : finish(pscore, pq.length); };
+
+/* ---------- TEST PRACTICE (spell) ---------- */
+const LETTERS = ['a', 'e', 'i', 'o', 'u', 'b', 'c', 'd', 'g', 'h', 'j', 'm', 'n', 'w', 'y', 'z'];
+let spellSet = 'words', sq, si, sscore, sfirst, buf, tries, solved;
+(function buildKeys() {
+  const k = $('keys');
+  LETTERS.forEach(l => {
+    const b = document.createElement('button');
+    b.textContent = l;
+    if ('aeiou'.includes(l)) b.className = 'vowel';
+    b.onclick = () => type(l);
+    k.appendChild(b);
+  });
+  const tk = $('toneKeys');
+  [1, 2, 3, 4].forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'tk' + t;
+    b.innerHTML = TONES[t].mark;
+    b.title = TONES[t].name;
+    b.onclick = () => type(String(t));
+    tk.appendChild(b);
+  });
+})();
+$('setPick').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  spellSet = b.dataset.set;
+  $('setPick').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  startSpell();
+};
+function startSpell() {
+  sq = spellSet === 'words'
+    ? shuffle(WORDS).map(w => ({ say: w.hz, ans: w.py, tones: true, emo: w.emo }))
+    : shuffle(FINALS).map(f => ({ say: f.say, ans: f.fin, tones: false, note: f.note }));
+  si = 0; sscore = 0;
+  spellRound();
+}
+function spellRound() {
+  sfirst = true; tries = 0; solved = false; buf = '';
+  progress($('spellProg'), sq.length, si, si);
+  const q = sq[si];
+  $('spellQ').textContent = q.tones ? 'Listen, then write it with tones!' : (q.note ? `Write the sound at ${q.note}` : 'Which sound is it? Write it!');
+  $('toneKeys').classList.toggle('hidden', !q.tones);
+  $('ghost').textContent = '';
+  $('spellFb').textContent = ''; $('spellFb').className = 'feedback';
+  $('spellNext').classList.add('hidden');
+  $('checkBtn').disabled = false;
+  render();
+  setTimeout(() => say(q.say), 300);
+}
+function render() {
+  const box = $('answerBox');
+  box.className = 'answer-box' + (solved ? ' right' : '');
+  box.innerHTML = (buf ? toHtml(buf) : '') + (solved ? '' : '<span class="cursor"></span>');
+}
+function type(ch) {
+  if (solved) return;
+  if (/[1-4]/.test(ch)) {
+    if (!buf) return;
+    if (/[1-4]$/.test(buf)) buf = buf.slice(0, -1);   // change the tone you just put
+    buf += ch;
+  } else {
+    if (buf.length >= 14) return;
+    buf += ch;
+  }
+  render();
+}
+$('delBtn').onclick = () => { if (!solved) { buf = buf.slice(0, -1); render(); } };
+$('hintBtn').onclick = () => {
+  const q = sq[si];
+  sfirst = false;
+  // first hint: how many parts + first letter; second: the letters without tones
+  const syl = syllables(q.ans);
+  $('ghost').textContent = tries < 1 && !$('ghost').textContent
+    ? syl.map(([s]) => s[0] + '_'.repeat(s.length - 1)).join(' ')
+    : syl.map(([s]) => s).join(' ');
+  say(q.say, true);
+};
+$('checkBtn').onclick = () => {
+  if (solved || !buf) return;
+  const q = sq[si];
+  const typed = q.tones ? buf : buf.replace(/[1-4]/g, '');
+  const box = $('answerBox');
+  if (typed === q.ans) {
+    solved = true;
+    render();
+    $('spellFb').innerHTML = `${pick(PRAISE)} ${q.emo || ''}`; $('spellFb').className = 'feedback good';
+    if (sfirst) { sscore++; addStar(2); }
+    beep(true); confetti(20); say(q.say);
+    $('spellNext').classList.remove('hidden');
+    return;
+  }
+  sfirst = false; tries++;
+  box.classList.remove('wrong'); void box.offsetWidth; box.classList.add('wrong');
+  beep(false);
+  const letters = s => s.replace(/[1-4]/g, '');
+  if (q.tones && letters(buf) === letters(q.ans)) {
+    $('spellFb').textContent = 'Letters are perfect! 🎯 Check the tones 🎢';
+  } else if (tries >= 3) {
+    $('spellFb').innerHTML = `It's <span style="font-size:34px">${q.tones ? toHtml(q.ans) : q.ans}</span> — try writing it! ✏️`;
+    buf = ''; render();
+  } else {
+    $('spellFb').textContent = 'Almost! Listen again 👂';
+  }
+  $('spellFb').className = 'feedback bad';
+  setTimeout(() => say(q.say, true), 500);
+};
+$('spellSay').onclick = () => say(sq[si].say);
+$('spellSlow').onclick = () => say(sq[si].say, true);
+$('spellNext').onclick = () => { si++; si < sq.length ? spellRound() : finish(sscore, sq.length); };
+
+// the WORK HARD cards link straight to one exercise: ?mode=learn|tones|pick|spell
+const startMode = new URLSearchParams(location.search).get('mode');
+if (SCREENS.includes(startMode) && startMode !== 'done') show(startMode);
+
+// physical keyboard too: letters, 1-4 for tones, Backspace, Enter
+document.addEventListener('keydown', e => {
+  if ($('spell').classList.contains('hidden')) return;
+  if (/^[a-z]$/.test(e.key)) type(e.key);
+  else if (/^[1-4]$/.test(e.key) && sq[si].tones) type(e.key);
+  else if (e.key === 'Backspace') { e.preventDefault(); $('delBtn').click(); }
+  else if (e.key === 'Enter') solved ? $('spellNext').click() : $('checkBtn').click();
+});
+</script>
+</body>
+</html>

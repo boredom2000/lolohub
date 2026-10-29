@@ -210,7 +210,7 @@
   window.addEventListener('blur', () => { activePointer = null; pressUp(); });
 
   // ---------- menus ----------
-  function goHub() { location.href = '../'; }
+  function goHub() { location.href = '../../'; }
   function setQuitOpen(open) {
     $('quitModal').classList.toggle('hidden', !open);
     game.paused = open;
@@ -330,7 +330,7 @@
       if (game.winT <= 0) {
         game.winT = Infinity; // wait here while the ad break (if any) runs
         const next = () => { if (game.li + 1 < LEVELS.length) loadLevel(game.li + 1); else finishAll(); };
-        // ad break every 3 levels (the hub's ../ads.js; skipped when ads are off or missing)
+        // ad break every 3 levels (the hub's ../../core/ads.js; skipped when ads are off or missing)
         if (window.loloAd && (game.li + 1) % 3 === 0) loloAd('level-' + (game.li + 1), next);
         else next();
       }
