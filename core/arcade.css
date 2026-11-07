@@ -1,0 +1,97 @@
+/* Shared neon chrome for the PLAY HARD games built on core/arcade.js (corner buttons, title / game-over screens,
+   quit window, banner). Same look as Hook / Space. */
+:root { --cyan: #19f7ff; --pink: #ff2fd6; --lime: #7dff2f; --orange: #ff7a1a; --yellow: #ffe81a; --violet: #b44cff; --deep: #12001f; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; overflow: hidden; background: var(--deep); color: #fff;
+  font-family: 'Orbitron', 'Bungee', system-ui, sans-serif;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+}
+canvas.arc-game { position: fixed; inset: 0; display: block; width: 100%; height: 100%; }
+button { font-family: inherit; color: inherit; cursor: pointer; }
+.hidden { display: none !important; }
+
+#arcCorner { position: fixed; z-index: 21; top: calc(12px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left)); display: flex; gap: 8px; }
+#arcCorner button {
+  font-family: 'Bungee', sans-serif; font-size: 15px; letter-spacing: 1px; padding: 9px 14px; border-radius: 12px;
+  background: rgba(20, 0, 45, 0.7); border: 2px solid var(--cyan); color: var(--cyan); text-shadow: 0 0 8px var(--cyan);
+  box-shadow: 0 0 10px rgba(25, 247, 255, 0.6), inset 0 0 10px rgba(25, 247, 255, 0.35); transition: transform 0.12s;
+}
+#arcCorner button:hover { transform: scale(1.06); }
+#arcCorner button:active { transform: scale(0.95); }
+#arcFs { padding: 0 !important; width: 42px; display: flex; align-items: center; justify-content: center; }
+#arcFs svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.arc-overlay {
+  position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  text-align: center; padding: 24px; overflow-y: auto;
+  background: radial-gradient(circle at center, rgba(60, 0, 100, 0.5), rgba(18, 0, 31, 0.9));
+}
+#arcQuit { z-index: 30; }
+.arc-logo { position: relative; display: flex; flex-direction: column; align-items: center; line-height: 0.92; font-family: 'Bungee Shade', 'Bungee', sans-serif; font-weight: 400; animation: arc-bounce 2.4s ease-in-out infinite; }
+.arc-logo span {
+  font-size: clamp(48px, 14vw, 132px); letter-spacing: 0.04em;
+  background: linear-gradient(90deg, var(--c1, var(--pink)), var(--yellow), var(--lime), var(--cyan), var(--c1, var(--pink)));
+  background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 12px rgba(255, 47, 214, 0.8)) drop-shadow(0 0 30px rgba(25, 247, 255, 0.5));
+  animation: arc-rainbow 4s linear infinite;
+}
+.arc-logo span + span { animation-delay: -1s; }
+.arc-tag { max-width: 540px; font-size: clamp(12px, 3.2vw, 16px); color: #d8c8ff; text-shadow: 0 0 8px var(--violet); line-height: 1.5; }
+.arc-help { font-size: clamp(11px, 3vw, 14px); color: #b8f8ff; opacity: 0.9; line-height: 1.6; max-width: 560px; }
+.arc-help b { color: var(--yellow); }
+body.touch .arc-help.desk { display: none; }
+body:not(.touch) .arc-help.touch { display: none; }
+.arc-best { font-family: 'Bungee', sans-serif; font-size: 16px; color: var(--yellow); text-shadow: 0 0 8px var(--orange); letter-spacing: 2px; }
+.arc-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: center; }
+button.arc-big {
+  font-family: 'Bungee', sans-serif; font-size: clamp(24px, 6vw, 38px); letter-spacing: 3px; padding: 14px 44px; border-radius: 18px;
+  border: 3px solid var(--yellow); background: linear-gradient(180deg, rgba(255, 47, 214, 0.35), rgba(80, 0, 140, 0.55)); color: #fff;
+  text-shadow: 0 0 10px var(--yellow); box-shadow: 0 0 18px var(--pink), 0 0 44px var(--pink), inset 0 0 18px rgba(255, 232, 26, 0.5);
+  animation: arc-pulse 1.4s ease-in-out infinite;
+}
+button.arc-big:active { transform: scale(0.95); }
+button.arc-small {
+  font-family: 'Bungee', sans-serif; font-size: 16px; padding: 10px 20px; border-radius: 12px; border: 2px solid var(--cyan);
+  background: rgba(20, 0, 45, 0.75); color: var(--cyan); text-shadow: 0 0 8px var(--cyan); box-shadow: 0 0 12px rgba(25, 247, 255, 0.6);
+}
+button.arc-small.danger { border-color: var(--pink); color: var(--pink); text-shadow: 0 0 8px var(--pink); box-shadow: 0 0 12px rgba(255, 47, 214, 0.7); }
+.arc-over-title { font-family: 'Bungee', sans-serif; font-size: clamp(40px, 11vw, 100px); color: var(--lime); text-shadow: 0 0 10px var(--lime), 0 0 34px var(--cyan), 0 0 70px var(--cyan); animation: arc-flicker 3s infinite; }
+.arc-over-title.lose { color: var(--pink); text-shadow: 0 0 10px var(--pink), 0 0 34px var(--orange), 0 0 70px var(--pink); }
+.arc-stats { font-size: clamp(14px, 3.6vw, 20px); line-height: 1.8; color: #e8dcff; }
+.arc-stats b { color: var(--yellow); text-shadow: 0 0 8px var(--orange); }
+.arc-stats .new { display: inline-block; margin-left: 6px; color: var(--lime); text-shadow: 0 0 10px var(--lime); animation: arc-pulse 1s infinite; }
+.arc-panel {
+  padding: 26px 28px; border-radius: 18px; border: 2px solid var(--pink); background: rgba(16, 0, 36, 0.92);
+  box-shadow: 0 0 20px var(--pink), inset 0 0 20px rgba(255, 47, 214, 0.25); display: flex; flex-direction: column; gap: 14px; align-items: center;
+}
+.arc-panel h2 { font-family: 'Bungee', sans-serif; color: var(--yellow); text-shadow: 0 0 10px var(--orange); }
+.arc-panel p { color: #d8c8ff; font-size: 14px; }
+
+#arcBanner {
+  position: fixed; top: 24%; left: 0; right: 0; z-index: 12; text-align: center; pointer-events: none;
+  font-family: 'Bungee', sans-serif; font-size: clamp(34px, 9vw, 84px); color: var(--yellow);
+  text-shadow: 0 0 8px var(--orange), 0 0 26px var(--pink), 0 0 60px var(--pink); opacity: 0;
+}
+#arcBanner small { display: block; font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 0.24em; letter-spacing: 4px; color: var(--cyan); text-shadow: 0 0 8px var(--cyan), 0 0 20px var(--cyan); }
+#arcBanner.show { animation: arc-banner 1.8s ease-out forwards; }
+
+/* the in-game HUD every game uses: .arc-hud > .arc-stat */
+.arc-hud { position: fixed; z-index: 10; top: calc(12px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); display: flex; gap: 18px; pointer-events: none; text-align: right; }
+.arc-stat { min-width: 70px; font-family: 'Bungee', sans-serif; font-size: 26px; color: var(--yellow); text-shadow: 0 0 8px var(--orange), 0 0 20px var(--pink); }
+.arc-stat small { display: block; font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 3px; color: #fff; opacity: 0.75; text-shadow: none; }
+.arc-stat.bump { animation: arc-bump 0.35s ease-out; }
+
+@keyframes arc-rainbow { to { background-position: 300% 0; } }
+@keyframes arc-bounce { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-12px) rotate(1deg); } }
+@keyframes arc-pulse { 50% { box-shadow: 0 0 28px var(--pink), 0 0 70px var(--pink), inset 0 0 22px rgba(255, 232, 26, 0.7); transform: scale(1.04); } }
+@keyframes arc-flicker { 0%, 18%, 22%, 62%, 64%, 100% { opacity: 1; } 20%, 63% { opacity: 0.55; } }
+@keyframes arc-banner { 0% { opacity: 0; transform: scale(2.2); filter: blur(8px); } 14% { opacity: 1; transform: scale(1); filter: blur(0); } 75% { opacity: 1; transform: scale(1.04); } 100% { opacity: 0; transform: scale(0.9); } }
+@keyframes arc-bump { 0% { transform: scale(1.5); color: #fff; } }
+@media (max-width: 560px) {
+  #arcCorner button { font-size: 12px; padding: 7px 10px; }
+  #arcFs { width: 34px; }
+  .arc-stat { font-size: 19px; min-width: 52px; }
+  .arc-hud { gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0s !important; animation-iteration-count: 1 !important; } }

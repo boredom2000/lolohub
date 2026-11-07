@@ -21,6 +21,39 @@
       "extra": { "name": "Study the words first", "href": "work/chinese-w6/?mode=learn" }
     },
     {
+      "section": "Français · Les sons",
+      "subtitle": "French vowels and vowel teams: hear them, find them, say them!",
+      "lessons": [
+        { "id": "fr-voyelles", "name": "Les voyelles", "emoji": "🔤", "href": "work/french-sons/?lesson=vowels", "minutes": 4, "gold": 25,
+          "blurb": "a, e, é, è, i, o, u: hear a sound or a word and find the missing vowel." },
+        { "id": "fr-sons-combines", "name": "Vowel Teams", "emoji": "🧩", "href": "work/french-sons/?lesson=teams", "minutes": 5, "gold": 30,
+          "blurb": "ou, oi, au, eau, ai, eu, on, an, en, in, ain: which team fills the gap in loup, roi, bateau…?" },
+        { "id": "fr-prononce", "name": "Say It! Pronunciation Test", "emoji": "🎤", "href": "work/french-sons/?lesson=say", "minutes": 5, "gold": 30,
+          "blurb": "Listen, then say each French word into the microphone. No mic? A listening test instead." }
+      ],
+      "extra": { "name": "Study the sounds first", "href": "work/french-sons/?lesson=study" }
+    },
+    {
+      "section": "Primary 1 & 2",
+      "subtitle": "Quick wins: numbers, time, words and 汉字",
+      "lessons": [
+        { "id": "p12-make10", "name": "Make 10", "emoji": "🔟", "href": "work/math-p12/?lesson=make10", "minutes": 3, "gold": 20,
+          "blurb": "Fill the ten frame! How many more to make 10, then 20?" },
+        { "id": "p12-add20", "name": "Add & Subtract to 20", "emoji": "🧮", "href": "work/math-p12/?lesson=add20", "minutes": 4, "gold": 25,
+          "blurb": "Quick sums up to 20. Answer fast for a lightning combo!" },
+        { "id": "p12-tens-ones", "name": "Tens & Ones", "emoji": "🧱", "href": "work/math-p12/?lesson=tens", "minutes": 4, "gold": 25,
+          "blurb": "Count rods of ten and little cubes, and find 10 more or 10 less." },
+        { "id": "p12-clock", "name": "Tell the Time", "emoji": "🕒", "href": "work/math-p12/?lesson=clock", "minutes": 4, "gold": 25,
+          "blurb": "Read the clock: o'clock, half past, quarter past and to, then every 5 minutes." },
+        { "id": "p12-patterns", "name": "What Comes Next?", "emoji": "🔮", "href": "work/math-p12/?lesson=patterns", "minutes": 4, "gold": 25,
+          "blurb": "Count by 2s, 5s and 10s, finish the emoji pattern, spot the bigger number." },
+        { "id": "p12-sight-words", "name": "Sight Word Spell", "emoji": "🐝", "href": "work/words-p12/?lesson=spell", "minutes": 5, "gold": 30,
+          "blurb": "Hear a tricky word (said, they, because…) in a sentence and spell it with tiles." },
+        { "id": "p12-hanzi", "name": "Hanzi Heroes", "emoji": "🏮", "href": "work/chinese-p12/?lesson=hanzi", "minutes": 4, "gold": 25,
+          "blurb": "一 to 十 and first characters like 人 口 山 水 火: see, hear and match them." }
+      ]
+    },
+    {
       "section": "Math · Grade 3",
       "subtitle": "Always open: keep those skills sharp",
       "lessons": [
@@ -36,6 +69,16 @@
     }
   ],
   "play": [
+    { "id": "loloswarm", "name": "SWARM", "emoji": "🧟", "colors": ["#7dff2f", "#ff2fd6"], "price": 12, "round": "one run, up to 5 min",
+      "blurb": "Monsters everywhere! Your weapons fire by themselves: just move, grab gems, level up and pick new powers. Survive 5 minutes and beat two bosses." },
+    { "id": "lolomerge", "name": "MERGE MOON", "emoji": "🪐", "colors": ["#b44cff", "#19f7ff"], "price": 8, "round": "one jar, about 4 min",
+      "blurb": "Drop space rocks in the jar. Two the same squish into a bigger one: moons, planets, suns… Don't let the jar overflow!" },
+    { "id": "lolocrowd", "name": "CROWD RUSH", "emoji": "🏃", "colors": ["#19f7ff", "#ffe81a"], "price": 6, "round": "3 levels, about 3 min",
+      "blurb": "Steer your runners through the best math gate: +10 or ×2? Grow a huge crowd, smash the red team and beat the giant!" },
+    { "id": "loloblocks", "name": "BLOCK BOOM", "emoji": "🧱", "colors": ["#ff7a1a", "#7dff2f"], "price": 8, "round": "one board, about 5 min",
+      "blurb": "Drag the blocks onto the board. Fill a row or a column and BOOM, it explodes! Chain clears for giant combos." },
+    { "id": "lolosnake", "name": "WIGGLE.IO", "emoji": "🐍", "colors": ["#ff2fd6", "#7dff2f"], "price": 8, "round": "one 3-min arena",
+      "blurb": "Be the biggest snake in the neon arena! Eat glowing dots, boost to cut off rivals and gobble what they leave behind." },
     { "id": "lolocastle", "name": "CASTLE", "emoji": "🏰", "colors": ["#ff7a1a", "#ffe81a"], "price": 12, "round": "one battle, 5-15 min",
       "blurb": "Build farms, walls and towers around your castle, then hold off an endless army. A boss shows up every two minutes!" },
     { "id": "lolospace", "name": "ALIEN IN SPACE", "emoji": "👽", "colors": ["#7dff2f", "#19f7ff"], "price": 8, "round": "one run, about 4 min",

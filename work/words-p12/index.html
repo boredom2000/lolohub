@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sight Word Spell | Lolo Hub WORK HARD</title>
+<meta name="description" content="Primary 1 and 2 sight words on Lolo Hub: hear the word in a sentence and spell it with letter tiles.">
+<link rel="icon" href="../../icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Patrick+Hand&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../kit/kit.css">
+<script src="../../core/wallet.js"></script>
+<script src="../kit/kit.js"></script>
+<style>
+  .sentence { font-size: clamp(24px, 6vw, 32px); line-height: 1.4; margin-top: 4px; }
+  .sentence .blank { display: inline-block; min-width: 3.2em; border-bottom: 4px solid var(--margin); color: var(--good); }
+  .study-grid .s-big { font-size: 30px; }
+</style>
+</head>
+<body>
+<script>
+'use strict';
+const { shuffle, say } = LessonKit;
+// Primary 1-2 "tricky" sight words (they don't sound out the way they are spelled), each in a short sentence
+const WORDS = [
+  ['said', '"Hello," ___ the cat.', '🐱'], ['they', '___ like to play.', '⚽'], ['was', 'It ___ a sunny day.', '☀️'],
+  ['have', 'I ___ a red ball.', '🔴'], ['come', '___ and see my fish!', '🐠'], ['some', 'Can I have ___ milk?', '🥛'],
+  ['what', '___ is your name?', '❓'], ['where', '___ is my hat?', '🎩'], ['there', 'The dog is over ___.', '🐶'],
+  ['want', 'I ___ a snack.', '🍪'], ['because', 'I smile ___ I am happy.', '😊'], ['friend', 'You are my best ___.', '🤝'],
+  ['could', '___ you help me, please?', '🙏'], ['would', '___ you like a cookie?', '🍪'], ['people', 'Lots of ___ are at the park.', '👨‍👩‍👧'],
+  ['again', 'Let us play ___!', '🔁'], ['many', 'How ___ birds can you see?', '🐦'], ['does', '___ a fish swim?', '🐟'],
+  ['very', 'The elephant is ___ big.', '🐘'], ['who', '___ is at the door?', '🚪'], ['two', 'I have ___ cats.', '✌️'],
+  ['once', '___ upon a time…', '📖'], ['school', 'We walk to ___.', '🏫'], ['little', 'A ___ mouse ran away.', '🐭'],
+  ['were', 'We ___ at the beach.', '🏖️'], ['your', 'Is this ___ bag?', '🎒'], ['know', 'I ___ the answer!', '💡'],
+  ['after', 'We eat ___ school.', '🍎'], ['water', 'Fish live in ___.', '💧'], ['their', 'The kids lost ___ kite.', '🪁'],
+  ['other', 'Where is my ___ sock?', '🧦'], ['every', 'I brush my teeth ___ day.', '🪥'], ['should', 'You ___ wear a coat.', '🧥'],
+  ['laugh', 'Funny jokes make me ___.', '😂'], ['beautiful', 'What a ___ flower!', '🌸'], ['eyes', 'I have two blue ___.', '👀'],
+];
+let deck = [];
+function makeWord() {
+  if (!deck.length) deck = shuffle(WORDS);
+  const [w, s, emo] = deck.pop();
+  const plain = s.replace('___', w);
+  return { kind: 'spell', lang: 'en', ans: w, say: `${w}. ${plain} ${w}.`, sayAfter: w,
+    html: `<div class="pic">${emo}</div><div class="sentence">${s.replace('___', '<span class="blank" id="blank"></span>')}</div>`,
+    onDone: () => { document.getElementById('blank').textContent = w; } };
+}
+LessonKit.run({
+  title: 'Sight Word Spell 🐝',
+  sub: 'Listen, then spell the tricky word.',
+  lang: 'en',
+  study: {
+    title: 'Tricky words · Study', sub: 'Tap a word to hear it. Look, say, cover, write, check!',
+    render(el) {
+      el.innerHTML = '<div class="study-grid" id="sg"></div>';
+      WORDS.forEach(([w, s, emo]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.innerHTML = `<div class="s-pic">${emo}</div><div class="s-big">${w}</div>`;
+        b.onclick = () => say(`${w}. ${s.replace('___', w)}`, 'en');
+        el.querySelector('#sg').appendChild(b);
+      });
+    },
+  },
+  lessons: {
+    spell: { id: 'p12-sight-words', emoji: '🐝', title: 'Sight Word Spell', sub: 'Hear it in a sentence, spell it with the tiles.', count: 10, make: makeWord, reset: () => { deck = []; } },
+  },
+});
+</script>
+</body>
+</html>

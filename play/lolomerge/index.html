@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#12001f">
+  <title>Merge Moon</title>
+  <link rel="icon" href="../../icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Orbitron:wght@500;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../core/arcade.css">
+  <script src="../../core/ads.js"></script>
+  <script src="../../core/wallet.js"></script>
+  <script src="../../core/arcade.js"></script>
+  <style>
+    .arc-hud, #shakeBtn { display: none; }
+    body.playing .arc-hud { display: flex; }
+    body.playing #shakeBtn { display: block; }
+    #shakeBtn {
+      position: fixed; z-index: 11; right: calc(14px + env(safe-area-inset-right)); bottom: calc(14px + env(safe-area-inset-bottom));
+      font-family: 'Bungee', sans-serif; font-size: 16px; padding: 10px 14px; border-radius: 14px; border: 2px solid var(--yellow);
+      background: rgba(20, 0, 45, 0.8); color: var(--yellow); text-shadow: 0 0 8px var(--orange); box-shadow: 0 0 14px rgba(255, 232, 26, 0.5);
+    }
+    #shakeBtn:disabled { opacity: 0.35; }
+    #shakeBtn:active { transform: scale(0.94); }
+  </style>
+</head>
+<body>
+  <div class="arc-hud">
+    <div class="arc-stat" id="sScore"><small>SCORE</small><span>0</span></div>
+  </div>
+  <button id="shakeBtn" title="Shake the jar (S)">🫨 SHAKE ×<span id="shakeN">3</span></button>
+<script>
+'use strict';
+const { rnd, pick, clamp, sfx } = Arcade;
+let sprites = {};
+const view = Arcade.canvas(() => { sprites = {}; });
+const ctx = view.ctx;
+const $ = (id) => document.getElementById(id);
+
+/* ---------- the 11 space things, small to huge ---------- */
+const TIERS = [
+  { name: 'Spark', em: '✨', col: '#19f7ff', r: 15 },
+  { name: 'Comet', em: '☄️', col: '#7dff2f', r: 20 },
+  { name: 'Rock', em: '🪨', col: '#ff7a1a', r: 26 },
+  { name: 'Moon', em: '🌙', col: '#ffe81a', r: 32 },
+  { name: 'Ice World', em: '🧊', col: '#9be7ff', r: 39 },
+  { name: 'Earth', em: '🌍', col: '#2f8bff', r: 47 },
+  { name: 'Ringed', em: '🪐', col: '#b44cff', r: 56 },
+  { name: 'Sun', em: '☀️', col: '#ff9a1a', r: 66 },
+  { name: 'Super Star', em: '🌟', col: '#fff36b', r: 77 },
+  { name: 'Galaxy', em: '🌌', col: '#ff2fd6', r: 89 },
+  { name: 'Black Hole', em: '🕳️', col: '#7a00c2', r: 102 },
+];
+const POINTS = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
+const JW = 370, JH = 540, DANGER = 78, DROP_Y = 34;
+function sprite(t, sc) {
+  const key = t + ':' + sc.toFixed(3);
+  if (sprites[key]) return sprites[key];
+  const T = TIERS[t], r = T.r * sc, pad = 12, c = document.createElement('canvas');
+  c.width = c.height = Math.ceil((r + pad) * 2 * view.dpr);
+  const g = c.getContext('2d');
+  g.scale(view.dpr, view.dpr);
+  const m = r + pad;
+  g.shadowColor = T.col; g.shadowBlur = 14;
+  const gr = g.createRadialGradient(m - r * 0.35, m - r * 0.35, r * 0.1, m, m, r);
+  gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.25, T.col); gr.addColorStop(1, shade(T.col));
+  g.fillStyle = gr; g.beginPath(); g.arc(m, m, r, 0, Math.PI * 2); g.fill();
+  g.shadowBlur = 0;
+  g.font = `${r * 1.15}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(T.em, m, m + r * 0.08);
+  g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = Math.max(1.5, r * 0.06);
+  g.beginPath(); g.arc(m, m, r - g.lineWidth / 2, 0, Math.PI * 2); g.stroke();
+  return (sprites[key] = { c, m });
+}
+function shade(hex) { const n = parseInt(hex.slice(1), 16); return `rgb(${(n >> 16) * 0.35 | 0},${((n >> 8) & 255) * 0.35 | 0},${(n & 255) * 0.35 | 0})`; }
+
+/* ---------- state ---------- */
+let G = null;
+function newGame() {
+  G = { mode: 'play', bodies: [], parts: [], pops: [], score: 0, aimX: JW / 2, cur: rollTier(0), next: rollTier(0), cool: 0, chain: 0, chainT: 0,
+    top: 0, warn: 0, shakes: 3, nextShakeAt: 1500, shakeT: 0, t: 0 };
+  document.body.classList.add('playing');
+  $('shakeN').textContent = G.shakes; $('shakeBtn').disabled = false;
+  Arcade.stat('sScore', 0);
+  sfx.up();
+}
+function rollTier(top) {
+  const w = [0.3, 0.27, 0.21, 0.14, 0.08];
+  const maxT = top >= 6 ? 4 : top >= 4 ? 3 : 2;
+  let r = Math.random() * w.slice(0, maxT + 1).reduce((a, b) => a + b), i = 0;
+  while (r > w[i]) { r -= w[i]; i++; }
+  return i;
+}
+function drop() {
+  if (!G || G.mode !== 'play' || G.cool > 0) return;
+  const r = TIERS[G.cur].r;
+  G.bodies.push({ x: clamp(G.aimX, r, JW - r), y: DROP_Y, vx: 0, vy: 60, t: G.cur, r, age: 0, ang: rnd(-0.3, 0.3), av: 0, high: 0 });
+  sfx.tone(300, 0.08, 'sine', 0.12, 200);
+  G.cur = G.next;
+  G.next = rollTier(G.top);
+  G.cool = 0.45;
+}
+function shake() {
+  if (!G || G.mode !== 'play' || G.shakes <= 0) return;
+  G.shakes--; $('shakeN').textContent = G.shakes; $('shakeBtn').disabled = G.shakes <= 0;
+  for (const b of G.bodies) { b.vy -= rnd(350, 650) * (1.2 - b.r / 120); b.vx += rnd(-200, 200); b.av += rnd(-6, 6); }
+  G.shakeT = 0.4;
+  sfx.noise(0.4, 0.25, 900);
+}
+
+/* ---------- physics ---------- */
+function step(dt) {
+  const B = G.bodies;
+  for (const b of B) {
+    b.vy += 1500 * dt;
+    b.vx *= 1 - 0.4 * dt; b.vy *= 1 - 0.1 * dt;
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    b.ang += b.av * dt; b.av *= 1 - 2 * dt;
+    if (b.x < b.r) { b.x = b.r; if (b.vx < 0) b.vx *= -0.2; }
+    if (b.x > JW - b.r) { b.x = JW - b.r; if (b.vx > 0) b.vx *= -0.2; }
+    if (b.y > JH - b.r) { b.y = JH - b.r; if (b.vy > 0) b.vy *= -0.15; b.av = b.av * 0.8 + b.vx / b.r * 0.2; b.vx *= 0.97; }
+  }
+  for (let it = 0; it < 2; it++) {
+    for (let i = 0; i < B.length; i++) {
+      const a = B[i]; if (a.dead) continue;
+      for (let j = i + 1; j < B.length; j++) {
+        const b = B[j]; if (b.dead) continue;
+        const dx = b.x - a.x, dy = b.y - a.y, rr = a.r + b.r, d2 = dx * dx + dy * dy;
+        if (d2 >= rr * rr) continue;
+        if (a.t === b.t) { merge(a, b); break; }
+        const d = Math.sqrt(d2) || 0.01, nx = dx / d, ny = dy / d, over = rr - d;
+        const ma = a.r * a.r, mb = b.r * b.r, ka = mb / (ma + mb), kb = ma / (ma + mb);
+        a.x -= nx * over * ka; a.y -= ny * over * ka; b.x += nx * over * kb; b.y += ny * over * kb;
+        const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+        if (rv < 0) {
+          const imp = -(1.15) * rv;
+          a.vx -= nx * imp * ka; a.vy -= ny * imp * ka; b.vx += nx * imp * kb; b.vy += ny * imp * kb;
+          const tv = (b.vx - a.vx) * -ny + (b.vy - a.vy) * nx;
+          a.av += tv / a.r * 0.05; b.av -= tv / b.r * 0.05;
+        }
+      }
+    }
+  }
+  G.bodies = B.filter((b) => !b.dead);
+}
+function merge(a, b) {
+  a.dead = b.dead = true;
+  const t = a.t, x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
+  G.chainT = 0.9; G.chain++;
+  const mult = Math.min(5, G.chain);
+  let pts;
+  if (t === TIERS.length - 1) {
+    pts = 500;
+    burst(x, y, TIERS[t].col, 90, 600);
+    Arcade.banner('BLACK HOLE BLAST!', '+500', '#ff2fd6');
+    sfx.boom(); G.shakeT = 0.6;
+  } else {
+    const n = t + 1, r = TIERS[n].r;
+    G.bodies.push({ x: clamp(x, r, JW - r), y: Math.min(y, JH - r), vx: (a.vx + b.vx) / 2, vy: Math.min(0, (a.vy + b.vy) / 2) - 120, t: n, r, age: 0.6, ang: 0, av: rnd(-2, 2), high: 0, grow: 0.25 });
+    pts = POINTS[n];
+    burst(x, y, TIERS[n].col, 14 + n * 4, 220 + n * 25);
+    sfx.pop(1 + n * 0.12);
+    if (n > G.top) {
+      G.top = n;
+      if (n >= 5) { Arcade.banner(`${TIERS[n].em} ${TIERS[n].name.toUpperCase()}!`, 'new biggest thing'); sfx.fanfare(); }
+    }
+  }
+  pts *= mult;
+  G.score += pts;
+  G.pops.push({ x, y, t: `+${pts}${mult > 1 ? ` ×${mult}` : ''}`, life: 1 });
+  if (G.chain >= 3) G.pops.push({ x, y: y - 26, t: `CHAIN ×${G.chain}!`, life: 1.2, big: true });
+  Arcade.stat('sScore', G.score.toLocaleString());
+  if (G.score >= G.nextShakeAt) { G.nextShakeAt += 1500; G.shakes++; $('shakeN').textContent = G.shakes; $('shakeBtn').disabled = false; }
+}
+function burst(x, y, col, n, spd) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = rnd(spd * 0.3, spd);
+    G.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rnd(0.4, 0.9), col, s: rnd(2, 5) });
+  }
+}
+function update(dt) {
+  if (!G) return;
+  for (const p of G.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * dt; p.life -= dt; }
+  G.parts = G.parts.filter((p) => p.life > 0);
+  for (const p of G.pops) { p.y -= 40 * dt; p.life -= dt; }
+  G.pops = G.pops.filter((p) => p.life > 0);
+  if (G.mode !== 'play') return;
+  G.t += dt;
+  G.cool = Math.max(0, G.cool - dt);
+  G.shakeT = Math.max(0, G.shakeT - dt);
+  G.chainT -= dt; if (G.chainT <= 0) G.chain = 0;
+  const kx = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
+  G.aimX = clamp(G.aimX + kx * 380 * dt, 0, JW);
+  for (let s = 0; s < 4; s++) step(dt / 4);
+  // over the line too long = game over
+  let worst = 0;
+  for (const b of G.bodies) {
+    b.age += dt;
+    if (b.grow) b.grow = Math.max(0, b.grow - dt);
+    if (b.age > 1.2 && b.y - b.r < DANGER && Math.abs(b.vy) < 120) b.high += dt; else b.high = Math.max(0, b.high - dt * 2);
+    worst = Math.max(worst, b.high);
+  }
+  if (worst > 0 && G.warn === 0) sfx.tone(880, 0.1, 'square', 0.05);
+  G.warn = worst;
+  if (worst > 2.6) gameOver();
+}
+function gameOver() {
+  G.mode = 'over';
+  document.body.classList.remove('playing');
+  sfx.boom();
+  G.bodies.forEach((b, i) => setTimeout(() => { b.dead = true; burst(b.x, b.y, TIERS[b.t].col, 10, 260); sfx.pop(0.6 + Math.random()); G.bodies = G.bodies.filter((x) => !x.dead); }, 200 + i * 60));
+  setTimeout(() => Arcade.over({
+    title: 'JAR FULL!', lose: true, score: G.score,
+    stats: `Score <b>${G.score.toLocaleString()}</b> · Biggest: <b>${TIERS[G.top].em} ${TIERS[G.top].name}</b> · ${Arcade.fmtTime(G.t)}`,
+  }), 400 + G.bodies.length * 60);
+}
+
+/* ---------- drawing ---------- */
+const STARS = Array.from({ length: 120 }, () => ({ x: Math.random(), y: Math.random(), s: Math.random() * 2 + 0.5, p: Math.random() * 6 }));
+let layout = { sc: 1, x0: 0, y0: 0 };
+function draw() {
+  const w = view.w, h = view.h, now = performance.now() / 1000;
+  ctx.fillStyle = '#12001f'; ctx.fillRect(0, 0, w, h);
+  for (const s of STARS) { ctx.globalAlpha = 0.4 + 0.4 * Math.sin(now * 2 + s.p); ctx.fillStyle = '#d8c8ff'; ctx.fillRect(s.x * w, s.y * h, s.s, s.s); }
+  ctx.globalAlpha = 1;
+  const top = 70, bottom = 70;
+  const sc = Math.min((w - 24) / JW, (h - top - bottom) / (JH + 40));
+  const x0 = (w - JW * sc) / 2, y0 = top + 40 * sc;
+  layout = { sc, x0, y0 };
+  ctx.save();
+  if (G && G.shakeT) ctx.translate(rnd(-6, 6) * G.shakeT, rnd(-6, 6) * G.shakeT);
+  // jar
+  ctx.fillStyle = 'rgba(180, 76, 255, 0.08)';
+  ctx.fillRect(x0, y0, JW * sc, JH * sc);
+  const warn = G && G.warn > 0;
+  ctx.strokeStyle = warn ? `rgba(255,47,214,${0.5 + 0.5 * Math.sin(now * 20)})` : 'rgba(255,47,214,0.6)';
+  ctx.setLineDash([10, 8]); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x0, y0 + DANGER * sc); ctx.lineTo(x0 + JW * sc, y0 + DANGER * sc); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.shadowColor = '#19f7ff'; ctx.shadowBlur = 16; ctx.strokeStyle = '#19f7ff'; ctx.lineWidth = 4; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x0 - 2, y0 - 10); ctx.lineTo(x0 - 2, y0 + JH * sc + 2); ctx.lineTo(x0 + JW * sc + 2, y0 + JH * sc + 2); ctx.lineTo(x0 + JW * sc + 2, y0 - 10); ctx.stroke();
+  ctx.shadowBlur = 0;
+  if (G) {
+    // aim line + the piece about to drop
+    if (G.mode === 'play') {
+      const r = TIERS[G.cur].r, ax = clamp(G.aimX, r, JW - r);
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2; ctx.setLineDash([4, 6]);
+      ctx.beginPath(); ctx.moveTo(x0 + ax * sc, y0 + DROP_Y * sc); ctx.lineTo(x0 + ax * sc, y0 + JH * sc); ctx.stroke(); ctx.setLineDash([]);
+      if (G.cool <= 0.2) drawBody({ x: ax, y: DROP_Y, t: G.cur, ang: Math.sin(now * 3) * 0.15 }, 1);
+      // next
+      const ns = sprite(G.next, sc * 0.7);
+      ctx.font = `${Math.max(10, 12 * sc)}px Orbitron, sans-serif`; ctx.fillStyle = '#b8f8ff'; ctx.textAlign = 'right';
+      ctx.fillText('NEXT', x0 + JW * sc - 8, y0 - 14 * sc - 4);
+      ctx.drawImage(ns.c, x0 + JW * sc - ns.m * 2 - 50 * sc, y0 - 14 * sc - ns.m * 1.4 - 8, ns.c.width / view.dpr, ns.c.height / view.dpr);
+    }
+    for (const b of G.bodies) drawBody(b);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of G.parts) { ctx.globalAlpha = Math.min(1, p.life * 1.6); ctx.fillStyle = p.col; ctx.fillRect(x0 + p.x * sc - p.s / 2, y0 + p.y * sc - p.s / 2, p.s, p.s); }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    ctx.textAlign = 'center';
+    for (const p of G.pops) {
+      ctx.globalAlpha = Math.min(1, p.life * 2);
+      ctx.font = `${p.big ? 24 : 16}px Bungee, sans-serif`;
+      ctx.fillStyle = p.big ? '#ffe81a' : '#ffffff';
+      ctx.fillText(p.t, x0 + p.x * sc, y0 + p.y * sc);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // evolution strip
+  const stripY = y0 + JH * sc + 34, cell = Math.min(34, (w - 20) / TIERS.length);
+  ctx.font = `${cell * 0.7}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  TIERS.forEach((T, i) => {
+    const cx = w / 2 + (i - (TIERS.length - 1) / 2) * cell;
+    ctx.globalAlpha = G && i <= G.top ? 1 : 0.3;
+    ctx.fillText(T.em, cx, stripY);
+  });
+  ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+  ctx.restore();
+}
+function drawBody(b, alpha) {
+  const { sc, x0, y0 } = layout;
+  const g = b.grow ? 1 - b.grow * 1.2 : 1;
+  const s = sprite(b.t, sc);
+  ctx.save();
+  ctx.translate(x0 + b.x * sc, y0 + b.y * sc);
+  ctx.rotate(b.ang || 0);
+  if (g !== 1) ctx.scale(Math.max(0.5, g), Math.max(0.5, g));
+  if (b.high > 0) ctx.globalAlpha = 0.6 + 0.4 * Math.sin(performance.now() / 60);
+  const d = s.c.width / view.dpr;
+  ctx.drawImage(s.c, -d / 2, -d / 2, d, d);
+  ctx.restore();
+}
+
+/* ---------- input ---------- */
+const keys = {};
+addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (!G || G.mode !== 'play') return;
+  if (e.code === 'Space' || e.code === 'ArrowDown') { e.preventDefault(); drop(); }
+  if (e.code === 'KeyX') shake();
+});
+addEventListener('keyup', (e) => { keys[e.code] = false; });
+const toJar = (cx) => (cx - layout.x0) / layout.sc;
+let downId = null;
+view.cv.addEventListener('pointerdown', (e) => { downId = e.pointerId; if (G) G.aimX = clamp(toJar(e.clientX), 0, JW); });
+addEventListener('pointermove', (e) => { if (G && (e.pointerType === 'mouse' || e.pointerId === downId)) G.aimX = clamp(toJar(e.clientX), 0, JW); });
+addEventListener('pointerup', (e) => { if (e.pointerId === downId) { downId = null; drop(); } });
+$('shakeBtn').onclick = shake;
+
+Arcade.init({
+  id: 'lolomerge', logo: ['MERGE', 'MOON'],
+  tag: 'Drop space rocks into the jar. Two the same touch and SQUISH into something bigger: comets, moons, planets, suns… all the way to a black hole! Keep the pile under the pink line.',
+  helpDesk: '<b>Move the mouse</b> or <b>← →</b> to aim · <b>click</b> or <b>Space</b> to drop · <b>X</b> shakes the jar',
+  helpTouch: '<b>Drag</b> to aim · <b>lift your finger</b> to drop · 🫨 shakes the jar',
+  start: newGame,
+  playing: () => G && G.mode === 'play',
+});
+Arcade.loop(update, draw);
+</script>
+</body>
+</html>

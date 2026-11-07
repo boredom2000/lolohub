@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>French Sounds | Lolo Hub WORK HARD</title>
+<meta name="description" content="Learn the sounds of French vowels (a, e, é, è, i, o, u) and vowel teams (ou, oi, au, eau, ai, eu, on, an, en, in, ain), then say them out loud in a pronunciation test.">
+<link rel="icon" href="../../icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Patrick+Hand&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../kit/kit.css">
+<script src="../../core/wallet.js"></script>
+<script src="../kit/kit.js"></script>
+<style>
+  .fr-word { font: 900 clamp(44px, 12vw, 76px)/1.1 'Fraunces', Georgia, serif; letter-spacing: 0.02em; }
+  .v { color: var(--blue); }
+  .t { color: var(--pink); }
+  .fr-word .t { text-decoration: underline wavy rgba(214, 58, 160, 0.45); text-underline-offset: 8px; }
+  .mic { display: block; margin: 14px auto 0; width: 120px; height: 120px; border-radius: 50%; font-size: 56px; color: #fff;
+    background: radial-gradient(circle at 35% 30%, #ff7b7b, #d63a3a); box-shadow: 0 7px 0 #8f1f1f, 0 12px 26px rgba(214, 58, 58, 0.35); }
+  .mic:active { transform: translateY(5px); box-shadow: 0 2px 0 #8f1f1f; }
+  .mic.on { animation: mic-on 0.9s ease-in-out infinite; background: radial-gradient(circle at 35% 30%, #7dff9a, #1f9d55); box-shadow: 0 7px 0 #136b39, 0 0 0 0 rgba(31, 157, 85, 0.5); }
+  .mic-note { margin-top: 12px; font-size: 21px; color: var(--soft); text-align: center; min-height: 28px; }
+  .heard { font-size: 22px; text-align: center; margin-top: 6px; color: var(--soft); }
+  .heard b { color: var(--ink); }
+  .alt-btn { display: block; margin: 14px auto 0; padding: 10px 20px; border-radius: 999px; font: 900 17px 'Nunito', sans-serif; background: #fff; box-shadow: 0 4px 0 #c9d3e0; }
+  .legend { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; font-size: 19px; margin-top: 6px; }
+  .legend .v { color: var(--blue); font-weight: 900; } .legend .t { color: var(--pink); font-weight: 900; }
+  @keyframes mic-on { 50% { transform: scale(1.08); box-shadow: 0 7px 0 #136b39, 0 0 0 22px rgba(31, 157, 85, 0); } }
+</style>
+</head>
+<body>
+<script>
+'use strict';
+const { rnd, pick, shuffle, say } = LessonKit;
+
+/* ---------- the sounds ---------- */
+// tok = a real French word that is said exactly like the sound (a voice reading a bare letter can say its name instead)
+const VOWELS = [
+  { s: 'a', tok: 'a', ex: 'chat', emo: '🐱' },
+  { s: 'e', tok: 'euh', ex: 'cheval', emo: '🐴', note: 'like "uh"' },
+  { s: 'é', tok: 'et', ex: 'vélo', emo: '🚲', note: 'smile!' },
+  { s: 'è', tok: 'haie', ex: 'zèbre', emo: '🦓', note: 'ê sounds the same' },
+  { s: 'i', tok: 'i', ex: 'lit', emo: '🛏️' },
+  { s: 'o', tok: 'oh', ex: 'moto', emo: '🏍️' },
+  { s: 'u', tok: 'u', ex: 'lune', emo: '🌙', note: 'lips like a kiss, say "i"' },
+];
+// words with one vowel left out: [word, word with _ for the vowel, picture, vowel]
+const VOWEL_WORDS = [
+  ['chat', 'ch_t', '🐱', 'a'], ['sac', 's_c', '🎒', 'a'], ['rat', 'r_t', '🐀', 'a'],
+  ['cheval', 'ch_val', '🐴', 'e'], ['renard', 'r_nard', '🦊', 'e'], ['cerise', 'c_rise', '🍒', 'e'],
+  ['vélo', 'v_lo', '🚲', 'é'], ['clé', 'cl_', '🔑', 'é'], ['café', 'caf_', '☕', 'é'],
+  ['zèbre', 'z_bre', '🦓', 'è'], ['chèvre', 'ch_vre', '🐐', 'è'], ['fête', 'f_te', '🎉', 'ê'],
+  ['lit', 'l_t', '🛏️', 'i'], ['riz', 'r_z', '🍚', 'i'], ['ski', 'sk_', '⛷️', 'i'],
+  ['moto', 'm_to', '🏍️', 'o'], ['robot', 'r_bot', '🤖', 'o'], ['stylo', 'styl_', '🖊️', 'o'],
+  ['lune', 'l_ne', '🌙', 'u'], ['tortue', 'tort_e', '🐢', 'u'], ['plume', 'pl_me', '🪶', 'u'],
+];
+// vowel teams; g = the sound, so two teams that sound the same are never both offered for one blank
+const TEAMS = [
+  { s: 'ou', tok: 'où', g: 'u', ex: 'loup', emo: '🐺', words: [['loup', 'l_p', '🐺'], ['poule', 'p_le', '🐔'], ['souris', 's_ris', '🐭'], ['chou', 'ch_', '🥬']] },
+  { s: 'oi', tok: 'oie', g: 'wa', ex: 'roi', emo: '🤴', words: [['roi', 'r_', '🤴'], ['poire', 'p_re', '🍐'], ['étoile', 'ét_le', '⭐'], ['oiseau', '_seau', '🐦']] },
+  { s: 'au', tok: 'eau', g: 'o', ex: 'jaune', emo: '💛', words: [['jaune', 'j_ne', '💛'], ['auto', '_to', '🚗'], ['dauphin', 'd_phin', '🐬']] },
+  { s: 'eau', tok: 'eau', g: 'o', ex: 'bateau', emo: '⛵', words: [['bateau', 'bat_', '⛵'], ['gâteau', 'gât_', '🎂'], ['chapeau', 'chap_', '🎩']] },
+  { s: 'ai', tok: 'haie', g: 'è', ex: 'lait', emo: '🥛', words: [['lait', 'l_t', '🥛'], ['maison', 'm_son', '🏠'], ['fraise', 'fr_se', '🍓']] },
+  { s: 'eu', tok: 'eux', g: 'eu', ex: 'feu', emo: '🔥', words: [['feu', 'f_', '🔥'], ['fleur', 'fl_r', '🌸'], ['deux', 'd_x', '✌️']] },
+  { s: 'on', tok: 'on', g: 'on', ex: 'ballon', emo: '🎈', words: [['ballon', 'ball_', '🎈'], ['mouton', 'mout_', '🐑'], ['poisson', 'poiss_', '🐟'], ['cochon', 'coch_', '🐷']] },
+  { s: 'an', tok: 'an', g: 'an', ex: 'maman', emo: '👩', words: [['maman', 'mam_', '👩'], ['éléphant', 'éléph_t', '🐘'], ['orange', 'or_ge', '🍊']] },
+  { s: 'en', tok: 'en', g: 'an', ex: 'dent', emo: '🦷', words: [['dent', 'd_t', '🦷'], ['serpent', 'serp_t', '🐍'], ['vent', 'v_t', '🌬️']] },
+  { s: 'in', tok: 'hein', g: 'in', ex: 'lapin', emo: '🐰', words: [['lapin', 'lap_', '🐰'], ['sapin', 'sap_', '🎄'], ['jardin', 'jard_', '🌻']] },
+  { s: 'ain', tok: 'hein', g: 'in', ex: 'main', emo: '✋', words: [['main', 'm_', '✋'], ['pain', 'p_', '🍞'], ['train', 'tr_', '🚂']] },
+];
+// words for the pronunciation test (alt = other spellings the speech recognizer may write for the same sound)
+const SAY_WORDS = [
+  ['bateau', '⛵'], ['lapin', '🐰'], ['maison', '🏠'], ['mouton', '🐑'], ['poisson', '🐟'], ['fleur', '🌸'],
+  ['lune', '🌙'], ['vélo', '🚲', ['velo']], ['étoile', '⭐'], ['chapeau', '🎩'], ['éléphant', '🐘'], ['souris', '🐭'],
+  ['tortue', '🐢'], ['cheval', '🐴'], ['zèbre', '🦓'], ['gâteau', '🎂'], ['orange', '🍊'], ['dauphin', '🐬'],
+  ['oiseau', '🐦'], ['cochon', '🐷'], ['serpent', '🐍'], ['fraise', '🍓'], ['train', '🚂'], ['jardin', '🌻'],
+  ['robot', '🤖'], ['poire', '🍐'], ['chèvre', '🐐'], ['tomate', '🍅'],
+];
+// pairs that only differ by a vowel sound, for the listening test (when there is no microphone)
+const PAIRS = [
+  ['roue', 'rue'], ['dessous', 'dessus'], ['vin', 'vent'], ['bon', 'banc'], ['feu', 'fou'], ['deux', 'doux'],
+  ['lit', 'lu'], ['pont', 'pain'], ['bain', 'banc'], ['mot', 'mou'], ['riz', 'rue'], ['chat', 'chou'],
+  ['lait', 'lit'], ['loup', 'lu'], ['bout', 'bu'], ['thé', 'tout'], ['main', 'mon'], ['sang', 'son'],
+];
+
+/* ---------- helpers ---------- */
+const TEAM_KEYS = ['eau', 'ain', 'ein', 'oin', 'ou', 'oi', 'au', 'ai', 'ei', 'eu', 'on', 'an', 'en', 'in', 'un'];
+const VOWEL_CH = 'aeiouyéèêëàâîïôûù';
+// colour a word: vowel teams pink, single vowels blue (an/on/in… only count before a consonant or at the end)
+function paint(w) {
+  let out = '', i = 0;
+  while (i < w.length) {
+    const t = TEAM_KEYS.find((k) => {
+      if (!w.startsWith(k, i)) return false;
+      if (!/n$/.test(k)) return true;
+      const nx = w[i + k.length];
+      return !nx || !(VOWEL_CH.includes(nx) || nx === 'n' || nx === 'm');
+    });
+    if (t) { out += `<span class="t">${t}</span>`; i += t.length; continue; }
+    const c = w[i];
+    out += VOWEL_CH.includes(c) && !(c === 'e' && i === w.length - 1) ? `<span class="v">${c}</span>` : c;
+    i++;
+  }
+  return out;
+}
+const gapHtml = (g) => g.replace('_', '<span class="gap" id="gap">?</span>');
+const fillGap = (txt) => { const g = document.getElementById('gap'); if (g) { g.textContent = txt; g.classList.add('filled'); } };
+// which pool item to use next, so a run doesn't repeat itself
+function deck(list) { let d = []; return () => { if (!d.length) d = shuffle(list); return d.pop(); }; }
+
+/* ---------- lesson 1: single vowels ---------- */
+let vowelDeck, wordDeck;
+function vowelOptions(ans) {
+  const close = { e: ['é', 'è'], é: ['e', 'è'], è: ['é', 'e'], ê: ['é', 'e'], u: ['ou', 'i'], o: ['a', 'u'], i: ['é', 'u'], a: ['o', 'e'] };
+  const pool = ['a', 'e', 'é', 'è', 'i', 'o', 'u'].filter((v) => v !== ans && !(ans === 'ê' && v === 'è'));
+  const opts = [ans, ...(close[ans] || []).filter((v) => pool.includes(v))];
+  for (const v of shuffle(pool)) if (opts.length < 4 && !opts.includes(v)) opts.push(v);
+  return shuffle(opts.slice(0, 4)).map((v) => ({ label: v, value: v }));
+}
+function makeVowel(i) {
+  if (i % 3 === 0) {
+    const v = vowelDeck();
+    return { kind: 'choice', lang: 'fr', say: v.tok, huge: true, cols: 4, ans: v.s, options: vowelOptions(v.s),
+      html: `<div class="q">Listen to the sound. Which vowel is it?</div>`,
+      reveal: `${v.s} <small>(${v.ex} ${v.emo})</small>`, sayAfter: `${v.tok}… ${v.ex}` };
+  }
+  const [w, g, emo, v] = wordDeck();
+  return { kind: 'choice', lang: 'fr', say: w, huge: true, cols: 4, ans: v, options: vowelOptions(v),
+    html: `<div class="pic">${emo}</div><div class="fr-word">${gapHtml(g)}</div><div class="q">Which vowel is missing?</div>`,
+    reveal: w, sayAfter: w, onDone: () => fillGap(v) };
+}
+
+/* ---------- lesson 2: vowel teams ---------- */
+let teamDeck;
+function teamOptions(team) {
+  const others = shuffle(TEAMS.filter((t) => t.g !== team.g));
+  const opts = [team];
+  for (const t of others) if (opts.length < 4 && !opts.some((o) => o.g === t.g)) opts.push(t);
+  return shuffle(opts).map((t) => ({ label: t.s, value: t.s }));
+}
+function makeTeam(i) {
+  const team = teamDeck();
+  if (i % 4 === 3) {
+    return { kind: 'choice', lang: 'fr', say: team.tok, huge: true, ans: team.s, options: teamOptions(team),
+      html: `<div class="q">Listen to the sound. Which letters make it?</div>`,
+      reveal: `${team.s} <small>(${team.ex} ${team.emo})</small>`, sayAfter: `${team.tok}… ${team.ex}` };
+  }
+  const [w, g, emo] = pick(team.words);
+  return { kind: 'choice', lang: 'fr', say: w, huge: true, ans: team.s, options: teamOptions(team),
+    html: `<div class="pic">${emo}</div><div class="fr-word">${gapHtml(g)}</div><div class="q">Which vowel team fills the gap?</div>`,
+    reveal: w, sayAfter: w, onDone: () => fillGap(team.s) };
+}
+
+/* ---------- lesson 3: pronunciation test ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let listenOnly = !SR, sayDeck, pairDeck;
+const clean = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function heardRight(alts, word, extra) {
+  const targets = [word, ...(extra || [])].map(clean);
+  return alts.some((a) => {
+    const c = clean(a);
+    return targets.some((t) => c === t || c.includes(t) || (t.length >= 5 && lev(c, t) <= 1));
+  });
+}
+function makeSay() {
+  if (listenOnly) {
+    const pair = pairDeck();
+    const word = pick(pair);
+    return { kind: 'choice', lang: 'fr', say: word, huge: true, tries: 1, ans: word,
+      options: shuffle(pair).map((p) => ({ label: `<span class="fr-word" style="font-size:inherit">${paint(p)}</span>`, value: p })),
+      html: `<div class="q">🎧 Listen carefully! Which word did you hear?</div>`, reveal: word };
+  }
+  const [w, emo, alt] = sayDeck();
+  return { kind: 'custom', lang: 'fr', say: w, autoSay: true, tries: 3, lenient: true, reveal: w,
+    html: `<div class="pic">${emo}</div><div class="fr-word">${paint(w)}</div><div class="q">Listen 🔊, then press 🎤 and say it!</div>`,
+    mount: (el, api) => mountMic(el, api, w, alt) };
+}
+function mountMic(el, api, word, alt) {
+  el.innerHTML = `<button type="button" class="mic" id="mic">🎤</button><div class="mic-note" id="micNote">Tap the microphone and say the word</div>
+    <div class="heard" id="heard"></div>`;
+  const mic = document.getElementById('mic');
+  let busy = false;
+  mic.onclick = () => {
+    if (busy) return;
+    busy = true;
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    const r = new SR();
+    r.lang = 'fr-FR'; r.interimResults = false; r.maxAlternatives = 6; r.continuous = false;
+    let alts = [], err = null;
+    r.onresult = (e) => { alts = [...e.results[0]].map((a) => a.transcript); };
+    r.onerror = (e) => { err = e.error; };
+    r.onend = () => {
+      busy = false;
+      mic.classList.remove('on');
+      document.getElementById('micNote').textContent = 'Tap the microphone and say the word';
+      if (err && err !== 'no-speech' && err !== 'aborted') return micBroken(el, err);
+      if (!alts.length) { document.getElementById('heard').innerHTML = "I didn't hear anything. Speak up! 📢"; return; }
+      document.getElementById('heard').innerHTML = `I heard: <b>« ${alts[0]} »</b>`;
+      if (heardRight(alts, word, alt)) { mic.disabled = true; api.right(); }
+      else {
+        api.wrong(`Not quite… listen again 🔊 and copy the voice!`);
+        if (document.getElementById('next') && !document.getElementById('next').classList.contains('hidden')) mic.disabled = true;
+      }
+    };
+    try {
+      r.start();
+      mic.classList.add('on');
+      document.getElementById('micNote').textContent = '🟢 Listening… say it now!';
+    } catch (e) { busy = false; micBroken(el, 'start'); }
+  };
+}
+function micBroken(el, why) {
+  const msg = why === 'not-allowed' || why === 'service-not-allowed'
+    ? 'The microphone is blocked here (it needs permission, and a secure https page).'
+    : why === 'network' ? 'Speech checking needs the internet.' : 'The microphone did not work.';
+  el.innerHTML = `<div class="mic-note">😕 ${msg}</div><button type="button" class="alt-btn" id="toListen">🎧 Do the listening test instead</button>`;
+  document.getElementById('toListen').onclick = () => { listenOnly = true; LessonKit.start('say'); };
+}
+
+/* ---------- study page ---------- */
+function studyCard(big, small, emo, speak) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.innerHTML = `<div class="s-big">${big}</div><div class="s-pic">${emo}</div><div class="s-small">${small}</div>`;
+  b.onclick = () => say(speak, 'fr');
+  return b;
+}
+function renderStudy(el) {
+  el.innerHTML = `<p>Tap a card to hear the sound, then a word that has it. Say it out loud with the voice!</p>
+    <div class="legend"><span><span class="v">a e i</span> = one vowel</span><span><span class="t">ou on</span> = a team, two or three letters, ONE sound</span></div>
+    <h2>🔤 The vowels</h2><div class="study-grid" id="g1"></div>
+    <h2>🧩 Vowel teams</h2><div class="study-grid" id="g2"></div>
+    <h2>🎯 Sound twins</h2><p>Some teams sound exactly the same: <b>au = eau = o</b> · <b>ai = è</b> · <b>an = en</b> · <b>in = ain</b>.</p>`;
+  VOWELS.forEach((v) => el.querySelector('#g1').appendChild(studyCard(v.s, `${paint(v.ex)}${v.note ? `<br><small>${v.note}</small>` : ''}`, v.emo, `${v.tok}. ${v.ex}.`)));
+  TEAMS.forEach((t) => el.querySelector('#g2').appendChild(studyCard(`<span style="color:var(--pink)">${t.s}</span>`, paint(t.ex), t.emo, `${t.tok}. ${t.ex}.`)));
+}
+
+LessonKit.run({
+  title: 'French Sounds 🥖',
+  sub: 'Les voyelles et les sons. Hear them, find them, say them!',
+  lang: 'fr',
+  cheers: ['BRAVO !', 'SUPER !', 'GÉNIAL !', 'OUI !!', 'PARFAIT !', 'WOW !', 'TRÈS BIEN !', 'EXCELLENT !'],
+  oops: ['OUPS !', 'NON…', 'HMM…', 'ENCORE !'],
+  bits: ['★', '✦', '🥐', '🇫🇷', '🎉', '⭐', '🥖'],
+  perfect: 'Parfait ! Full gold!',
+  study: { title: 'Les sons · Study', sub: 'Tap to listen', render: renderStudy },
+  lessons: {
+    vowels: { id: 'fr-voyelles', emoji: '🔤', title: 'Les voyelles', sub: 'a, e, é, è, i, o, u: hear the sound, find the vowel.', count: 10, make: makeVowel,
+      reset: () => { vowelDeck = deck(VOWELS); wordDeck = deck(VOWEL_WORDS); } },
+    teams: { id: 'fr-sons-combines', emoji: '🧩', title: 'Vowel teams', sub: 'ou, oi, au, eau, ai, eu, on, an, en, in, ain.', count: 12, make: makeTeam,
+      reset: () => { teamDeck = deck(TEAMS); } },
+    say: { id: 'fr-prononce', emoji: '🎤', title: 'Say it! 🎤', sub: 'Pronunciation test: say each word into the microphone.', count: 8, make: makeSay, lenientAll: true,
+      reset: () => { sayDeck = deck(SAY_WORDS); pairDeck = deck(PAIRS); } },
+  },
+});
+</script>
+</body>
+</html>

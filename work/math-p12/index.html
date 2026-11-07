@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Primary 1-2 Math | Lolo Hub WORK HARD</title>
+<meta name="description" content="Primary 1 and 2 math on Lolo Hub: make 10, add and subtract to 20, tens and ones, telling the time and number patterns.">
+<link rel="icon" href="../../icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Patrick+Hand&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../kit/kit.css">
+<script src="../../core/wallet.js"></script>
+<script src="../kit/kit.js"></script>
+<style>
+  .inline { font: 900 clamp(44px, 12vw, 76px)/1.1 'Fraunces', Georgia, serif; }
+  .tfs { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .tf { display: grid; grid-template-columns: repeat(5, 38px); gap: 4px; padding: 6px; border: 3px solid var(--ink); border-radius: 8px; background: #fff; }
+  .tf i { width: 38px; height: 38px; border: 2px dashed #c9d3e0; border-radius: 50%; }
+  .tf i.on { border: 0; background: radial-gradient(circle at 35% 30%, #ff8a8a, #d63a3a); box-shadow: 0 3px 0 #8f1f1f; animation: pop 0.4s backwards; }
+  .tf i.on2 { border: 0; background: radial-gradient(circle at 35% 30%, #8ab8ff, #2f6fd6); box-shadow: 0 3px 0 #1d4a96; }
+  .blocks { display: flex; justify-content: center; align-items: flex-end; gap: 6px; flex-wrap: wrap; margin: 6px 0 12px; min-height: 140px; }
+  .rod { width: 18px; height: 140px; border-radius: 4px; background: repeating-linear-gradient(180deg, #3cb371 0 13px, #1f7a4a 13px 14px); box-shadow: 2px 3px 0 #0003; animation: card-in 0.4s backwards; }
+  .ones { display: grid; grid-template-columns: repeat(2, 18px); gap: 3px; margin-left: 12px; }
+  .one { width: 18px; height: 18px; border-radius: 3px; background: #f0a500; box-shadow: 1px 2px 0 #0003; animation: pop 0.4s backwards; }
+  .clock { width: min(230px, 60vw); height: auto; display: block; margin: 0 auto 6px; }
+  .seq { font: 900 clamp(32px, 9vw, 56px)/1.2 'Fraunces', Georgia, serif; letter-spacing: 0.04em; }
+  .seq .sep { color: #c9d3e0; margin: 0 4px; }
+  .emo-row { font-size: clamp(34px, 9vw, 54px); letter-spacing: 0.08em; }
+</style>
+</head>
+<body>
+<script>
+'use strict';
+const { rnd, pick, shuffle } = LessonKit;
+
+/* ---------- Make 10 (and 20) with ten frames ---------- */
+function frames(n, total) {
+  let html = '<div class="tfs">';
+  for (let f = 0; f < total / 10; f++) {
+    html += '<div class="tf">';
+    for (let i = 0; i < 10; i++) {
+      const k = f * 10 + i;
+      html += `<i class="${k < n ? 'on' : ''}" style="animation-delay:${k * 0.03}s"></i>`;
+    }
+    html += '</div>';
+  }
+  return html + '</div>';
+}
+let used = new Set();
+function fresh(make, key) { let r, g = 0; do { r = make(); } while (used.has(key(r)) && g++ < 40); used.add(key(r)); return r; }
+function makeTen(i) {
+  if (i < 6) {
+    const a = fresh(() => rnd(1, 9), (x) => x);
+    return i % 2 ? { kind: 'num', ans: 10 - a, html: `${frames(a, 10)}<div class="inline">${a} + {?} = 10</div>`, hint: 'Count the empty circles!' }
+      : { kind: 'num', ans: 10 - a, html: `${frames(a, 10)}<div class="inline">{?} + ${a} = 10</div>`, hint: 'How many more to fill the frame?' };
+  }
+  if (i < 9) {
+    const a = rnd(11, 19);
+    return { kind: 'num', ans: 20 - a, html: `${frames(a, 20)}<div class="inline">${a} + {?} = 20</div>`, hint: 'Count the empty circles!' };
+  }
+  const a = rnd(2, 8);
+  return { kind: 'num', ans: 10 - a, html: `<div class="q">You have ${a} 🍓. How many more to make 10?</div><div class="inline" style="margin-top:12px">${a} + {?} = 10</div>`, hint: 'Use your fingers: 10 fingers!' };
+}
+
+/* ---------- Add & subtract within 20 ---------- */
+function makeAdd20(i) {
+  if (i % 2 === 0) {
+    const [a, b] = fresh(() => { const a = rnd(3, 12); return [a, rnd(2, Math.min(9, 20 - a))]; }, (x) => x.join('+'));
+    return { kind: 'num', ans: a + b, html: `<div class="inline" style="margin-top:20px">${a} + ${b} = {?}</div>`, hint: a + b > 10 ? `Make 10 first: ${a} + ${10 - a} = 10, then add the rest.` : 'Count on from the big number!' };
+  }
+  const [a, b] = fresh(() => { const a = rnd(8, 20); return [a, rnd(2, Math.min(9, a - 1))]; }, (x) => x.join('-'));
+  return { kind: 'num', ans: a - b, html: `<div class="inline" style="margin-top:20px">${a} − ${b} = {?}</div>`, hint: 'Count back, or think: what + ' + b + ' = ' + a + '?' };
+}
+
+/* ---------- Tens & ones ---------- */
+function blocks(t, o) {
+  let html = '<div class="blocks">';
+  for (let i = 0; i < t; i++) html += `<div class="rod" style="animation-delay:${i * 0.06}s"></div>`;
+  html += '<div class="ones">';
+  for (let i = 0; i < o; i++) html += `<div class="one" style="animation-delay:${(t + i) * 0.05}s"></div>`;
+  return html + '</div></div>';
+}
+function makeTens(i) {
+  const t = rnd(1, 9), o = rnd(0, 9), n = t * 10 + o;
+  switch (i % 5) {
+    case 0: return { kind: 'num', ans: n, html: `${blocks(t, o)}<div class="q">Each green rod is 10. How many in all?</div>`, hint: 'Count the rods by 10s, then add the little cubes.' };
+    case 1: return { kind: 'num', ans: n, html: `<div class="inline" style="font-size:clamp(30px,8vw,48px);margin-top:16px">${t} tens and ${o} ones = {?}</div>` };
+    case 2: return { kind: 'num', ans: t, html: `<div class="q">How many <b>tens</b> are in</div><div class="inline">${n}</div><div class="q">tens: {?}</div>`, hint: 'The tens digit is on the left.' };
+    case 3: return { kind: 'num', ans: n, html: `<div class="inline" style="margin-top:16px">${t * 10} + ${o} = {?}</div>` };
+    default: {
+      const more = Math.random() < 0.5;
+      const m = more ? rnd(10, 89) : rnd(20, 99);
+      return { kind: 'num', ans: more ? m + 10 : m - 10, html: `<div class="q">What is 10 ${more ? 'more' : 'less'} than</div><div class="inline">${m}</div><div class="q" style="margin-top:6px">{?}</div>`,
+        hint: `Only the tens digit changes: one ${more ? 'up' : 'down'}!` };
+    }
+  }
+}
+
+/* ---------- Tell the time ---------- */
+function clockSvg(h, m) {
+  let ticks = '';
+  for (let k = 1; k <= 12; k++) {
+    const a = k / 12 * Math.PI * 2;
+    ticks += `<text x="${100 + Math.sin(a) * 74}" y="${100 - Math.cos(a) * 74 + 9}" text-anchor="middle" font-family="Fraunces, serif" font-weight="900" font-size="24" fill="#1f2a44">${k}</text>`;
+  }
+  for (let k = 0; k < 60; k++) {
+    const a = k / 60 * Math.PI * 2, r1 = k % 5 ? 88 : 84;
+    ticks += `<line x1="${100 + Math.sin(a) * r1}" y1="${100 - Math.cos(a) * r1}" x2="${100 + Math.sin(a) * 92}" y2="${100 - Math.cos(a) * 92}" stroke="#4a5672" stroke-width="${k % 5 ? 1.5 : 3}"/>`;
+  }
+  const ha = ((h % 12) + m / 60) / 12 * 360, ma = m / 60 * 360;
+  return `<svg class="clock" viewBox="0 0 200 200">
+    <circle cx="100" cy="100" r="96" fill="#fff" stroke="#d63a3a" stroke-width="7"/>${ticks}
+    <line x1="100" y1="100" x2="100" y2="52" stroke="#1f2a44" stroke-width="9" stroke-linecap="round" transform="rotate(${ha} 100 100)"/>
+    <line x1="100" y1="100" x2="100" y2="24" stroke="#2f6fd6" stroke-width="5" stroke-linecap="round" transform="rotate(${ma} 100 100)"/>
+    <circle cx="100" cy="100" r="7" fill="#d63a3a"/></svg>`;
+}
+const words = (h, m) => m === 0 ? `${h} o'clock` : m === 30 ? `half past ${h}` : m === 15 ? `quarter past ${h}` : m === 45 ? `quarter to ${h % 12 + 1}` : m < 30 ? `${m} past ${h}` : `${60 - m} to ${h % 12 + 1}`;
+const digital = (h, m) => `${h}:${String(m).padStart(2, '0')}`;
+function makeClock(i) {
+  const mins = i < 3 ? [0] : i < 5 ? [30] : i < 7 ? [15, 45] : [5, 10, 20, 25, 35, 40, 50, 55];
+  const [h, m] = fresh(() => [rnd(1, 12), pick(mins)], (x) => x.join(':'));
+  const key = digital(h, m);
+  const opts = new Set([key]);
+  const cand = [
+    [h % 12 + 1, m], [(h + 10) % 12 + 1, m],           // hour off by one
+    [Math.round(m / 5) || 12, (h % 12) * 5],            // hands swapped
+    [h, (m + 30) % 60], [h, pick([0, 15, 30, 45].filter((x) => x !== m))],
+  ];
+  for (const [ch, cm] of shuffle(cand)) if (opts.size < 4 && ch >= 1 && ch <= 12) opts.add(digital(ch, cm));
+  while (opts.size < 4) opts.add(digital(rnd(1, 12), pick(mins)));
+  return { kind: 'choice', ans: key, html: `${clockSvg(h, m)}<div class="q">What time is it? <small>(short hand = hours)</small></div>`,
+    options: shuffle([...opts]).map((d) => { const [a, b] = d.split(':').map(Number); return { label: `${d}<small>${words(a, b)}</small>`, value: d }; }),
+    reveal: `${key} (${words(h, m)})`, hint: 'The short hand shows the hour, the long blue hand the minutes.' };
+}
+
+/* ---------- What comes next? ---------- */
+const PATS = [['🍎', '🍌'], ['🐶', '🐱', '🐭'], ['⭐', '⭐', '🌙'], ['🔴', '🔵', '🔵'], ['🚗', '🚕', '🚙'], ['🍩', '🍪'], ['🐸', '🐸', '🦆', '🦆']];
+function makePattern(i) {
+  const t = i % 5;
+  if (t === 0 || t === 3) {
+    const step = pick(t === 0 ? [2, 5, 10] : [2, 3, 5, 10]);
+    const down = t === 3 && Math.random() < 0.5;
+    const start = down ? rnd(step * 5, step * 10) : step * rnd(0, 4) + (step === 10 ? rnd(0, 9) : 0);
+    const seq = Array.from({ length: 5 }, (_, k) => start + (down ? -k : k) * step);
+    const ans = start + (down ? -5 : 5) * step;
+    return { kind: 'num', ans, html: `<div class="q">Count by ${step}s${down ? ' backwards' : ''}. What comes next?</div><div class="seq">${seq.join('<span class="sep">,</span> ')}<span class="sep">,</span> {?}</div>`,
+      hint: `Each jump is ${down ? '−' : '+'}${step}.` };
+  }
+  if (t === 1 || t === 4) {
+    const p = pick(PATS);
+    const len = p.length * 2 + rnd(0, p.length - 1);
+    const shown = Array.from({ length: len }, (_, k) => p[k % p.length]);
+    const ans = p[len % p.length];
+    const pool = [...new Set([...p, ...pick(PATS.filter((x) => x !== p))])];
+    const opts = shuffle([ans, ...shuffle(pool.filter((x) => x !== ans)).slice(0, 2)]);
+    return { kind: 'choice', ans, cols: 3, huge: true, html: `<div class="q">What comes next?</div><div class="emo-row">${shown.join('')}❓</div>`,
+      options: opts.map((e) => ({ label: e, value: e })), hint: 'Say the pattern out loud!' };
+  }
+  // bigger / smaller
+  const a = rnd(10, 99);
+  let b = Number(String(a).split('').reverse().join(''));
+  if (b === a || b < 10) b = a + pick([-11, -9, 1, 9, 11, 20]);
+  const big = Math.random() < 0.5;
+  return { kind: 'choice', ans: big ? Math.max(a, b) : Math.min(a, b), huge: true, html: `<div class="q">Which number is <b>${big ? 'BIGGER 🐘' : 'SMALLER 🐭'}</b>?</div>`,
+    options: shuffle([a, b]).map((n) => ({ label: String(n), value: n })), tries: 1, hint: 'Look at the tens first!' };
+}
+
+LessonKit.run({
+  title: 'Primary 1-2 Math',
+  sub: 'Quick wins: count, add, tell the time!',
+  lessons: {
+    make10: { id: 'p12-make10', emoji: '🔟', title: 'Make 10', sub: 'Fill the ten frame! Then make 20.', count: 10, make: makeTen, fast: 5000, reset: () => { used = new Set(); } },
+    add20: { id: 'p12-add20', emoji: '🧮', title: 'Add & Subtract to 20', sub: 'Answer in 6 seconds for a ⚡ combo!', count: 12, make: makeAdd20, fast: 6000, reset: () => { used = new Set(); } },
+    tens: { id: 'p12-tens-ones', emoji: '🧱', title: 'Tens & Ones', sub: 'Rods of 10 and little cubes.', count: 10, make: makeTens },
+    clock: { id: 'p12-clock', emoji: '🕒', title: 'Tell the Time', sub: "O'clock, half past, quarter… and 5 minutes.", count: 9, make: makeClock, reset: () => { used = new Set(); } },
+    patterns: { id: 'p12-patterns', emoji: '🔮', title: 'What Comes Next?', sub: 'Skip counting, patterns, bigger or smaller.', count: 10, make: makePattern },
+  },
+});
+</script>
+</body>
+</html>

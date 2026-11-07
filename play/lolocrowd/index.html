@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#12001f">
+  <title>Crowd Rush</title>
+  <link rel="icon" href="../../icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Orbitron:wght@500;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../core/arcade.css">
+  <script src="../../core/ads.js"></script>
+  <script src="../../core/wallet.js"></script>
+  <script src="../../core/arcade.js"></script>
+  <style>
+    .arc-hud { display: none; }
+    body.playing .arc-hud { display: flex; }
+    #hearts span { letter-spacing: 2px; }
+  </style>
+</head>
+<body>
+  <div class="arc-hud">
+    <div class="arc-stat" id="sLevel"><small>LEVEL</small><span>1</span></div>
+    <div class="arc-stat" id="hearts"><small>LIVES</small><span>❤❤❤</span></div>
+    <div class="arc-stat" id="sScore"><small>SCORE</small><span>0</span></div>
+  </div>
+<script>
+'use strict';
+const { rnd, irnd, pick, clamp, sfx } = Arcade;
+const view = Arcade.canvas();
+const ctx = view.ctx;
+const ROAD = 3, SPEED = 7.5, MAXN = 999;
+
+/* ---------- levels ---------- */
+let stage = 0; // levels cleared over the whole visit: rounds keep getting harder
+function makeLevel(L, start) {
+  const items = [];
+  let z = 26, E = start;
+  const segs = 8 + Math.min(6, L);
+  for (let s = 0; s < segs; s++, z += 24) {
+    const r = Math.random();
+    if (s < 2 || r < 0.5) {
+      // two gates: at least one is good, often both, so you have to think
+      const good = () => {
+        const q = Math.random();
+        if (q < 0.35 && E < 300) return { op: '×', v: E < 40 && Math.random() < 0.3 ? 3 : 2 };
+        return { op: '+', v: irnd(4, 12) + L * 2 + (E > 60 ? irnd(5, 20) : 0) };
+      };
+      const bad = () => (Math.random() < 0.6 ? { op: '−', v: Math.max(3, Math.round(E * rnd(0.25, 0.5))) } : { op: '÷', v: 2 });
+      let a = good(), b = Math.random() < 0.55 ? bad() : good();
+      if (Math.random() < 0.5) [a, b] = [b, a];
+      items.push({ kind: 'gate', z, L: a, R: b, done: false });
+      E = Math.max(apply(E, a), apply(E, b));
+    } else if (r < 0.78) {
+      const m = Math.max(3, Math.round(E * rnd(0.25, 0.5)));
+      items.push({ kind: 'squad', z, n: m, max: m, done: false });
+      E -= m;
+    } else {
+      const side = pick(['L', 'R', 'C']);
+      const [a, b] = side === 'L' ? [-ROAD, -0.4] : side === 'R' ? [0.4, ROAD] : [-1.2, 1.2];
+      items.push({ kind: 'saw', z, a, b, done: false, spin: 0 });
+      E = Math.round(E * 0.85);
+    }
+  }
+  const boss = L % 3 === 2;
+  if (boss) items.push({ kind: 'boss', z: z + 6, n: Math.max(15, Math.round(E * 0.75)), max: Math.max(15, Math.round(E * 0.75)), done: false });
+  items.push({ kind: 'finish', z: z + (boss ? 22 : 8), done: false });
+  return items;
+}
+function apply(n, g) {
+  if (g.op === '+') return Math.min(MAXN, n + g.v);
+  if (g.op === '×') return Math.min(MAXN, n * g.v);
+  if (g.op === '−') return Math.max(0, n - g.v);
+  return Math.floor(n / g.v);
+}
+const label = (g) => g.op + g.v;
+const isGood = (g) => g.op === '+' || g.op === '×';
+
+/* ---------- state ---------- */
+let G = null;
+function newGame() {
+  G = { mode: 'play', lives: 3, score: 0, levelInRound: 0, parts: [], pops: [] };
+  document.body.classList.add('playing');
+  startLevel();
+}
+function startLevel() {
+  const L = stage;
+  G.start = 10 + Math.min(20, L * 2);
+  G.n = G.start; G.shown = G.n;
+  G.x = 0; G.z = 0; G.items = makeLevel(L, G.start); G.fight = null; G.state = 'run'; G.t = 0; G.flash = 0;
+  G.endZ = G.items[G.items.length - 1].z;
+  Arcade.banner(`LEVEL ${L + 1}`, L % 3 === 2 ? '⚠ GIANT AT THE END ⚠' : 'pick the best gates!');
+  hud();
+}
+function hud() {
+  Arcade.stat('sLevel', stage + 1);
+  Arcade.stat('hearts', '❤'.repeat(G.lives) + '♡'.repeat(3 - G.lives));
+  Arcade.stat('sScore', G.score.toLocaleString());
+}
+function changeN(nn, x, z, good) {
+  const d = nn - G.n;
+  G.n = clamp(Math.round(nn), 0, MAXN);
+  G.pops.push({ x, z, t: (d >= 0 ? '+' : '') + d, life: 1.2, col: good ? '#7dff2f' : '#ff2fd6' });
+}
+
+/* ---------- update ---------- */
+const keys = {};
+let dragX = null;
+function update(dt) {
+  if (!G) return;
+  for (const p of G.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vy -= 9 * dt; p.life -= dt; }
+  G.parts = G.parts.filter((p) => p.life > 0 && p.y > -0.2);
+  for (const p of G.pops) p.life -= dt;
+  G.pops = G.pops.filter((p) => p.life > 0);
+  G.shown += (G.n - G.shown) * Math.min(1, dt * 10);
+  if (G.mode !== 'play') return;
+  G.t += dt;
+  G.flash = Math.max(0, G.flash - dt);
+  const kx = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
+  const R = crowdR(G.n);
+  G.x = clamp(G.x + kx * 6 * dt, -ROAD + R, ROAD - R);
+  if (G.state === 'run') {
+    const oldZ = G.z;
+    G.z += SPEED * dt;
+    for (const it of G.items) {
+      if (it.done) continue;
+      if (it.kind === 'gate' && oldZ < it.z && G.z >= it.z) {
+        it.done = true;
+        const g = G.x < 0 ? it.L : it.R;
+        it.hit = G.x < 0 ? 'L' : 'R';
+        changeN(apply(G.n, g), G.x, it.z, isGood(g));
+        if (isGood(g)) { sfx.arp([523, 784, 1046], 0.05, 'square', 0.08); burstAt(G.x, 1, it.z, '#19f7ff', 18); }
+        else { sfx.tone(200, 0.25, 'sawtooth', 0.12, -120); G.flash = 0.3; }
+      } else if (it.kind === 'saw' && G.z + R >= it.z - 0.3 && G.z - R <= it.z + 0.3) {
+        // members that overlap the spinning bar get knocked out
+        const lo = Math.max(G.x - R, it.a), hi = Math.min(G.x + R, it.b);
+        if (hi > lo && Math.random() < dt * 12) {
+          const frac = (hi - lo) / (2 * R);
+          const lose = Math.max(1, Math.round(G.n * frac * 0.07));
+          G.n = Math.max(0, G.n - lose);
+          burstAt(clamp((lo + hi) / 2, -ROAD, ROAD), 0.5, it.z, '#19f7ff', 4);
+          if (Math.random() < 0.5) sfx.hit();
+        }
+        if (G.z - R > it.z + 0.3) it.done = true;
+      } else if ((it.kind === 'squad' || it.kind === 'boss') && G.z >= it.z - 1.2 - R) {
+        G.state = 'fight'; G.fight = it; G.fightT = 0;
+        Arcade.banner(it.kind === 'boss' ? 'GIANT FIGHT!' : 'CHARGE!');
+        sfx.noise(0.3, 0.2, 1500);
+      } else if (it.kind === 'finish' && G.z >= it.z) {
+        it.done = true;
+        return levelClear();
+      }
+    }
+    if (G.n <= 0) return fail();
+  } else if (G.state === 'fight') {
+    const f = G.fight;
+    G.fightT += dt;
+    // both sides lose people, faster when the fight is big
+    const rate = Math.max(6, Math.min(G.n, f.n) * 1.6) * dt * (f.kind === 'boss' ? 1.3 : 1);
+    const k = Math.min(rate, f.n, G.n);
+    f.acc = (f.acc || 0) + k;
+    while (f.acc >= 1 && f.n > 0 && G.n > 0) {
+      f.acc--; f.n--; G.n--;
+      burstAt(G.x + rnd(-0.6, 0.6), 0.5, f.z - 0.6, Math.random() < 0.5 ? '#ff2fd6' : '#19f7ff', 3);
+      if (Math.random() < 0.3) sfx.tone(rnd(300, 600), 0.05, 'square', 0.05, -200);
+    }
+    if (f.n <= 0) {
+      f.done = true; G.state = 'run';
+      if (f.kind === 'boss') { sfx.boom(); burstAt(0, 2, f.z, '#ffe81a', 80); Arcade.banner('GIANT DOWN!', `+${G.n * 20} bonus`); G.score += G.n * 20; }
+      else sfx.up();
+    } else if (G.n <= 0) return fail();
+  }
+  hud();
+}
+function crowdR(n) { return 0.25 + 0.11 * Math.sqrt(Math.max(1, Math.min(n, 220))); }
+function burstAt(x, y, z, col, n) {
+  for (let i = 0; i < n; i++) G.parts.push({ x, y, z, vx: rnd(-3, 3), vy: rnd(2, 6), vz: rnd(-2, 4), life: rnd(0.4, 0.9), col });
+}
+function levelClear() {
+  G.mode = 'clear';
+  const pts = G.n * 10;
+  G.score += pts;
+  stage++; G.levelInRound++;
+  sfx.fanfare();
+  Arcade.banner('LEVEL CLEAR!', `${G.n} runners × 10 = +${pts}`, '#7dff2f');
+  hud();
+  setTimeout(() => {
+    if (G.levelInRound >= 3) {
+      G.mode = 'over';
+      document.body.classList.remove('playing');
+      Arcade.over({ title: 'ROUND CLEAR!', score: G.score, stats: `3 levels done · Score <b>${G.score.toLocaleString()}</b><br>Next round: level ${stage + 1}, even harder!` });
+    } else { G.mode = 'play'; startLevel(); }
+  }, 2200);
+}
+function fail() {
+  G.mode = 'fail';
+  G.lives--;
+  sfx.lose();
+  hud();
+  if (G.lives <= 0) {
+    Arcade.banner('OUT OF RUNNERS!', '', '#ff2fd6');
+    setTimeout(() => {
+      G.mode = 'over';
+      document.body.classList.remove('playing');
+      Arcade.over({ title: 'GAME OVER', lose: true, score: G.score, stats: `Reached level <b>${stage + 1}</b> · Score <b>${G.score.toLocaleString()}</b>` });
+    }, 1600);
+  } else {
+    Arcade.banner('OUT OF RUNNERS!', `${G.lives} ${G.lives > 1 ? 'lives' : 'life'} left · try again`, '#ff2fd6');
+    setTimeout(() => { G.mode = 'play'; startLevel(); }, 2000);
+  }
+}
+
+/* ---------- drawing (simple 3D: x across the road, y up, z ahead) ---------- */
+let camZ = 0, F = 600, HOR = 150;
+const CAMH = 3.6;
+function P(x, y, z) {
+  const dz = z - camZ;
+  if (dz < 0.4) return null;
+  const s = F / dz;
+  return [view.w / 2 + x * s, HOR + (CAMH - y) * s, s];
+}
+function quad(a, b, c, d, fill) {
+  if (!a || !b || !c || !d) return;
+  ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.fill();
+}
+function person(x, z, col, scaleMul = 1, t = 0) {
+  const p = P(x, 0, z); if (!p) return;
+  const s = p[2] * 0.14 * scaleMul, bob = Math.abs(Math.sin(t)) * s * 0.4;
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.ellipse(p[0], p[1] - s * 1.5 - bob, s * 0.55, s * 1.0, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(p[0], p[1] - s * 3 - bob, s * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(p[0] - s * 0.45, p[1] - s * 0.8 - bob, s * 0.3, s * 0.8 + bob * 0.5);
+  ctx.fillRect(p[0] + s * 0.15, p[1] - s * 0.8 - bob, s * 0.3, s * 0.8 + bob * 0.5);
+}
+function draw() {
+  const w = view.w, h = view.h, now = performance.now() / 1000;
+  F = Math.min(w * 1.1, h * 1.25) * 0.75; HOR = h * 0.28;
+  // sky
+  const sky = ctx.createLinearGradient(0, 0, 0, HOR);
+  sky.addColorStop(0, '#12001f'); sky.addColorStop(1, '#4a0070');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, HOR + 2);
+  ctx.fillStyle = '#12001f'; ctx.fillRect(0, HOR, w, h - HOR);
+  // neon sun + skyline
+  ctx.fillStyle = '#ff2fd6'; ctx.globalAlpha = 0.6;
+  ctx.beginPath(); ctx.arc(w / 2, HOR, Math.min(w, h) * 0.13, Math.PI, 0); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#1d0033';
+  for (let i = 0; i < 24; i++) { const bw = w / 24, bh = 18 + ((i * 37) % 50); ctx.fillRect(i * bw, HOR - bh, bw - 2, bh); }
+  if (!G) { drawRoad(0); return; }
+  camZ = G.z - 5.2;
+  drawRoad(G.z);
+  // things on the road, far to near
+  const drawList = G.items.filter((it) => it.z > camZ + 0.4 && it.z < camZ + 90).map((it) => ({ z: it.z, it }));
+  drawList.push({ z: G.z, crowd: true });
+  drawList.sort((a, b) => b.z - a.z);
+  for (const d of drawList) d.crowd ? drawCrowd(now) : drawItem(d.it, now);
+  // particles
+  for (const p of G.parts) {
+    const q = P(p.x, p.y, p.z); if (!q) continue;
+    ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = p.col;
+    const s = Math.max(2, q[2] * 0.06); ctx.fillRect(q[0] - s / 2, q[1] - s / 2, s, s);
+  }
+  ctx.globalAlpha = 1;
+  for (const p of G.pops) {
+    const q = P(p.x, 2.6 + (1.2 - p.life) * 1.2, Math.max(p.z, G.z + 1)); if (!q) continue;
+    ctx.globalAlpha = Math.min(1, p.life * 2);
+    ctx.font = `${Math.min(64, q[2] * 0.5)}px Bungee, sans-serif`; ctx.textAlign = 'center';
+    ctx.fillStyle = p.col; ctx.fillText(p.t, q[0], q[1]);
+  }
+  ctx.globalAlpha = 1;
+  if (G.flash) { ctx.fillStyle = `rgba(255,47,214,${G.flash})`; ctx.fillRect(0, 0, w, h); }
+}
+function drawRoad(z0) {
+  const zFar = camZ + 120;
+  quad(P(-ROAD - 0.3, 0, camZ + 0.5), P(ROAD + 0.3, 0, camZ + 0.5), P(ROAD + 0.3, 0, zFar), P(-ROAD - 0.3, 0, zFar), '#240040');
+  // stripes that rush past
+  for (let z = Math.floor(camZ / 4) * 4; z < zFar; z += 4) {
+    if (z < camZ + 0.6) continue;
+    quad(P(-ROAD, 0, z), P(ROAD, 0, z), P(ROAD, 0, z + 0.15), P(-ROAD, 0, z + 0.15), 'rgba(180,76,255,0.35)');
+    quad(P(-0.06, 0, z + 1), P(0.06, 0, z + 1), P(0.06, 0, z + 2.6), P(-0.06, 0, z + 2.6), 'rgba(255,255,255,0.25)');
+  }
+  // glowing edges
+  ctx.save();
+  ctx.shadowColor = '#19f7ff'; ctx.shadowBlur = 12; ctx.strokeStyle = '#19f7ff'; ctx.lineWidth = 3;
+  for (const x of [-ROAD - 0.3, ROAD + 0.3]) {
+    const a = P(x, 0, camZ + 0.6), b = P(x, 0, zFar);
+    if (a && b) { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+function drawItem(it, now) {
+  if (it.kind === 'gate') {
+    for (const side of ['L', 'R']) {
+      const g = it[side], x0 = side === 'L' ? -ROAD : 0.08, x1 = side === 'L' ? -0.08 : ROAD;
+      const good = isGood(g), hit = it.hit === side;
+      const col = good ? 'rgba(25,170,255,' : 'rgba(255,47,90,';
+      quad(P(x0, 0, it.z), P(x1, 0, it.z), P(x1, 2.2, it.z), P(x0, 2.2, it.z), col + (it.done ? (hit ? 0.1 : 0.15) : 0.4) + ')');
+      const c = P((x0 + x1) / 2, 1.2, it.z); if (!c) continue;
+      ctx.font = `${Math.min(110, c[2] * 0.75)}px Bungee, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = it.done && !hit ? 'rgba(255,255,255,0.3)' : '#ffffff';
+      ctx.fillText(label(g), c[0], c[1]);
+      ctx.textBaseline = 'alphabetic';
+      const t1 = P(x0, 2.2, it.z), t2 = P(x1, 2.2, it.z);
+      if (t1 && t2) { ctx.strokeStyle = good ? '#19f7ff' : '#ff2fd6'; ctx.lineWidth = Math.max(2, c[2] * 0.03); ctx.beginPath(); ctx.moveTo(t1[0], t1[1]); ctx.lineTo(t2[0], t2[1]); ctx.stroke(); }
+    }
+  } else if (it.kind === 'saw') {
+    const a = P(it.a, 0.35, it.z), b = P(it.b, 0.35, it.z); if (!a || !b) return;
+    const th = Math.max(4, a[2] * 0.18);
+    ctx.fillStyle = '#ff2fd6'; ctx.shadowColor = '#ff2fd6'; ctx.shadowBlur = 14;
+    ctx.fillRect(a[0], a[1] - th / 2, b[0] - a[0], th);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffe81a';
+    const n = 10, off = (now * 6) % 1;
+    for (let i = 0; i < n; i++) { const x = a[0] + ((i + off) / n) * (b[0] - a[0]); ctx.beginPath(); ctx.moveTo(x, a[1] - th / 2); ctx.lineTo(x + th * 0.4, a[1] - th * 1.1); ctx.lineTo(x + th * 0.8, a[1] - th / 2); ctx.fill(); }
+  } else if (it.kind === 'squad' && it.n > 0) {
+    const cols = Math.ceil(Math.sqrt(it.n * 2.2)), shown = Math.min(it.n, 160);
+    for (let i = shown - 1; i >= 0; i--) {
+      const r = Math.floor(i / cols), c = i % cols;
+      person((c - (cols - 1) / 2) * (2 * ROAD / Math.max(cols, 6)) * 0.8, it.z + r * 0.32, '#ff3b55', 1, now * 10 + i);
+    }
+    const p = P(0, 2.3, it.z);
+    if (p) { ctx.font = `${Math.min(60, p[2] * 0.4)}px Bungee, sans-serif`; ctx.textAlign = 'center'; ctx.fillStyle = '#ff3b55'; ctx.fillText(it.n, p[0], p[1]); }
+  } else if (it.kind === 'boss' && it.n > 0) {
+    const sc = 1 + Math.sqrt(it.n) * 0.25;
+    person(0, it.z + 0.5, '#ff7a1a', 9 * Math.min(1.6, sc / 2 + 0.5), now * 3);
+    const p = P(0, 4.6, it.z);
+    if (p) {
+      ctx.font = `${Math.min(70, p[2] * 0.45)}px Bungee, sans-serif`; ctx.textAlign = 'center'; ctx.fillStyle = '#ffe81a';
+      ctx.fillText(`👑 ${it.n}`, p[0], p[1]);
+    }
+  } else if (it.kind === 'finish') {
+    for (let i = 0; i < 12; i++) {
+      const x0 = -ROAD + (i / 12) * 2 * ROAD, x1 = x0 + (2 * ROAD) / 12;
+      quad(P(x0, 0.01, it.z), P(x1, 0.01, it.z), P(x1, 0.01, it.z + 0.8), P(x0, 0.01, it.z + 0.8), i % 2 ? '#ffffff' : '#12001f');
+    }
+    const p = P(0, 2.8, it.z);
+    if (p) { ctx.font = `${Math.min(90, p[2] * 0.5)}px Bungee, sans-serif`; ctx.textAlign = 'center'; ctx.fillStyle = '#7dff2f'; ctx.fillText('FINISH', p[0], p[1]); }
+  }
+}
+function drawCrowd(now) {
+  const n = Math.round(G.shown), shown = Math.min(n, 180), R = crowdR(n);
+  const pts = [];
+  for (let i = 0; i < shown; i++) {
+    const r = (0.11 * Math.sqrt(i + 0.5)) * Math.min(1, (R - 0.12) / (0.11 * Math.sqrt(shown) || 1)), a = i * 2.399;
+    pts.push([G.x + Math.cos(a) * r, G.z + Math.sin(a) * r * 0.8, i]);
+  }
+  pts.sort((a, b) => b[1] - a[1]);
+  for (const [x, z, i] of pts) person(x, z, i % 7 ? '#19f7ff' : '#7dff2f', 1, now * 12 + i * 0.7);
+  const p = P(G.x, 0.62, G.z + R * 0.6);
+  if (p) {
+    ctx.font = `${Math.min(60, p[2] * 0.35)}px Bungee, sans-serif`; ctx.textAlign = 'center';
+    ctx.lineWidth = 5; ctx.strokeStyle = '#12001f'; ctx.strokeText(n, p[0], p[1]);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(n, p[0], p[1]);
+  }
+}
+
+/* ---------- input ---------- */
+addEventListener('keydown', (e) => { keys[e.code] = true; });
+addEventListener('keyup', (e) => { keys[e.code] = false; });
+view.cv.addEventListener('pointerdown', (e) => { dragX = e.clientX; });
+addEventListener('pointermove', (e) => {
+  if (!G || G.mode !== 'play') return;
+  const R = crowdR(G.n);
+  if (e.pointerType === 'mouse') { G.x = clamp((e.clientX / view.w * 2 - 1) * ROAD * 1.2, -ROAD + R, ROAD - R); return; }
+  if (dragX == null) return;
+  G.x = clamp(G.x + (e.clientX - dragX) * (8 / Math.max(320, view.w)), -ROAD + R, ROAD - R);
+  dragX = e.clientX;
+});
+addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') dragX = null; });
+
+Arcade.init({
+  id: 'lolocrowd', logo: ['CROWD', 'RUSH'],
+  tag: 'Lead your runners through the math gates: is +10 better than ×2? Grow the biggest crowd, smash the red team, dodge the spinning saws and knock down the giant!',
+  helpDesk: '<b>Move the mouse</b> or <b>← →</b> to steer · pick the gate that gives you the MOST runners',
+  helpTouch: '<b>Slide your finger</b> left and right to steer · pick the gate that gives you the MOST runners',
+  start: newGame,
+  playing: () => G && G.mode !== 'over',
+});
+Arcade.loop(update, draw);
+</script>
+</body>
+</html>

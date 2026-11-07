@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#12001f">
+  <title>Wiggle.io</title>
+  <link rel="icon" href="../../icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Orbitron:wght@500;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../core/arcade.css">
+  <script src="../../core/ads.js"></script>
+  <script src="../../core/wallet.js"></script>
+  <script src="../../core/arcade.js"></script>
+  <style>
+    .arc-hud, #board, #boostBtn { display: none; }
+    body.playing .arc-hud, body.playing #board { display: flex; }
+    body.playing.touch #boostBtn { display: block; }
+    #board {
+      position: fixed; z-index: 10; right: calc(12px + env(safe-area-inset-right)); top: calc(72px + env(safe-area-inset-top)); flex-direction: column; gap: 2px;
+      font-size: 12px; min-width: 150px; padding: 8px 10px; border-radius: 12px; background: rgba(20, 0, 45, 0.55); border: 1px solid rgba(25, 247, 255, 0.4); pointer-events: none;
+    }
+    #board div { display: flex; justify-content: space-between; gap: 10px; color: #d8c8ff; }
+    #board div.me { color: var(--yellow); text-shadow: 0 0 8px var(--orange); }
+    #board b { font-family: 'Bungee', sans-serif; font-weight: 400; color: var(--cyan); font-size: 11px; letter-spacing: 1px; margin-bottom: 2px; }
+    #boostBtn {
+      position: fixed; z-index: 11; right: calc(18px + env(safe-area-inset-right)); bottom: calc(22px + env(safe-area-inset-bottom));
+      width: 92px; height: 92px; border-radius: 50%; border: 3px solid var(--pink); background: rgba(255, 47, 214, 0.25); color: #fff;
+      font-family: 'Bungee', sans-serif; font-size: 15px; box-shadow: 0 0 20px var(--pink); touch-action: none;
+    }
+    #boostBtn.on { background: rgba(255, 47, 214, 0.6); transform: scale(0.94); }
+    #respawn { position: fixed; inset: 0; z-index: 12; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;
+      font-family: 'Bungee', sans-serif; font-size: clamp(26px, 7vw, 60px); color: var(--pink); text-shadow: 0 0 12px var(--pink), 0 0 40px var(--pink); text-align: center; }
+    #respawn small { display: block; font-family: 'Orbitron', sans-serif; font-size: 0.35em; color: #fff; letter-spacing: 3px; }
+    @media (max-width: 560px) { #board { min-width: 120px; font-size: 10px; top: calc(64px + env(safe-area-inset-top)); } }
+  </style>
+</head>
+<body>
+  <div class="arc-hud">
+    <div class="arc-stat" id="sTime"><small>TIME</small><span>3:00</span></div>
+    <div class="arc-stat" id="sLen"><small>LENGTH</small><span>10</span></div>
+  </div>
+  <div id="board"></div>
+  <div id="respawn" class="hidden"></div>
+  <button id="boostBtn">BOOST</button>
+<script>
+'use strict';
+const { rnd, irnd, pick, clamp, sfx } = Arcade;
+const ARENA = 1700, FOOD = 750, MATCH = 180, BOTS = 11;
+const view = Arcade.canvas();
+const ctx = view.ctx;
+const $ = (id) => document.getElementById(id);
+const NAMES = ['Noodle', 'Zippy', 'Slinky', 'Wormy', 'Captain Hiss', 'Lolo Jr', 'Spaghetti', 'Neon Ned', 'Sir Wiggles', 'Boa Bob', 'Pixel', 'Zigzag', 'Mamba', 'Squiggle', 'Twisty'];
+const SKINS = [['#ff2fd6', '#ffe81a'], ['#19f7ff', '#2f8bff'], ['#7dff2f', '#19f7ff'], ['#ff7a1a', '#ffe81a'], ['#b44cff', '#ff2fd6'], ['#ff3b55', '#ffffff'], ['#ffe81a', '#7dff2f'], ['#2f8bff', '#b44cff']];
+const FOOD_COLS = ['#ff2fd6', '#19f7ff', '#7dff2f', '#ffe81a', '#ff7a1a', '#b44cff'];
+
+/* ---------- snakes ---------- */
+let G = null;
+function makeSnake(name, skin, bot, score = 10) {
+  let x, y, tries = 0;
+  do { const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * ARENA * 0.8; x = Math.cos(a) * d; y = Math.sin(a) * d; }
+  while (tries++ < 20 && G && G.snakes.some((s) => s.alive && Math.hypot(s.x - x, s.y - y) < 300));
+  const ang = Math.random() * Math.PI * 2;
+  const s = { name, skin, bot, x, y, ang, want: ang, score, alive: true, boost: false, trail: [], body: [], think: 0, peak: score, kills: 0 };
+  for (let i = 0; i < 40; i++) s.trail.push([x - Math.cos(ang) * i * 4, y - Math.sin(ang) * i * 4]);
+  return s;
+}
+const lenOf = (s) => 60 + s.score * 4.2;
+const radOf = (s) => 9 + Math.min(16, Math.sqrt(s.score) * 0.9);
+function newGame() {
+  G = { mode: 'play', t: 0, snakes: [], food: [], parts: [], dead: 0 };
+  G.me = makeSnake('YOU', SKINS[0], false);
+  G.snakes.push(G.me);
+  for (let i = 0; i < BOTS; i++) G.snakes.push(makeSnake(NAMES[i % NAMES.length], SKINS[(i + 1) % SKINS.length], true, irnd(10, 90)));
+  for (let i = 0; i < FOOD; i++) G.food.push(newFood());
+  document.body.classList.add('playing');
+  $('respawn').classList.add('hidden');
+  Arcade.banner('WIGGLE!', '3 minutes · be the biggest');
+  sfx.up();
+}
+function newFood(x, y, v) {
+  if (x == null) { const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * (ARENA - 20); x = Math.cos(a) * d; y = Math.sin(a) * d; }
+  v = v || (Math.random() < 0.1 ? 3 : 1);
+  return { x, y, v, col: pick(FOOD_COLS), ph: Math.random() * 6 };
+}
+
+/* ---------- update ---------- */
+const keys = {};
+const ptr = { x: 0, y: 0, active: false };
+const joy = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
+let boostHeld = false;
+function update(dt) {
+  if (!G) return;
+  for (const p of G.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.94; p.vy *= 0.94; p.life -= dt; }
+  G.parts = G.parts.filter((p) => p.life > 0);
+  if (G.mode !== 'play') return;
+  G.t += dt;
+  if (G.t >= MATCH) return endMatch();
+  const me = G.me;
+  // player steering: mouse points, finger drags a joystick, arrows turn
+  if (me.alive) {
+    if (joy.on) { const dx = joy.x - joy.ox, dy = joy.y - joy.oy; if (Math.hypot(dx, dy) > 8) me.want = Math.atan2(dy, dx); }
+    else if (ptr.active) me.want = Math.atan2(ptr.y - view.h / 2, ptr.x - view.w / 2);
+    const turn = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
+    if (turn) { me.want = me.ang + turn * 0.6; ptr.active = false; }
+    me.boost = (boostHeld || keys.Space || keys.ArrowUp || keys.KeyW) && me.score > 12;
+  }
+  for (const s of G.snakes) if (s.alive && s.bot) think(s, dt);
+  for (const s of G.snakes) if (s.alive) move(s, dt);
+  // body circles for collisions + drawing
+  for (const s of G.snakes) if (s.alive) buildBody(s);
+  for (const s of G.snakes) {
+    if (!s.alive) continue;
+    const r = radOf(s);
+    if (Math.hypot(s.x, s.y) > ARENA - r) { kill(s, null); continue; }
+    for (const o of G.snakes) {
+      if (o === s || !o.alive) continue;
+      if (Math.abs(o.x - s.x) > lenOf(o) + 60 && Math.abs(o.y - s.y) > lenOf(o) + 60) continue;
+      const orr = radOf(o);
+      for (const [bx, by] of o.body) {
+        if ((bx - s.x) ** 2 + (by - s.y) ** 2 < (r * 0.75 + orr) ** 2) { kill(s, o); break; }
+      }
+      if (!s.alive) break;
+    }
+  }
+  // eating
+  for (const s of G.snakes) {
+    if (!s.alive) continue;
+    const reach = radOf(s) + 14;
+    for (const f of G.food) {
+      const dx = f.x - s.x, dy = f.y - s.y;
+      if (Math.abs(dx) > 60 || Math.abs(dy) > 60) continue;
+      const d = Math.hypot(dx, dy);
+      if (d < reach) { f.eaten = true; s.score += f.v; if (s === me) sfx.tone(700 + Math.random() * 500, 0.04, 'sine', 0.05); }
+      else if (d < reach + 40) { f.x -= dx / d * 160 * dt; f.y -= dy / d * 160 * dt; } // food is sucked in
+    }
+    s.peak = Math.max(s.peak, s.score);
+  }
+  G.food = G.food.filter((f) => !f.eaten);
+  while (G.food.length < FOOD) G.food.push(newFood());
+  if (G.food.length > FOOD * 1.8) G.food.splice(0, G.food.length - FOOD * 1.8);
+  // respawns
+  for (let i = 0; i < G.snakes.length; i++) {
+    const s = G.snakes[i];
+    if (s.alive) continue;
+    s.deadT += dt;
+    if (s.bot && s.deadT > 3) {
+      const free = NAMES.filter((n) => !G.snakes.some((o) => o.alive && o.name === n));
+      G.snakes[i] = makeSnake(pick(free.length ? free : NAMES), pick(SKINS.slice(1)), true, irnd(10, 40));
+    }
+    if (!s.bot && s.deadT > 2.5 && G.t < MATCH - 3) { const n = makeSnake('YOU', SKINS[0], false); n.peak = s.peak; n.kills = s.kills; G.me = G.snakes[i] = n; $('respawn').classList.add('hidden'); }
+  }
+  hud();
+}
+function move(s, dt) {
+  const r = radOf(s);
+  let d = s.want - s.ang;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  const turnRate = 5.2 / (1 + r / 30);
+  s.ang += clamp(d, -turnRate * dt, turnRate * dt);
+  const spd = s.boost ? 340 : 170;
+  s.x += Math.cos(s.ang) * spd * dt;
+  s.y += Math.sin(s.ang) * spd * dt;
+  s.trail.unshift([s.x, s.y]);
+  if (s.boost) {
+    s.score -= 7 * dt;
+    s.dropAcc = (s.dropAcc || 0) + dt;
+    if (s.dropAcc > 0.18) { s.dropAcc = 0; const t = s.trail[s.trail.length - 1]; G.food.push(newFood(t[0] + rnd(-6, 6), t[1] + rnd(-6, 6), 1)); }
+  }
+  // keep just enough trail for the body length
+  let L = 0, i = 1;
+  const need = lenOf(s);
+  for (; i < s.trail.length; i++) { L += Math.hypot(s.trail[i][0] - s.trail[i - 1][0], s.trail[i][1] - s.trail[i - 1][1]); if (L > need) break; }
+  s.trail.length = Math.min(s.trail.length, i + 1);
+}
+function buildBody(s) {
+  // circles every ~0.55 radius along the trail, skipping the head itself
+  const r = radOf(s), gap = r * 0.55, out = [];
+  let acc = 0, need = gap * 2;
+  for (let i = 1; i < s.trail.length; i++) {
+    const [x0, y0] = s.trail[i - 1], [x1, y1] = s.trail[i];
+    const seg = Math.hypot(x1 - x0, y1 - y0);
+    while (acc + seg >= need) { const k = (need - acc) / seg; out.push([x0 + (x1 - x0) * k, y0 + (y1 - y0) * k]); need += gap; }
+    acc += seg;
+  }
+  s.body = out;
+}
+function danger(s, ang, dist) {
+  const x = s.x + Math.cos(ang) * dist, y = s.y + Math.sin(ang) * dist;
+  if (Math.hypot(x, y) > ARENA - 40) return true;
+  for (const o of G.snakes) {
+    if (o === s || !o.alive) continue;
+    const orr = radOf(o) + radOf(s) + 6;
+    if (Math.abs(o.x - x) > lenOf(o) + 40 && Math.abs(o.y - y) > lenOf(o) + 40) continue;
+    for (let k = 0; k < o.body.length; k += 2) { const b = o.body[k]; if ((b[0] - x) ** 2 + (b[1] - y) ** 2 < orr * orr) return true; }
+    if ((o.x - x) ** 2 + (o.y - y) ** 2 < (orr + 20) ** 2) return true;
+  }
+  return false;
+}
+function think(s, dt) {
+  s.think -= dt;
+  if (s.think > 0) return;
+  s.think = rnd(0.08, 0.16);
+  const look = 50 + radOf(s) * 3;
+  if (danger(s, s.ang, look) || danger(s, s.ang, look * 0.5)) {
+    const opts = [0.7, -0.7, 1.4, -1.4, 2.2, -2.2].map((o) => s.ang + o);
+    s.want = opts.find((a) => !danger(s, a, look)) ?? s.ang + Math.PI;
+    s.boost = false;
+    return;
+  }
+  // go for food (big pellets first), sometimes try to cut in front of a smaller snake
+  let best = null, bs = -1;
+  for (const f of G.food) {
+    const d = Math.hypot(f.x - s.x, f.y - s.y);
+    if (d > 380) continue;
+    const ahead = Math.cos(Math.atan2(f.y - s.y, f.x - s.x) - s.ang);
+    const v = f.v * 40 / (d + 20) + ahead * 0.4;
+    if (v > bs) { bs = v; best = f; }
+  }
+  if (best) s.want = Math.atan2(best.y - s.y, best.x - s.x);
+  else if (Math.random() < 0.2) s.want = s.ang + rnd(-1, 1);
+  if (Math.hypot(s.x, s.y) > ARENA * 0.85) s.want = Math.atan2(-s.y, -s.x) + rnd(-0.5, 0.5);
+  const target = G.snakes.find((o) => o !== s && o.alive && o.score < s.score * 0.8 && Math.hypot(o.x - s.x, o.y - s.y) < 260);
+  if (target && s.score > 40 && Math.random() < 0.5) {
+    s.want = Math.atan2(target.y + Math.sin(target.ang) * 120 - s.y, target.x + Math.cos(target.ang) * 120 - s.x);
+    s.boost = Math.random() < 0.6;
+  } else s.boost = false;
+}
+function kill(s, by) {
+  s.alive = false; s.deadT = 0;
+  if (by) by.kills++;
+  // the body turns into big food
+  const per = Math.max(1, Math.round(s.score / Math.max(1, s.body.length) * 1.6));
+  s.body.forEach(([x, y], i) => { if (i % 2 === 0) G.food.push(newFood(x + rnd(-8, 8), y + rnd(-8, 8), Math.min(6, per + 1))); });
+  for (let i = 0; i < 30; i++) { const a = Math.random() * Math.PI * 2, v = rnd(80, 400); G.parts.push({ x: s.x, y: s.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rnd(0.4, 1), col: s.skin[i % 2] }); }
+  if (s === G.me) {
+    sfx.boom();
+    $('respawn').innerHTML = `${by ? `${by.name.toUpperCase()} GOT YOU!` : 'OUCH, THE WALL!'}<small>back in a moment…</small>`;
+    $('respawn').classList.remove('hidden');
+  } else if (by === G.me) { sfx.arp([523, 784, 1046], 0.05, 'square', 0.1); Arcade.banner('GOBBLED!', `you cut off ${s.name}`); }
+  else if (Math.hypot(s.x - G.me.x, s.y - G.me.y) < 600) sfx.noise(0.2, 0.1, 1200);
+}
+function ranking() { return G.snakes.slice().sort((a, b) => (b.alive ? b.score : 0) - (a.alive ? a.score : 0)); }
+function hud() {
+  Arcade.stat('sTime', Arcade.fmtTime(Math.max(0, MATCH - G.t)));
+  Arcade.stat('sLen', Math.round(G.me.alive ? G.me.score : 0));
+  if (Math.floor(G.t * 4) !== G.lastBoard) {
+    G.lastBoard = Math.floor(G.t * 4);
+    const r = ranking(), mine = r.indexOf(G.me);
+    let html = '<b>LEADERBOARD</b>';
+    r.slice(0, 5).forEach((s, i) => { html += `<div class="${s === G.me ? 'me' : ''}"><span>${i + 1}. ${s.name}</span><span>${Math.round(s.alive ? s.score : 0)}</span></div>`; });
+    if (mine >= 5) html += `<div class="me"><span>${mine + 1}. YOU</span><span>${Math.round(G.me.alive ? G.me.score : 0)}</span></div>`;
+    $('board').innerHTML = html;
+  }
+}
+function endMatch() {
+  G.mode = 'over';
+  document.body.classList.remove('playing');
+  $('respawn').classList.add('hidden');
+  const r = ranking(), place = r.indexOf(G.me) + 1;
+  const medal = place === 1 ? '🥇' : place === 2 ? '🥈' : place === 3 ? '🥉' : '';
+  const score = Math.round(G.me.peak) * 10 + (place === 1 ? 2000 : place <= 3 ? 800 : 0) + G.me.kills * 300;
+  Arcade.over({
+    title: place === 1 ? 'BIGGEST SNAKE!' : `${medal} #${place} OF ${G.snakes.length}`, lose: place > 3, score,
+    stats: `Biggest length <b>${Math.round(G.me.peak)}</b> · Snakes gobbled <b>${G.me.kills}</b><br>Score <b>${score.toLocaleString()}</b>`,
+  });
+}
+
+/* ---------- drawing ---------- */
+function draw() {
+  const w = view.w, h = view.h, now = performance.now() / 1000;
+  ctx.fillStyle = '#12001f'; ctx.fillRect(0, 0, w, h);
+  const me = G ? G.me : { x: Math.cos(now * 0.2) * 400, y: Math.sin(now * 0.2) * 400, score: 10 };
+  const zoom = clamp(Math.min(w, h) / 700, 0.6, 1.3) / (1 + Math.sqrt(Math.max(0, me.score)) * 0.025);
+  const cx = me.x, cy = me.y;
+  ctx.save();
+  ctx.translate(w / 2, h / 2); ctx.scale(zoom, zoom); ctx.translate(-cx, -cy);
+  const vx0 = cx - w / 2 / zoom, vx1 = cx + w / 2 / zoom, vy0 = cy - h / 2 / zoom, vy1 = cy + h / 2 / zoom;
+  // dotted floor
+  const gs = 60;
+  ctx.fillStyle = 'rgba(180,76,255,0.28)';
+  for (let x = Math.floor(vx0 / gs) * gs; x < vx1; x += gs) for (let y = Math.floor(vy0 / gs) * gs; y < vy1; y += gs) {
+    if (x * x + y * y < ARENA * ARENA) ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+  }
+  // arena wall
+  ctx.strokeStyle = '#ff2fd6'; ctx.lineWidth = 10; ctx.shadowColor = '#ff2fd6'; ctx.shadowBlur = 30;
+  ctx.beginPath(); ctx.arc(0, 0, ARENA, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,47,214,0.06)';
+  ctx.beginPath(); ctx.rect(vx0, vy0, vx1 - vx0, vy1 - vy0); ctx.arc(0, 0, ARENA, 0, Math.PI * 2, true); ctx.fill();
+  if (G) {
+    // food
+    ctx.globalCompositeOperation = 'lighter';
+    for (const f of G.food) {
+      if (f.x < vx0 - 20 || f.x > vx1 + 20 || f.y < vy0 - 20 || f.y > vy1 + 20) continue;
+      const r = 3 + f.v * 1.6 + Math.sin(now * 4 + f.ph) * 0.8;
+      ctx.fillStyle = f.col; ctx.globalAlpha = 0.25;
+      ctx.beginPath(); ctx.arc(f.x, f.y, r * 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    for (const p of G.parts) { ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = p.col; ctx.fillRect(p.x - 3, p.y - 3, 6, 6); }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    // snakes (you on top)
+    const order = G.snakes.filter((s) => s.alive && s !== G.me);
+    if (G.me.alive) order.push(G.me);
+    for (const s of order) drawSnake(s, now, vx0, vx1, vy0, vy1);
+  }
+  ctx.restore();
+  // mini map
+  if (G) {
+    const R = Math.min(56, Math.min(w, h) * 0.09), mx = 14 + R, my = h - 14 - R;
+    ctx.fillStyle = 'rgba(20,0,45,0.6)'; ctx.strokeStyle = 'rgba(255,47,214,0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(mx, my, R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    for (const s of G.snakes) {
+      if (!s.alive) continue;
+      ctx.fillStyle = s === G.me ? '#ffe81a' : s.skin[0];
+      const k = s === G.me ? 3.5 : 1.8 + Math.min(3, s.score / 150);
+      ctx.beginPath(); ctx.arc(mx + s.x / ARENA * R, my + s.y / ARENA * R, k, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  if (joy.on) {
+    ctx.strokeStyle = 'rgba(25,247,255,0.5)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(joy.ox, joy.oy, 50, 0, Math.PI * 2); ctx.stroke();
+    const dx = joy.x - joy.ox, dy = joy.y - joy.oy, d = Math.min(50, Math.hypot(dx, dy)), a = Math.atan2(dy, dx);
+    ctx.fillStyle = 'rgba(25,247,255,0.6)'; ctx.beginPath(); ctx.arc(joy.ox + Math.cos(a) * d, joy.oy + Math.sin(a) * d, 20, 0, Math.PI * 2); ctx.fill();
+  }
+}
+function drawSnake(s, now, vx0, vx1, vy0, vy1) {
+  const r = radOf(s), B = s.body;
+  const reach = lenOf(s) + r;
+  if (s.x < vx0 - reach || s.x > vx1 + reach || s.y < vy0 - reach || s.y > vy1 + reach) return;
+  if (s.boost) { ctx.shadowColor = s.skin[0]; ctx.shadowBlur = 20; }
+  for (let i = B.length - 1; i >= 0; i--) {
+    const [x, y] = B[i];
+    if (x < vx0 - r || x > vx1 + r || y < vy0 - r || y > vy1 + r) continue;
+    ctx.fillStyle = Math.floor(i / 3) % 2 ? s.skin[1] : s.skin[0];
+    ctx.beginPath(); ctx.arc(x, y, r * (i > B.length - 6 ? 0.6 + 0.4 * (B.length - i) / 6 : 1), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+  // head
+  ctx.fillStyle = s.skin[0];
+  ctx.beginPath(); ctx.arc(s.x, s.y, r * 1.08, 0, Math.PI * 2); ctx.fill();
+  const ex = Math.cos(s.ang), ey = Math.sin(s.ang), px = -ey, py = ex;
+  for (const side of [-1, 1]) {
+    const x = s.x + ex * r * 0.35 + px * side * r * 0.45, y = s.y + ey * r * 0.35 + py * side * r * 0.45;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r * 0.38, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#12001f'; ctx.beginPath(); ctx.arc(x + ex * r * 0.14, y + ey * r * 0.14, r * 0.2, 0, Math.PI * 2); ctx.fill();
+  }
+  if (s.bot || s === G.me) {
+    ctx.font = '14px Bungee, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = s === G.me ? '#ffe81a' : 'rgba(255,255,255,0.8)';
+    ctx.fillText(s.name, s.x, s.y - r - 12);
+  }
+}
+
+/* ---------- input ---------- */
+addEventListener('keydown', (e) => { keys[e.code] = true; if (e.code === 'Space' && G && G.mode === 'play') e.preventDefault(); });
+addEventListener('keyup', (e) => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; boostHeld = false; });
+view.cv.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse') { ptr.active = true; ptr.x = e.clientX; ptr.y = e.clientY; boostHeld = true; return; }
+  if (!joy.on) { joy.on = true; joy.id = e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY; }
+});
+addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'mouse') { ptr.active = true; ptr.x = e.clientX; ptr.y = e.clientY; }
+  else if (joy.on && e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; }
+});
+addEventListener('pointerup', (e) => {
+  if (e.pointerType === 'mouse') boostHeld = false;
+  if (e.pointerId === joy.id) joy.on = false;
+});
+const bb = $('boostBtn');
+bb.addEventListener('pointerdown', (e) => { e.stopPropagation(); boostHeld = true; bb.classList.add('on'); });
+const bOff = () => { boostHeld = false; bb.classList.remove('on'); };
+bb.addEventListener('pointerup', bOff); bb.addEventListener('pointercancel', bOff); bb.addEventListener('pointerleave', bOff);
+
+Arcade.init({
+  id: 'lolosnake', logo: ['WIGGLE', '.IO'],
+  tag: 'Grow the biggest snake in the neon arena! Eat glowing dots, boost to cut in front of rivals and gobble the dots they leave behind. Don\'t bump your head into another snake!',
+  helpDesk: '<b>Move the mouse</b> to steer (or <b>← →</b>) · <b>hold the button</b> or <b>Space</b> to boost',
+  helpTouch: '<b>Drag</b> to steer · hold <b>BOOST</b> to go fast',
+  start: newGame,
+  playing: () => G && G.mode === 'play',
+});
+Arcade.loop(update, draw);
+</script>
+</body>
+</html>

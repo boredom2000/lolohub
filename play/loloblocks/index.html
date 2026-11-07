@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#12001f">
+  <title>Block Boom</title>
+  <link rel="icon" href="../../icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Orbitron:wght@500;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../core/arcade.css">
+  <script src="../../core/ads.js"></script>
+  <script src="../../core/wallet.js"></script>
+  <script src="../../core/arcade.js"></script>
+  <style>
+    .arc-hud { display: none; }
+    body.playing .arc-hud { display: flex; }
+  </style>
+</head>
+<body>
+  <div class="arc-hud">
+    <div class="arc-stat" id="sCombo"><small>STREAK</small><span>0</span></div>
+    <div class="arc-stat" id="sScore"><small>SCORE</small><span>0</span></div>
+  </div>
+<script>
+'use strict';
+const { rnd, irnd, pick, clamp, sfx } = Arcade;
+const N = 8;
+const view = Arcade.canvas();
+const ctx = view.ctx;
+
+/* ---------- pieces ---------- */
+const SHAPES = [
+  [[0, 0]],
+  [[0, 0], [1, 0]], [[0, 0], [0, 1]],
+  [[0, 0], [1, 0], [2, 0]], [[0, 0], [0, 1], [0, 2]],
+  [[0, 0], [1, 0], [2, 0], [3, 0]], [[0, 0], [0, 1], [0, 2], [0, 3]],
+  [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]], [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]],
+  [[0, 0], [1, 0], [0, 1], [1, 1]],
+  [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2], [2, 2]],
+  [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]], [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2]],
+  [[0, 0], [0, 1], [1, 1]], [[1, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [0, 1]], [[0, 0], [1, 0], [1, 1]],
+  [[0, 0], [0, 1], [0, 2], [1, 2]], [[1, 0], [1, 1], [1, 2], [0, 2]], [[0, 0], [1, 0], [2, 0], [0, 1]], [[0, 0], [1, 0], [2, 0], [2, 1]],
+  [[0, 0], [1, 0], [2, 0], [1, 1]], [[1, 0], [0, 1], [1, 1], [2, 1]],
+  [[0, 0], [1, 0], [1, 1], [2, 1]], [[1, 0], [2, 0], [0, 1], [1, 1]],
+  [[0, 0], [1, 1]], [[1, 0], [0, 1]],
+];
+const COLS = ['#ff2fd6', '#19f7ff', '#7dff2f', '#ffe81a', '#ff7a1a', '#b44cff', '#2f8bff', '#ff3b55'];
+
+/* ---------- state ---------- */
+let G = null;
+function newGame() {
+  G = { mode: 'play', board: Array.from({ length: N }, () => Array(N).fill(null)), tray: [], score: 0, shown: 0, streak: 0, best: 0,
+    parts: [], pops: [], flashes: [], shake: 0, drag: null, placed: 0, t: 0 };
+  deal();
+  document.body.classList.add('playing');
+  hud();
+  sfx.up();
+}
+function fits(shape, gx, gy) {
+  for (const [x, y] of shape) {
+    const X = gx + x, Y = gy + y;
+    if (X < 0 || Y < 0 || X >= N || Y >= N || G.board[Y][X]) return false;
+  }
+  return true;
+}
+function canPlaceAnywhere(shape) {
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (fits(shape, x, y)) return true;
+  return false;
+}
+function deal() {
+  // three new pieces; make sure at least one of them fits so a fresh hand is never instantly dead
+  for (let tries = 0; tries < 30; tries++) {
+    const hand = [0, 1, 2].map(() => {
+      const big = G.placed > 6 ? 1 : 0.6;
+      let s = pick(SHAPES);
+      if (s.length >= 6 && Math.random() > big * 0.5) s = pick(SHAPES);
+      return { shape: s, col: pick(COLS), used: false };
+    });
+    if (hand.some((p) => canPlaceAnywhere(p.shape)) || tries === 29) { G.tray = hand; break; }
+  }
+  G.trayIn = 0;
+}
+function place(piece, gx, gy) {
+  for (const [x, y] of piece.shape) G.board[gy + y][gx + x] = { col: piece.col, pop: 0.25 };
+  piece.used = true;
+  G.placed++;
+  G.score += piece.shape.length;
+  sfx.tone(220 + piece.shape.length * 40, 0.08, 'square', 0.1);
+  // full rows and columns explode
+  const rows = [], cols = [];
+  for (let y = 0; y < N; y++) if (G.board[y].every(Boolean)) rows.push(y);
+  for (let x = 0; x < N; x++) if (G.board.every((r) => r[x])) cols.push(x);
+  const lines = rows.length + cols.length;
+  if (lines) {
+    G.streak++;
+    G.best = Math.max(G.best, G.streak);
+    const cells = new Set();
+    rows.forEach((y) => { for (let x = 0; x < N; x++) cells.add(y * N + x); G.flashes.push({ row: y, life: 0.4 }); });
+    cols.forEach((x) => { for (let y = 0; y < N; y++) cells.add(y * N + x); G.flashes.push({ col: x, life: 0.4 }); });
+    cells.forEach((k) => {
+      const x = k % N, y = (k / N) | 0, c = G.board[y][x];
+      if (c) burstCell(x, y, c.col);
+      G.board[y][x] = null;
+    });
+    const pts = cells.size * 2 * lines * Math.min(8, G.streak);
+    G.score += pts;
+    G.shake = 6 + lines * 4;
+    const words = ['', 'BOOM!', 'DOUBLE BOOM!', 'TRIPLE!!', 'MEGA BOOM!!', 'ULTRA!!!'];
+    G.pops.push({ x: gx + 1, y: gy, t: `+${pts}`, life: 1.2 });
+    if (lines >= 2 || G.streak >= 3) Arcade.banner(words[Math.min(5, lines)] || 'BOOM!', G.streak >= 2 ? `streak ×${G.streak}` : '');
+    sfx.boom();
+    sfx.arp([523, 659, 784, 1046, 1318].slice(0, 2 + Math.min(3, lines)), 0.06, 'square', 0.08);
+    if (G.board.every((r) => r.every((c) => !c))) { G.score += 300; Arcade.banner('CLEAN BOARD!', '+300', '#7dff2f'); sfx.fanfare(); }
+  }
+  if (G.tray.every((p) => p.used)) {
+    // a streak survives as long as each hand of 3 clears at least one line
+    if (!G.handCleared && !lines) G.streak = 0;
+    G.handCleared = false;
+    deal();
+  } else if (lines) G.handCleared = true;
+  hud();
+  // stuck?
+  if (!G.tray.some((p) => !p.used && canPlaceAnywhere(p.shape))) gameOver();
+}
+function burstCell(x, y, col) {
+  for (let i = 0; i < 6; i++) G.parts.push({ x: x + 0.5, y: y + 0.5, vx: rnd(-6, 6), vy: rnd(-9, 2), life: rnd(0.5, 1), col, s: rnd(0.08, 0.2) });
+}
+function gameOver() {
+  G.mode = 'over';
+  document.body.classList.remove('playing');
+  sfx.lose();
+  // the board greys out row by row
+  for (let y = 0; y < N; y++) setTimeout(() => { for (let x = 0; x < N; x++) if (G.board[y][x]) G.board[y][x].dead = true; sfx.tone(300 - y * 20, 0.08, 'triangle', 0.08); }, y * 90);
+  setTimeout(() => Arcade.over({ title: 'NO MORE MOVES!', lose: true, score: G.score, stats: `Score <b>${G.score.toLocaleString()}</b> · Best streak <b>×${G.best}</b> · ${G.placed} blocks placed` }), 1100);
+}
+function hud() { Arcade.stat('sCombo', G.streak ? '×' + G.streak : '0'); }
+
+/* ---------- layout + drawing ---------- */
+let L = { cell: 40, bx: 0, by: 0, trayY: 0, tcell: 20 };
+function layout() {
+  const w = view.w, h = view.h;
+  // board + a tray under it that holds pieces up to 5 cells long at 0.55 size: 11.2 cells tall in all
+  const cell = Math.floor(Math.min((w - 32) / N, (h - 84) / 11.2, 64));
+  const bx = (w - cell * N) / 2, by = 66 + Math.max(0, (h - 84 - cell * 11.2) / 2);
+  L = { cell, bx, by, trayY: by + cell * N + cell * 0.4, tcell: Math.floor(cell * 0.55) };
+}
+function trayRect(i) {
+  const w = view.w, slot = Math.min(w / 3, L.cell * 3.4);
+  const x0 = (w - slot * 3) / 2 + slot * i;
+  return { x: x0, y: L.trayY, w: slot, h: L.tcell * 5 + 8 };
+}
+function cellBox(px, py, s, col, alpha = 1, dead) {
+  ctx.globalAlpha = alpha;
+  const r = s * 0.18;
+  ctx.fillStyle = dead ? '#3a2a50' : col;
+  rr(px + 1, py + 1, s - 2, s - 2, r); ctx.fill();
+  if (!dead) {
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    rr(px + s * 0.14, py + s * 0.12, s * 0.72, s * 0.22, r * 0.6); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    rr(px + 1, py + s * 0.72, s - 2, s * 0.27, r); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function ghostCell() {
+  const d = G && G.drag;
+  if (!d) return null;
+  const p = d.piece, s = L.cell;
+  const gx = Math.round((d.x - d.ox * s - L.bx) / s), gy = Math.round((d.y - d.oy * s - L.by) / s);
+  return { gx, gy, ok: fits(p.shape, gx, gy) };
+}
+function update(dt) {
+  if (!G) return;
+  G.t += dt;
+  for (const p of G.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 22 * dt; p.life -= dt; }
+  G.parts = G.parts.filter((p) => p.life > 0);
+  for (const p of G.pops) { p.y -= 1.2 * dt; p.life -= dt; }
+  G.pops = G.pops.filter((p) => p.life > 0);
+  for (const f of G.flashes) f.life -= dt;
+  G.flashes = G.flashes.filter((f) => f.life > 0);
+  for (const row of G.board) for (const c of row) if (c && c.pop) c.pop = Math.max(0, c.pop - dt);
+  G.shake = Math.max(0, G.shake - dt * 40);
+  G.trayIn = Math.min(1, (G.trayIn || 0) + dt * 3);
+  G.shown += (G.score - G.shown) * Math.min(1, dt * 8);
+  Arcade.stat('sScore', Math.round(G.shown).toLocaleString());
+}
+function draw() {
+  const w = view.w, h = view.h, now = performance.now() / 1000;
+  layout();
+  ctx.fillStyle = '#12001f'; ctx.fillRect(0, 0, w, h);
+  // soft moving glow behind
+  const g = ctx.createRadialGradient(w / 2 + Math.sin(now * 0.5) * 80, h * 0.4, 10, w / 2, h * 0.45, Math.max(w, h) * 0.7);
+  g.addColorStop(0, 'rgba(120,0,180,0.45)'); g.addColorStop(1, 'rgba(18,0,31,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  const s = L.cell;
+  ctx.save();
+  if (G && G.shake) ctx.translate(rnd(-G.shake, G.shake), rnd(-G.shake, G.shake));
+  // board
+  ctx.fillStyle = 'rgba(20,0,45,0.85)';
+  rr(L.bx - 8, L.by - 8, s * N + 16, s * N + 16, 16); ctx.fill();
+  ctx.strokeStyle = '#19f7ff'; ctx.lineWidth = 3; ctx.shadowColor = '#19f7ff'; ctx.shadowBlur = 16;
+  rr(L.bx - 8, L.by - 8, s * N + 16, s * N + 16, 16); ctx.stroke();
+  ctx.shadowBlur = 0;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    ctx.fillStyle = (x + y) % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.07)';
+    rr(L.bx + x * s + 2, L.by + y * s + 2, s - 4, s - 4, s * 0.15); ctx.fill();
+  }
+  if (G) {
+    // where the dragged piece would land, and which lines it would finish
+    const gh = ghostCell();
+    let willRows = [], willCols = [];
+    if (gh && gh.ok) {
+      const tmp = G.board.map((r) => r.slice());
+      for (const [x, y] of G.drag.piece.shape) tmp[gh.gy + y][gh.gx + x] = true;
+      for (let y = 0; y < N; y++) if (tmp[y].every(Boolean)) willRows.push(y);
+      for (let x = 0; x < N; x++) if (tmp.every((r) => r[x])) willCols.push(x);
+    }
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const c = G.board[y][x];
+      if (!c) continue;
+      const glow = willRows.includes(y) || willCols.includes(x);
+      const sc = 1 + (c.pop || 0) * 0.8;
+      const px = L.bx + x * s + (s - s * sc) / 2, py = L.by + y * s + (s - s * sc) / 2;
+      cellBox(px, py, s * sc, glow ? '#ffffff' : c.col, 1, c.dead);
+    }
+    if (gh && gh.ok) {
+      for (const [x, y] of G.drag.piece.shape) cellBox(L.bx + (gh.gx + x) * s, L.by + (gh.gy + y) * s, s, G.drag.piece.col, 0.35);
+      for (const y of willRows) { ctx.fillStyle = `rgba(255,255,255,${0.12 + 0.08 * Math.sin(now * 12)})`; ctx.fillRect(L.bx, L.by + y * s, s * N, s); }
+      for (const x of willCols) { ctx.fillStyle = `rgba(255,255,255,${0.12 + 0.08 * Math.sin(now * 12)})`; ctx.fillRect(L.bx + x * s, L.by, s, s * N); }
+    }
+    for (const f of G.flashes) {
+      ctx.fillStyle = `rgba(255,232,26,${f.life * 2})`;
+      if (f.row != null) ctx.fillRect(L.bx - 8, L.by + f.row * s, s * N + 16, s);
+      else ctx.fillRect(L.bx + f.col * s, L.by - 8, s, s * N + 16);
+    }
+    // tray
+    G.tray.forEach((p, i) => {
+      if (p.used || (G.drag && G.drag.piece === p)) return;
+      const r = trayRect(i), ts = Math.min(L.tcell, (r.w - 16) / 5);
+      const pw = Math.max(...p.shape.map((c) => c[0])) + 1, ph = Math.max(...p.shape.map((c) => c[1])) + 1;
+      const ok = canPlaceAnywhere(p.shape);
+      const k = G.trayIn, ox = r.x + (r.w - pw * ts) / 2, oy = r.y + (r.h - ph * ts) / 2 + (1 - k) * 60;
+      for (const [x, y] of p.shape) cellBox(ox + x * ts, oy + y * ts, ts, p.col, ok ? k : 0.3 * k);
+    });
+    // dragged piece follows the finger (lifted above it on touch)
+    if (G.drag) {
+      const d = G.drag;
+      for (const [x, y] of d.piece.shape) cellBox(d.x - d.ox * s + x * s, d.y - d.oy * s + y * s, s, d.piece.col, 0.95);
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of G.parts) { ctx.globalAlpha = Math.min(1, p.life * 1.5); ctx.fillStyle = p.col; ctx.fillRect(L.bx + p.x * s - p.s * s / 2, L.by + p.y * s - p.s * s / 2, p.s * s, p.s * s); }
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    ctx.font = `${Math.round(s * 0.7)}px Bungee, sans-serif`; ctx.textAlign = 'center';
+    for (const p of G.pops) { ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = '#ffe81a'; ctx.fillText(p.t, L.bx + p.x * s, L.by + p.y * s); }
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+/* ---------- drag and drop ---------- */
+function down(e) {
+  if (!G || G.mode !== 'play') return;
+  G.tray.forEach((p, i) => {
+    if (p.used || G.drag) return;
+    const r = trayRect(i);
+    if (e.clientX >= r.x && e.clientX <= r.x + r.w && e.clientY >= r.y - 10 && e.clientY <= r.y + r.h + 10) {
+      const pw = Math.max(...p.shape.map((c) => c[0])) + 1, ph = Math.max(...p.shape.map((c) => c[1])) + 1;
+      // hold the piece by its middle; on touch it floats above the finger so you can see it
+      G.drag = { piece: p, id: e.pointerId, ox: pw / 2, oy: ph / 2 + (e.pointerType === 'mouse' ? 0 : 1.6), x: e.clientX, y: e.clientY };
+      sfx.tone(600, 0.04, 'square', 0.05);
+    }
+  });
+}
+view.cv.addEventListener('pointerdown', down);
+addEventListener('pointermove', (e) => { if (G && G.drag && e.pointerId === G.drag.id) { G.drag.x = e.clientX; G.drag.y = e.clientY; } });
+addEventListener('pointerup', (e) => {
+  if (!G || !G.drag || e.pointerId !== G.drag.id) return;
+  const gh = ghostCell(), p = G.drag.piece;
+  G.drag = null;
+  if (gh && gh.ok && G.mode === 'play') place(p, gh.gx, gh.gy);
+  else sfx.tone(160, 0.08, 'triangle', 0.08);
+});
+addEventListener('pointercancel', () => { if (G) G.drag = null; });
+
+Arcade.init({
+  id: 'loloblocks', logo: ['BLOCK', 'BOOM'],
+  tag: 'Drag the blocks onto the board. Fill a whole row or column and BOOM, it explodes! Clear lines with every hand to keep your streak going. No room left = game over.',
+  helpDesk: '<b>Drag</b> a block from the tray onto the board with the mouse',
+  helpTouch: '<b>Drag</b> a block from the tray onto the board (it floats above your finger)',
+  start: newGame,
+  playing: () => G && G.mode === 'play',
+});
+Arcade.loop(update, draw);
+</script>
+</body>
+</html>
