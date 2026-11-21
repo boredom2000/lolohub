@@ -91,8 +91,8 @@
   function renderPlay() {
     const cat = W.catalog;
     $('playList').innerHTML = cat.play.map((g, i) => `
-      <article class="game-card${W.gold < g.price ? ' broke' : ''}" style="--c1:${g.colors[0]}; --c2:${g.colors[1]}; animation-delay:${i * 0.07}s">
-        <div class="price-tag">${W.coin(20)}${g.price}<small>/round</small></div>
+      <article class="game-card${!W.free && W.gold < g.price ? ' broke' : ''}" style="--c1:${g.colors[0]}; --c2:${g.colors[1]}; animation-delay:${i * 0.07}s">
+        <div class="price-tag">${W.free ? 'FREE' : `${W.coin(20)}${g.price}<small>/round</small>`}</div>
         <a class="card-art" href="play/${g.id}/" tabindex="-1" aria-hidden="true">${g.emoji}</a>
         <h2><a href="play/${g.id}/">${esc(g.name)}</a></h2>
         <div class="round">${esc(g.round)}</div>
@@ -103,7 +103,7 @@
         </div>
       </article>`).join('');
     const cheapest = Math.min(...cat.play.map((g) => g.price));
-    $('playTeaser').innerHTML = (W.gold >= cheapest ? `You have <b style="color:#ffd23f">${W.gold} gold</b>.<br>Tap to play! 🎮` : `Earn gold on WORK HARD,<br>then come play! 🎮`)
+    $('playTeaser').innerHTML = (W.free ? 'Every game is <b style="color:#7dff2f">FREE</b> here.<br>Tap to play! 🎮' : W.gold >= cheapest ?`You have <b style="color:#ffd23f">${W.gold} gold</b>.<br>Tap to play! 🎮` : `Earn gold on WORK HARD,<br>then come play! 🎮`)
       + `<div class="parade">${cat.play.map((g) => `<span>${g.emoji}</span>`).join('')}</div>`;
   }
 
