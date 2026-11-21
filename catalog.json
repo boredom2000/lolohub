@@ -4,7 +4,8 @@
     "decay": 0.6,
     "windowDays": 7,
     "passScore": 0.5,
-    "guestGoldOnSignup": 300
+    "guestGoldOnSignup": 300,
+    "publicStartGold": 60
   },
   "work": [
     {

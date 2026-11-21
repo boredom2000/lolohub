@@ -16,8 +16,9 @@
     root: ROOT,
     catalog: null,
     server: false, // true when the home server's profile API answers
-    // public GitHub Pages copy: games are free there (no server to keep gold); lessons still pay for fun
-    free: /\.github\.io$/i.test(location.hostname),
+    // public GitHub Pages copy: no server to keep gold, so a new guest starts with rewards.publicStartGold
+    // (it lasts while the tab is open); after that, lessons earn more
+    public: /\.github\.io$/i.test(location.hostname),
     user: null,    // { name, avatar } when logged in
     gold: 0,
     done: {},      // lesson id -> times finished in the reward window
@@ -28,7 +29,7 @@
   // ---------- guest store (this tab only) ----------
   function guest() {
     try { const g = JSON.parse(sessionStorage.getItem(GUEST_KEY)); if (g && typeof g.gold === 'number') return g; } catch (e) { /* none */ }
-    return { gold: 0, done: {} };
+    return { gold: W.public && W.catalog ? W.catalog.rewards.publicStartGold || 0 : 0, done: {} };
   }
   function saveGuest(g) { try { sessionStorage.setItem(GUEST_KEY, JSON.stringify(g)); } catch (e) { /* private mode */ } }
   function recentCounts(done) {
@@ -98,7 +99,7 @@
   W.spend = async (gameId) => {
     await W.ready;
     const game = W.game(gameId);
-    if (!game || W.free) return { ok: true, price: 0 };
+    if (!game) return { ok: true, price: 0 };
     if (W.user) {
       try { const r = await api('spend', { game: gameId }); apply(r); return { ok: r.ok, price: r.price }; }
       catch (e) { return { ok: true, price: 0 }; } // never lock a game because of a server hiccup
