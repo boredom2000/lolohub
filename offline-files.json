@@ -1,5 +1,5 @@
 {
-  "version": "75b3451c50a9",
+  "version": "89102b72a203",
   "files": [
     "about.html",
     "ads.txt",
@@ -8,6 +8,7 @@
     "core/ads.js",
     "core/arcade.css",
     "core/arcade.js",
+    "core/duo.js",
     "core/wallet.js",
     "home.css",
     "home.js",

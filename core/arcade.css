@@ -51,6 +51,9 @@ button.arc-big {
   animation: arc-pulse 1.4s ease-in-out infinite;
 }
 button.arc-big:active { transform: scale(0.95); }
+/* mode buttons (1 PLAYER / 2P TEAM UP / 2P VERSUS) */
+button.arc-mode { font-size: clamp(18px, 4.6vw, 28px); padding: 12px 24px; }
+button.arc-mode.alt { border-color: var(--cyan); background: linear-gradient(180deg, rgba(25, 247, 255, 0.25), rgba(80, 0, 140, 0.55)); animation: none; box-shadow: 0 0 14px var(--cyan), inset 0 0 14px rgba(25, 247, 255, 0.35); }
 button.arc-small {
   font-family: 'Bungee', sans-serif; font-size: 16px; padding: 10px 20px; border-radius: 12px; border: 2px solid var(--cyan);
   background: rgba(20, 0, 45, 0.75); color: var(--cyan); text-shadow: 0 0 8px var(--cyan); box-shadow: 0 0 12px rgba(25, 247, 255, 0.6);

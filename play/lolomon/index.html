@@ -14,15 +14,20 @@
   <script src="../../core/ads.js"></script>
   <script src="../../core/wallet.js"></script>
   <script src="../../core/arcade.js"></script>
+  <script src="../../core/duo.js"></script>
   <style>
     .arc-hud, #board, .tbtn { display: none; }
     body.playing .arc-hud, body.playing #board { display: flex; }
-    body.playing.touch .tbtn { display: block; }
+    body.playing.touch:not(.two) .tbtn { display: block; }
     .arc-hud { gap: 26px; }
     #board {
       position: fixed; z-index: 10; right: calc(12px + env(safe-area-inset-right)); top: calc(72px + env(safe-area-inset-top)); flex-direction: column; gap: 2px;
       font-size: 12px; min-width: 160px; padding: 8px 10px; border-radius: 12px; background: rgba(20, 0, 45, 0.6); border: 1px solid rgba(25, 247, 255, 0.4); pointer-events: none;
     }
+    body.two #board { right: 50%; transform: translateX(50%); top: calc(10px + env(safe-area-inset-top)); }
+    body.two .arc-hud { right: auto; left: 50%; transform: translateX(-50%); top: auto; bottom: calc(10px + env(safe-area-inset-bottom)); }
+    body.two #sCoins { display: none; } /* each half of the split screen shows its own coins */
+    body.two.touch .arc-hud { bottom: auto; top: calc(118px + env(safe-area-inset-top)); } /* the players' buttons own the bottom */
     #board div { display: flex; justify-content: space-between; gap: 10px; color: #d8c8ff; }
     #board div i { font-style: normal; }
     #board div.me { color: var(--yellow); text-shadow: 0 0 8px var(--orange); }
@@ -51,6 +56,8 @@
 // naps), outrun the guard back to your base, and the ball hatches into a critter that makes coins. Rival bandits
 // raid the wild too, and steal from bases: catch thieves to get your critters back, and lock your base for a while.
 // After ROUND seconds the richest base (critters + coins) wins. All creatures are original, drawn in code.
+// Modes: 1 player; 2P TEAM UP (P1 + P2 share the blue base); 2P VERSUS (P2 takes Rex's base). 2 players get a
+// split screen (P1 left, P2 right) and the core/duo.js controls. Coins belong to a base, so teammates share them.
 const { rnd, pick, clamp, sfx } = Arcade;
 const W = 3600, H = 3600, CX = W / 2, CY = H / 2, ROUND = 300;
 const BASE_W = 380, BASE_H = 260, LOCK_TIME = 15, LOCK_CD = 40, SPEED = 235, CARRY = 0.66;
@@ -83,9 +90,11 @@ const SPECIES = [
     { n: 'Shadowisp', c: '#8a4cff', ear: 'pointy', tail: 'wisp' }],
   [{ n: 'Starlune', c: '#fff1a8', ear: 'pointy', tail: 'fluff', horn: true, halo: true }, { n: 'Dracoray', c: '#ff4fd8', ear: 'horn', tail: 'wisp', wings: true }],
 ];
-const PLAYERS = [
+// the four bases (you: bottom-left) and who runs them in each mode
+const BASES = [
   { name: 'YOU', col: '#19f7ff' }, { name: 'Rex', col: '#ff2fd6' }, { name: 'Mika', col: '#ffe81a' }, { name: 'Juno', col: '#7dff2f' },
 ];
+const P2COL = '#ff2fd6';
 // outer biomes by direction from the middle
 const BIOMES = {
   top: { name: 'SNOW', col: '#2c3f66', decor: ['❄️', '⛄', '🌲', '🌲'] },
@@ -100,6 +109,8 @@ const joy = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const inRect = (p, r, m = 0) => p.x > r.x - m && p.x < r.x + r.w + m && p.y > r.y - m && p.y < r.y + r.h + m;
 const inAnyBase = (p) => G.bases.some((b) => inRect(p, b, 10));
+const humanBase = (i) => G.tr.some((t) => t.human && t.base === i);
+const crew = (i) => G.tr.filter((t) => t.base === i);
 function biomeAt(x, y) {
   const dx = x - CX, dy = y - CY;
   return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'bottom' : 'top');
@@ -117,7 +128,7 @@ function newItem(tier) {
 function makeBase(i) {
   const xs = [CX - 70 - BASE_W, CX + 70], ys = [CY + 70, CY - 70 - BASE_H];
   const x = xs[i % 2], y = ys[i < 2 ? 0 : 1];
-  const b = { i, x, y, w: BASE_W, h: BASE_H, top: y < CY, lockT: 0, lockCd: 0, pads: [] };
+  const b = { i, x, y, w: BASE_W, h: BASE_H, top: y < CY, lockT: 0, lockCd: 0, coins: 0, pads: [], name: BASES[i].name, col: BASES[i].col };
   for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) b.pads.push({ base: i, x: x + 62 + c * 85, y: y + (b.top ? 70 : 90) + r * 100, item: null });
   return b;
 }
@@ -161,41 +172,49 @@ function makeDecor() {
   return out;
 }
 
-function start() {
-  G = { t: ROUND, fx: [], floats: [], over: false, stolen: 0, caught: 0, wild: 0, nests: makeNests(), decor: makeDecor() };
+function trainer(base, name, col, human, pad) {
+  const b = G.bases[base];
+  return { base, name, col, human, pad, x: b.x + b.w / 2 + (pad === 1 ? 40 : 0), y: b.top ? b.y + b.h - 30 : b.y + 30, carry: null, stun: 0,
+    bot: !human, goal: null, think: rnd(0, 0.3), stealT: rnd(20, 40), mode: 'idle', target: null, face: 1, step: 0,
+    speed: human ? SPEED : SPEED * rnd(0.86, 0.92) };
+}
+function start(mode) {
+  mode = mode || 'solo';
+  G = { mode, two: mode !== 'solo', t: ROUND, fx: [], floats: [], over: false, stolen: 0, caught: 0, wild: 0, nests: makeNests(), decor: makeDecor() };
   G.bases = [0, 1, 2, 3].map(makeBase);
-  G.tr = PLAYERS.map((p, i) => {
-    const b = G.bases[i];
-    // everyone starts with one hatched critter so coins start flowing
-    const it = newItem(0); it.rar = 0; it.hatch = 0; b.pads[0].item = it;
-    return { i, name: p.name, col: p.col, x: b.x + b.w / 2, y: b.top ? b.y + b.h - 30 : b.y + 30, coins: 0, carry: null, stun: 0,
-      bot: i > 0, goal: null, think: rnd(0, 0.3), stealT: rnd(20, 40), mode: 'idle', target: null, face: 1, step: 0,
-      speed: i > 0 ? SPEED * rnd(0.86, 0.92) : SPEED };
-  });
+  if (mode === 'versus') { G.bases[0].name = 'P1'; G.bases[1].name = 'P2'; G.bases[1].col = P2COL; }
+  if (mode === 'coop') G.bases[0].name = 'P1+P2';
+  G.tr = [trainer(0, mode === 'solo' ? 'YOU' : 'P1', BASES[0].col, true, 0)];
+  G.tr.push(mode === 'versus' ? trainer(1, 'P2', P2COL, true, 1) : trainer(1, 'Rex', BASES[1].col, false));
+  G.tr.push(trainer(2, 'Mika', BASES[2].col, false), trainer(3, 'Juno', BASES[3].col, false));
+  if (mode === 'coop') G.tr.push(trainer(0, 'P2', P2COL, true, 1));
+  // every base starts with one hatched critter so coins start flowing
+  for (const b of G.bases) { const it = newItem(0); it.rar = 0; it.hatch = 0; b.pads[0].item = it; }
+  document.body.classList.toggle('two', G.two);
+  if (G.two) Duo.start(); else Duo.stop();
   document.body.classList.add('playing');
-  Arcade.banner('BALL BANDITS', 'GRAB · RUN · HATCH!');
+  Arcade.banner('BALL BANDITS', mode === 'coop' ? 'TEAM UP · GRAB · RUN · HATCH!' : mode === 'versus' ? 'P1 vs P2 · GRAB · RUN · HATCH!' : 'GRAB · RUN · HATCH!');
   sfx.up();
 }
 
 /* ---------- items in bases ---------- */
 const value = (b) => b.pads.reduce((s, p) => s + (p.item ? p.item.price : 0), 0);
-const worth = (t) => value(G.bases[t.i]) + Math.floor(t.coins);
+const worth = (b) => value(b) + Math.floor(b.coins);
 // put an item in a base: empty pad, else replace the weakest if better (sold for half), else sell it for half
 function place(b, item) {
-  const owner = G.tr[b.i];
   let pad = b.pads.find((p) => !p.item);
   if (!pad) {
     const weak = b.pads.reduce((a, p) => (p.item.price < a.item.price ? p : a));
-    if (weak.item.price >= item.price) { sell(owner, item, weak); return null; }
-    sell(owner, weak.item, weak);
+    if (weak.item.price >= item.price) { sell(b, item, weak); return null; }
+    sell(b, weak.item, weak);
     pad = weak;
   }
   pad.item = item;
   return pad;
 }
-function sell(owner, item, at) {
+function sell(b, item, at) {
   const gain = Math.round(item.price / 2);
-  owner.coins += gain;
+  b.coins += gain;
   float(at.x, at.y - 30, `SOLD +${gain}`, '#ffd23f');
 }
 // what a carrier drops when caught goes back where it came from: its nest, or the base it was stolen from
@@ -224,30 +243,30 @@ function act(t) {
     const item = nest.balls.pop();
     t.carry = { item, from: -1, nest };
     alarm(nest.guard, t);
-    if (!t.bot) { sfx.pop(1.2); float(t.x, t.y - 60, RAR[item.rar].name + '!', RAR[item.rar].col); }
+    if (t.human) { sfx.pop(1.2); float(t.x, t.y - 60, RAR[item.rar].name + '!', RAR[item.rar].col); }
     return true;
   }
   // steal from a rival base
   for (const b of G.bases) {
-    if (b.i === t.i || !inRect(t, b)) continue;
+    if (b.i === t.base || !inRect(t, b)) continue;
     let pad = null, pd = t.bot ? 44 : 60;
     for (const p of b.pads) { const d = dist(p, t); if (p.item && d < pd) { pd = d; pad = p; } }
     if (!pad) return false;
     t.carry = { item: pad.item, from: b.i };
     pad.item = null;
     sfx.pop(1.4);
-    if (b.i === 0) { Arcade.banner('THIEF!', `${t.name} grabbed your ${t.carry.item.sp.n}`, '#ff2fd6'); sfx.lose(); }
+    if (humanBase(b.i)) { Arcade.banner('THIEF!', `${t.name} grabbed ${b.name === 'YOU' ? 'your' : b.name + '’s'} ${t.carry.item.sp.n}`, '#ff2fd6'); sfx.lose(); }
     return true;
   }
   return false;
 }
 
 function lock(t) {
-  const b = G.bases[t.i];
+  const b = G.bases[t.base];
   if (b.lockCd > 0 || !inRect(t, b, 20)) return false;
   b.lockT = LOCK_TIME; b.lockCd = LOCK_CD;
   sfx.arp([300, 600, 900], 0.05, 'sawtooth', 0.1);
-  if (!t.bot) float(t.x, t.y - 50, 'LOCKED!', '#19f7ff');
+  if (t.human) float(t.x, t.y - 50, 'LOCKED!', '#19f7ff');
   return true;
 }
 
@@ -258,7 +277,7 @@ function alarm(g, t) {
   g.target = t; g.why = 'ball';
   g.t = asleep ? TIERS[g.nest.tier].wake : 0.25;
   g.state = 'alarm';
-  if (t.i === 0) sfx.tone(asleep ? 300 : 500, 0.2, 'sawtooth', 0.12, 300);
+  if (t.human) sfx.tone(asleep ? 300 : 500, 0.2, 'sawtooth', 0.12, 300);
 }
 function updateGuard(g, dt) {
   const T = TIERS[g.nest.tier], n = g.nest;
@@ -275,7 +294,7 @@ function updateGuard(g, dt) {
     if (T.notice) for (const t of G.tr) {
       if (t.stun > 0 || inAnyBase(t) || dist(t, g) > T.notice) continue;
       g.state = 'chase'; g.target = t; g.why = 'intruder';
-      if (t.i === 0) sfx.tone(500, 0.2, 'sawtooth', 0.12, 300);
+      if (t.human) sfx.tone(500, 0.2, 'sawtooth', 0.12, 300);
       break;
     }
     return;
@@ -290,7 +309,7 @@ function updateGuard(g, dt) {
       const item = returnCarry(t);
       stun(t, g, item ? 1.4 : 0.9);
       g.state = 'return'; g.target = null;
-      if (t.i === 0) { Arcade.banner('CAUGHT!', item ? `the ${g.emoji} took its ball back` : `watch out for the ${g.emoji}`, '#ff2fd6'); sfx.boom(); }
+      if (t.human) { Arcade.banner(G.two ? `${t.name} CAUGHT!` : 'CAUGHT!', item ? `the ${g.emoji} took its ball back` : `watch out for the ${g.emoji}`, '#ff2fd6'); sfx.boom(); }
     }
     return;
   }
@@ -300,27 +319,27 @@ function updateGuard(g, dt) {
 
 /* ---------- bots ---------- */
 function think(b) {
-  const home = G.bases[b.i];
+  const home = G.bases[b.base];
   const homeSpot = { x: home.x + home.w / 2, y: home.top ? home.y + home.h - 40 : home.y + 40 };
   if (b.mode !== 'steal' && b.mode !== 'raid') b.target = null;
   if (b.carry) { b.mode = 'home'; b.goal = { x: home.x + home.w / 2, y: home.y + home.h / 2 }; return; }
-  const thief = G.tr.find((t) => t.carry && t.carry.from === b.i);
+  const thief = G.tr.find((t) => t.carry && t.carry.from === b.base);
   if (thief && dist(b, thief) < 900) { b.mode = 'chase'; b.goal = { x: thief.x, y: thief.y }; return; }
-  const intruder = G.tr.find((t) => t !== b && !t.carry && inRect(t, home, 40));
+  const intruder = G.tr.find((t) => t.base !== b.base && !t.carry && inRect(t, home, 40));
   if (intruder && home.lockCd <= 0) {
     if (inRect(b, home, 20)) lock(b); else if (dist(b, home) < 700) { b.mode = 'defend'; b.goal = homeSpot; return; }
   }
   // keep going for the current target while it is still there
   if (b.mode === 'steal' && b.target && b.target.item && !G.bases[b.target.base].lockT && G.t > b.giveUp) { b.goal = b.target; return; }
   if (b.mode === 'raid' && b.target && b.target.balls.length && G.t > b.giveUp) { b.goal = b.target; return; }
-  // now and then: steal the best item of an unlocked base whose owner is away
+  // now and then: steal the best item of an unlocked base whose crew is away
   if (b.stealT <= 0) {
     b.stealT = rnd(12, 24);
     let best = null;
     for (const base of G.bases) {
-      if (base.i === b.i || base.lockT > 0) continue;
-      const owner = G.tr[base.i];
-      for (const p of base.pads) if (p.item && dist(owner, p) > 200 && (!best || p.item.price > best.item.price)) best = p;
+      if (base.i === b.base || base.lockT > 0) continue;
+      const guards = crew(base.i);
+      for (const p of base.pads) if (p.item && guards.every((o) => dist(o, p) > 200) && (!best || p.item.price > best.item.price)) best = p;
     }
     if (best && best.item.price > 30 && Math.random() < 0.75) { b.mode = 'steal'; b.target = best; b.goal = best; b.giveUp = G.t - 20; return; }
   }
@@ -346,6 +365,7 @@ function update(dt) {
   if (!G || G.over) return;
   G.t -= dt;
   if (G.t <= 0) return end();
+  if (G.two) Duo.update();
 
   // nests refill
   for (const n of G.nests) {
@@ -362,13 +382,12 @@ function update(dt) {
   // bases: locks, hatching, income
   for (const b of G.bases) {
     b.lockT = Math.max(0, b.lockT - dt); b.lockCd = Math.max(0, b.lockCd - dt);
-    const owner = G.tr[b.i];
     for (const p of b.pads) {
       const it = p.item; if (!it) continue;
       if (it.hatch > 0) {
         it.hatch -= dt;
-        if (it.hatch <= 0) { burst(p.x, p.y, RAR[it.rar].col, 22); if (b.i === 0) { sfx.up(); float(p.x, p.y - 40, `${it.sp.n}!`, RAR[it.rar].col); } }
-      } else owner.coins += it.inc * dt;
+        if (it.hatch <= 0) { burst(p.x, p.y, RAR[it.rar].col, 22); if (humanBase(b.i)) { sfx.up(); float(p.x, p.y - 40, `${it.sp.n}!`, RAR[it.rar].col); } }
+      } else b.coins += it.inc * dt;
     }
   }
 
@@ -376,7 +395,12 @@ function update(dt) {
   for (const t of G.tr) {
     t.stun = Math.max(0, t.stun - dt);
     let mx = 0, my = 0;
-    if (!t.bot) {
+    if (t.human && G.two) {
+      const pad = Duo.pad(t.pad);
+      mx = pad.x; my = pad.y;
+      if (pad.aPressed) act(t);
+      if (pad.bPressed && !lock(t)) sfx.hit();
+    } else if (t.human) {
       if (keys.ArrowLeft || keys.KeyA) mx -= 1; if (keys.ArrowRight || keys.KeyD) mx += 1;
       if (keys.ArrowUp || keys.KeyW) my -= 1; if (keys.ArrowDown || keys.KeyS) my += 1;
       if (joy.on) { const dx = joy.x - joy.ox, dy = joy.y - joy.oy, d = Math.hypot(dx, dy); if (d > 8) { mx = dx / Math.max(d, 45); my = dy / Math.max(d, 45); } }
@@ -394,30 +418,30 @@ function update(dt) {
     t.y = clamp(t.y + my * sp * dt, 20, H - 20);
     if (mx) t.face = mx > 0 ? 1 : -1;
     t.step += Math.hypot(mx, my) * dt * 10;
-    // locked bases push out everyone but the owner
-    for (const b of G.bases) if (b.lockT > 0 && b.i !== t.i && inRect(t, b, 14)) pushOut(t, b);
+    // locked bases push out everyone but their own crew
+    for (const b of G.bases) if (b.lockT > 0 && b.i !== t.base && inRect(t, b, 14)) pushOut(t, b);
     // carrying home: deliver
-    if (t.carry && inRect(t, G.bases[t.i], -10)) {
+    if (t.carry && inRect(t, G.bases[t.base], -10)) {
       const c = t.carry;
       t.carry = null;
-      const pad = place(G.bases[t.i], c.item);
+      const pad = place(G.bases[t.base], c.item);
       if (pad) burst(pad.x, pad.y, RAR[c.item.rar].col, 12);
-      if (!t.bot) {
+      if (t.human) {
         sfx.coin();
-        if (c.from >= 0) { G.stolen++; Arcade.banner('STOLEN!', `${c.item.sp.n} is yours now`, '#7dff2f'); }
+        if (c.from >= 0) { G.stolen++; Arcade.banner('STOLEN!', `${c.item.sp.n} is ${G.two ? t.name + '’s' : 'yours'} now`, '#7dff2f'); }
         else { G.wild++; float(t.x, t.y - 60, 'SAFE!', '#7dff2f'); }
       }
     }
   }
-  // owners catch thieves carrying their stuff
+  // anyone from the robbed base catches a thief carrying their stuff
   for (const thief of G.tr) {
     if (!thief.carry || thief.carry.from < 0) continue;
-    const owner = G.tr[thief.carry.from];
-    if (owner.stun > 0 || dist(owner, thief) > 34) continue;
+    const owner = crew(thief.carry.from).find((o) => o.stun <= 0 && dist(o, thief) <= 34);
+    if (!owner) continue;
     const it = returnCarry(thief);
     stun(thief, owner, 1.3);
-    if (owner.i === 0) { G.caught++; Arcade.banner('GOT IT BACK!', `${it.sp.n} is home again`, '#7dff2f'); sfx.up(); }
-    else if (thief.i === 0) { Arcade.banner('CAUGHT!', `${owner.name} took it back`, '#ff2fd6'); sfx.boom(); }
+    if (owner.human) { G.caught++; Arcade.banner('GOT IT BACK!', `${it.sp.n} is home again`, '#7dff2f'); sfx.up(); }
+    else if (thief.human) { Arcade.banner('CAUGHT!', `${owner.name} took it back`, '#ff2fd6'); sfx.boom(); }
     else sfx.hit();
   }
   // light bumping between trainers
@@ -444,9 +468,9 @@ let lastBoard = '';
 function hud() {
   const me = G.tr[0], base = G.bases[0];
   Arcade.stat('sTime', Arcade.fmtTime(Math.max(0, G.t)));
-  Arcade.stat('sCoins', Math.floor(me.coins).toLocaleString());
-  const rows = G.tr.map((t) => ({ t, w: worth(t) })).sort((a, b) => b.w - a.w)
-    .map((r, k) => `<div class="${r.t.i === 0 ? 'me' : ''}"><i>${k + 1}. ${r.t.name}</i><i>${r.w.toLocaleString()}</i></div>`).join('');
+  Arcade.stat('sCoins', Math.floor(base.coins).toLocaleString());
+  const rows = G.bases.map((b) => ({ b, w: worth(b) })).sort((a, b) => b.w - a.w)
+    .map((r, k) => `<div class="${humanBase(r.b.i) ? 'me' : ''}"><i>${k + 1}. ${r.b.name}</i><i>${r.w.toLocaleString()}</i></div>`).join('');
   const html = '<b>RICHEST BASE</b>' + rows;
   if (html !== lastBoard) { $('board').innerHTML = html; lastBoard = html; }
   const lb = $('lockBtn');
@@ -456,16 +480,23 @@ function hud() {
 
 function end() {
   G.over = true;
+  Duo.stop();
   document.body.classList.remove('playing');
-  const ranks = G.tr.map((t) => ({ t, w: worth(t) })).sort((a, b) => b.w - a.w);
-  const place1 = ranks.findIndex((r) => r.t.i === 0) + 1;
-  const me = G.tr[0], crit = G.bases[0].pads.filter((p) => p.item).length;
+  const ranks = G.bases.map((b) => ({ b, w: worth(b) })).sort((a, b) => b.w - a.w);
+  const rankOf = (i) => ranks.findIndex((r) => r.b.i === i) + 1;
+  const my = G.bases[0], crit = my.pads.filter((p) => p.item).length;
+  const list = ranks.map((r, k) => `${k + 1}. ${r.b.name} ${r.w.toLocaleString()}`).join(' &nbsp; ');
+  if (G.mode === 'versus') {
+    const w1 = worth(G.bases[0]), w2 = worth(G.bases[1]);
+    Arcade.over({ title: w1 > w2 ? 'P1 WINS!' : w2 > w1 ? 'P2 WINS!' : 'DRAW!', stats: `P1 <b>${w1.toLocaleString()}</b> · P2 <b>${w2.toLocaleString()}</b><br>${list}` });
+    return;
+  }
+  const place1 = rankOf(0);
   Arcade.over({
-    title: place1 === 1 ? 'TOP BANDIT!' : `#${place1} PLACE`,
+    title: place1 === 1 ? (G.two ? 'TOP BANDITS!' : 'TOP BANDIT!') : `#${place1} PLACE`,
     lose: place1 > 1,
-    stats: `Base worth <b>${worth(me).toLocaleString()}</b> · Critters <b>${crit}</b><br>Wild balls <b>${G.wild}</b> · Stolen <b>${G.stolen}</b> · Saved <b>${G.caught}</b><br>` +
-      ranks.map((r, k) => `${k + 1}. ${r.t.name} ${r.w.toLocaleString()}`).join(' &nbsp; '),
-    score: worth(me),
+    stats: `Base worth <b>${worth(my).toLocaleString()}</b> · Critters <b>${crit}</b><br>Wild balls <b>${G.wild}</b> · Stolen <b>${G.stolen}</b> · Saved <b>${G.caught}</b><br>${list}`,
+    score: G.two ? null : worth(my),
   });
 }
 
@@ -555,7 +586,7 @@ function drawTrainer(t, now) {
   ctx.globalAlpha = 1;
   if (t.stun > 0) { ctx.font = '16px serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText('💫', Math.sin(now * 8) * 8, -36); }
   ctx.font = '11px Bungee, sans-serif'; ctx.textAlign = 'center';
-  ctx.fillStyle = t.i === 0 ? '#fff' : t.col; ctx.fillText(t.name, 0, -34);
+  ctx.fillStyle = t.human ? '#fff' : t.col; ctx.fillText(t.name, 0, -34);
   ctx.restore();
   if (t.carry) drawItem(t.carry.item, t.x, t.y - 52, 1, now);
 }
@@ -591,7 +622,7 @@ function drawNest(n, now) {
 }
 
 function drawBase(b, now) {
-  const owner = G.tr[b.i], col = owner.col;
+  const col = b.col;
   ctx.fillStyle = 'rgba(30,10,60,0.92)'; ctx.fillRect(b.x, b.y, b.w, b.h);
   ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.globalAlpha = 0.85;
   const dy = b.top ? b.y + b.h : b.y, gy = b.top ? b.y : b.y + b.h, door = 110, mid = b.x + b.w / 2;
@@ -600,7 +631,7 @@ function drawBase(b, now) {
   ctx.moveTo(b.x, dy); ctx.lineTo(mid - door / 2, dy); ctx.moveTo(mid + door / 2, dy); ctx.lineTo(b.x + b.w, dy);
   ctx.stroke(); ctx.globalAlpha = 1;
   ctx.font = '18px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = col;
-  ctx.fillText(owner.i === 0 ? 'YOUR BASE' : `${owner.name.toUpperCase()}'S BASE`, mid, b.top ? b.y + 28 : b.y + b.h - 12);
+  ctx.fillText(b.name === 'YOU' ? 'YOUR BASE' : `${b.name.toUpperCase()}'S BASE`, mid, b.top ? b.y + 28 : b.y + b.h - 12);
   for (const p of b.pads) {
     ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.ellipse(p.x, p.y + 14, 30, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -636,9 +667,8 @@ function drawGround() {
   ctx.fillText(BIOMES.left.name, 260, CY); ctx.fillText(BIOMES.right.name, W - 260, CY);
 }
 
-function drawMinimap(me) {
-  const size = Math.min(170, Math.round(Math.min(view.w, view.h) * 0.3)), m = size / W;
-  const x0 = 12, y0 = 62;
+function drawMinimap(x0, y0, size) {
+  const m = size / W;
   ctx.save(); ctx.translate(x0, y0);
   ctx.globalAlpha = 0.85;
   ctx.fillStyle = 'rgba(10,0,25,0.8)'; ctx.fillRect(-3, -3, size + 6, size + 6);
@@ -646,7 +676,7 @@ function drawMinimap(me) {
   const tri = (ax, ay, bx, by, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(CX, CY); ctx.lineTo(ax, ay); ctx.lineTo(bx, by); ctx.closePath(); ctx.fill(); };
   tri(0, 0, W, 0, BIOMES.top.col); tri(W, 0, W, H, BIOMES.right.col); tri(W, H, 0, H, BIOMES.bottom.col); tri(0, H, 0, 0, BIOMES.left.col);
   for (const [r, c] of [[RINGS.forest, '#123a24'], [RINGS.meadow, '#1f5230'], [RINGS.plaza, '#241040']]) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(CX, CY, r, 0, Math.PI * 2); ctx.fill(); }
-  for (const b of G.bases) { ctx.fillStyle = G.tr[b.i].col; ctx.fillRect(b.x, b.y, b.w, b.h); }
+  for (const b of G.bases) { ctx.fillStyle = b.col; ctx.fillRect(b.x, b.y, b.w, b.h); }
   ctx.globalAlpha = 1;
   for (const n of G.nests) {
     if (!n.balls.length) continue;
@@ -655,47 +685,50 @@ function drawMinimap(me) {
   }
   for (const n of G.nests) if (n.guard.state === 'chase') { ctx.fillStyle = '#ff2fd6'; ctx.fillRect(n.guard.x - 40, n.guard.y - 40, 80, 80); }
   for (const t of G.tr) {
-    if (t.i === 0) continue;
-    ctx.fillStyle = t.carry && t.carry.from === 0 ? '#ff2fd6' : t.col;
-    ctx.beginPath(); ctx.arc(t.x, t.y, t.carry && t.carry.from === 0 ? 90 : 55, 0, Math.PI * 2); ctx.fill();
+    if (t.human) continue;
+    const robbing = t.carry && t.carry.from >= 0 && humanBase(t.carry.from);
+    ctx.fillStyle = robbing ? '#ff2fd6' : t.col;
+    ctx.beginPath(); ctx.arc(t.x, t.y, robbing ? 90 : 55, 0, Math.PI * 2); ctx.fill();
   }
-  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#19f7ff'; ctx.lineWidth = 30;
-  ctx.beginPath(); ctx.arc(me.x, me.y, 80, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  for (const t of G.tr) {
+    if (!t.human) continue;
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = t.col; ctx.lineWidth = 30;
+    ctx.beginPath(); ctx.arc(t.x, t.y, 80, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
   ctx.restore();
   ctx.strokeStyle = 'rgba(25,247,255,0.6)'; ctx.lineWidth = 2; ctx.strokeRect(x0 - 3, y0 - 3, size + 6, size + 6);
 }
 
-function arrowTo(p, cam, z, col, label) {
-  const sx = (p.x - cam.x) * z + view.w / 2, sy = (p.y - cam.y) * z + view.h / 2;
-  if (sx > 30 && sx < view.w - 30 && sy > 30 && sy < view.h - 30) return;
-  const a = Math.atan2(sy - view.h / 2, sx - view.w / 2);
-  const ex = clamp(view.w / 2 + Math.cos(a) * view.w, 36, view.w - 36), ey = clamp(view.h / 2 + Math.sin(a) * view.h, 250, view.h - 36); // below the HUD, minimap and leaderboard
-  ctx.save(); ctx.translate(ex, ey); ctx.rotate(a);
+// arrow at the edge of a viewport toward something off screen
+function arrowTo(p, vp, cam, z, col, label) {
+  const sx = (p.x - cam.x) * z + vp.w / 2, sy = (p.y - cam.y) * z + vp.h / 2;
+  if (sx > 30 && sx < vp.w - 30 && sy > 30 && sy < vp.h - 30) return;
+  const a = Math.atan2(sy - vp.h / 2, sx - vp.w / 2);
+  const ex = clamp(vp.w / 2 + Math.cos(a) * vp.w, 36, vp.w - 36), ey = clamp(vp.h / 2 + Math.sin(a) * vp.h, G.two ? 120 : 250, vp.h - (G.two ? 120 : 36));
+  ctx.save(); ctx.translate(vp.x + ex, vp.y + ey); ctx.rotate(a);
   ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 12;
   ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-10, -11); ctx.lineTo(-10, 11); ctx.closePath(); ctx.fill();
   ctx.restore();
   ctx.font = '11px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = col;
-  ctx.fillText(label, ex - Math.cos(a) * 30, ey - Math.sin(a) * 24);
+  ctx.fillText(label, vp.x + ex - Math.cos(a) * 30, vp.y + ey - Math.sin(a) * 24);
 }
 
-function draw() {
-  const now = performance.now() / 1000;
-  ctx.fillStyle = '#12001f'; ctx.fillRect(0, 0, view.w, view.h);
-  if (!G) return;
-  const me = G.tr[0];
-  const z = clamp(Math.max(view.w, view.h) / 1150, 0.55, 1.25);
-  const cam = { x: clamp(me.x, view.w / 2 / z, W - view.w / 2 / z), y: clamp(me.y, view.h / 2 / z, H - view.h / 2 / z) };
-  const vis = (x, y, m = 80) => Math.abs(x - cam.x) < view.w / 2 / z + m && Math.abs(y - cam.y) < view.h / 2 / z + m;
+// one camera view of the world, following trainer `me`, drawn into the screen rectangle vp
+function drawView(me, vp, now) {
+  const z = clamp(Math.max(vp.w, vp.h) / 1150, 0.5, 1.25);
+  const cam = { x: clamp(me.x, vp.w / 2 / z, W - vp.w / 2 / z), y: clamp(me.y, vp.h / 2 / z, H - vp.h / 2 / z) };
+  const vis = (x, y, m = 80) => Math.abs(x - cam.x) < vp.w / 2 / z + m && Math.abs(y - cam.y) < vp.h / 2 / z + m;
   ctx.save();
-  ctx.translate(view.w / 2, view.h / 2); ctx.scale(z, z); ctx.translate(-cam.x, -cam.y);
+  ctx.beginPath(); ctx.rect(vp.x, vp.y, vp.w, vp.h); ctx.clip();
+  ctx.translate(vp.x + vp.w / 2, vp.y + vp.h / 2); ctx.scale(z, z); ctx.translate(-cam.x, -cam.y);
   drawGround();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = '#000'; // emoji take the fill colour's transparency: keep it solid
   for (const d of G.decor) if (vis(d.x, d.y)) { ctx.font = `${d.s}px serif`; ctx.fillText(d.e, d.x, d.y); }
   ctx.textBaseline = 'alphabetic';
   for (const n of G.nests) if (vis(n.x, n.y, 120)) drawNest(n, now);
-  for (const b of G.bases) drawBase(b, now);
-  // prompt over what the player can grab
+  for (const b of G.bases) if (vis(b.x + b.w / 2, b.y + b.h / 2, 300)) drawBase(b, now);
+  // prompt over what this player can grab
   if (!me.carry && !G.over && me.stun <= 0) {
     let hint = null;
     for (const n of G.nests) if (n.balls.length && dist(n, me) < 64) {
@@ -703,10 +736,11 @@ function draw() {
       hint = { x: n.x, y: n.y - 40, t: n.guard.state === 'sleep' ? `GRAB ${RAR[top.rar].name}` : 'GRAB… IT SEES YOU!', c: n.guard.state === 'sleep' ? RAR[top.rar].col : '#ff2fd6' };
       break;
     }
-    if (!hint) for (const b of G.bases) if (b.i !== 0 && inRect(me, b)) for (const p of b.pads) if (p.item && dist(p, me) < 60) { hint = { x: p.x, y: p.y - 40, t: 'STEAL!', c: '#ff2fd6' }; break; }
+    if (!hint) for (const b of G.bases) if (b.i !== me.base && inRect(me, b)) for (const p of b.pads) if (p.item && dist(p, me) < 60) { hint = { x: p.x, y: p.y - 40, t: 'STEAL!', c: '#ff2fd6' }; break; }
     if (hint) {
+      const key = Arcade.touch ? '' : G.two ? (me.pad ? 'ENTER: ' : 'SPACE: ') : 'SPACE: ';
       ctx.font = '13px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = hint.c; ctx.shadowColor = hint.c; ctx.shadowBlur = 10;
-      ctx.fillText((Arcade.touch ? '' : 'SPACE: ') + hint.t, hint.x, hint.y - Math.abs(Math.sin(now * 5)) * 5); ctx.shadowBlur = 0;
+      ctx.fillText(key + hint.t, hint.x, hint.y - Math.abs(Math.sin(now * 5)) * 5); ctx.shadowBlur = 0;
     }
   }
   const actors = G.tr.map((t) => ({ y: t.y, d: () => drawTrainer(t, now) }));
@@ -717,11 +751,36 @@ function draw() {
   for (const f of G.floats) { ctx.globalAlpha = Math.min(1, f.life * 1.5); ctx.font = '15px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, f.y); }
   ctx.globalAlpha = 1;
   ctx.restore();
-  // arrows: home when carrying, thieves running off with your critters
-  const home = G.bases[0];
-  if (me.carry) arrowTo({ x: home.x + home.w / 2, y: home.y + home.h / 2 }, cam, z, '#19f7ff', 'HOME');
-  for (const t of G.tr) if (t.carry && t.carry.from === 0) arrowTo(t, cam, z, '#ff2fd6', 'THIEF');
-  drawMinimap(me);
+  // arrows: home when carrying, thieves running off with this player's critters
+  ctx.save(); ctx.beginPath(); ctx.rect(vp.x, vp.y, vp.w, vp.h); ctx.clip();
+  const home = G.bases[me.base];
+  if (me.carry) arrowTo({ x: home.x + home.w / 2, y: home.y + home.h / 2 }, vp, cam, z, '#19f7ff', 'HOME');
+  for (const t of G.tr) if (t.carry && t.carry.from === me.base) arrowTo(t, vp, cam, z, '#ff2fd6', 'THIEF');
+  if (G.two) { // name + this player's base coins in the bottom corner of their half
+    ctx.font = '18px Bungee, sans-serif'; ctx.textAlign = me.pad ? 'right' : 'left'; ctx.fillStyle = me.col;
+    ctx.shadowColor = me.col; ctx.shadowBlur = 10;
+    ctx.fillText(`${me.name} · ${Math.floor(G.bases[me.base].coins).toLocaleString()} 🪙`, me.pad ? vp.x + vp.w - 14 : vp.x + 14, vp.y + vp.h - (Arcade.touch ? 112 : 14));
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+}
+
+function draw() {
+  const now = performance.now() / 1000;
+  ctx.fillStyle = '#12001f'; ctx.fillRect(0, 0, view.w, view.h);
+  if (!G) return;
+  const humans = G.tr.filter((t) => t.human);
+  if (G.two) {
+    // split screen: P1 left, P2 right (the touch controls are split the same way)
+    const half = Math.floor(view.w / 2);
+    for (const h of humans) drawView(h, { x: h.pad ? half : 0, y: 0, w: h.pad ? view.w - half : half, h: view.h }, now);
+    ctx.fillStyle = '#ff2fd6'; ctx.fillRect(half - 2, 0, 4, view.h);
+    const size = Math.min(130, Math.round(Math.min(view.w, view.h) * 0.22));
+    drawMinimap(half - size / 2, view.h - size - (Arcade.touch ? 130 : 70), size);
+  } else {
+    drawView(humans[0], { x: 0, y: 0, w: view.w, h: view.h }, now);
+    drawMinimap(12, 62, Math.min(170, Math.round(Math.min(view.w, view.h) * 0.3)));
+  }
   if (joy.on) {
     ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(joy.ox, joy.oy, 50, 0, Math.PI * 2); ctx.stroke();
@@ -730,29 +789,31 @@ function draw() {
   }
 }
 
-/* ---------- input ---------- */
+/* ---------- input (1 player; 2 players go through core/duo.js) ---------- */
 const playing = () => !!G && !G.over;
 addEventListener('keydown', (e) => {
   keys[e.code] = true;
-  if (!playing() || Arcade.paused || document.querySelector('.lolo-gate')) return;
+  if (!playing() || G.two || Arcade.paused || document.querySelector('.lolo-gate')) return;
   if (e.code === 'Space' || e.code === 'KeyE') { e.preventDefault(); if (!e.repeat) act(G.tr[0]); }
   if (e.code === 'KeyL' || e.code === 'KeyQ') { if (!lock(G.tr[0])) sfx.hit(); }
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; joy.on = false; });
-view.cv.addEventListener('pointerdown', (e) => { joy.on = true; joy.id = e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY; });
+view.cv.addEventListener('pointerdown', (e) => { if (Duo.on) return; joy.on = true; joy.id = e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY; });
 addEventListener('pointermove', (e) => { if (joy.on && e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; } });
 const up = (e) => { if (e.pointerId === joy.id) joy.on = false; };
 addEventListener('pointerup', up); addEventListener('pointercancel', up);
 $('grabBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); if (playing() && !Arcade.paused) act(G.tr[0]); });
 $('lockBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); if (playing() && !Arcade.paused && !lock(G.tr[0])) sfx.hit(); });
 
+Duo.init({ a: 'GRAB', b: 'LOCK' });
 Arcade.init({
   id: 'lolomon',
   logo: ['BALL', 'BANDITS'],
   tag: 'Explore a big wild world! Lolo Balls sit in nests guarded by wild animals: grab one (best while the guard naps) and run home before it catches you. Balls hatch into critters that make coins. Steal from rival bases, chase thieves, lock your base. Richest base after 5 minutes wins!',
-  helpDesk: '<b>WASD</b> / <b>arrows</b> move · <b>Space</b> grab or steal · <b>L</b> lock your base (stand in it)',
-  helpTouch: '<b>Drag</b> to move · <b>GRAB</b> grabs or steals · <b>LOCK</b> locks your base (stand in it)',
+  helpDesk: '<b>WASD</b> / <b>arrows</b> move · <b>Space</b> grab or steal · <b>L</b> lock your base (stand in it)<br><b>2 players</b> (split screen): P1 <b>WASD</b> + <b>Space</b> grab + <b>G</b> lock · P2 <b>arrows</b> + <b>Enter</b> grab + <b>.</b> lock',
+  helpTouch: '<b>Drag</b> to move · <b>GRAB</b> grabs or steals · <b>LOCK</b> locks your base (stand in it)<br><b>2 players:</b> each one uses their half of the screen',
+  modes: [{ id: 'solo', label: '1 PLAYER' }, { id: 'coop', label: '2P TEAM UP' }, { id: 'versus', label: '2P VERSUS' }],
   quitNote: 'This round will end.',
   start,
   playing,

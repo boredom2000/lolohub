@@ -105,7 +105,7 @@
       "blurb": "Fruit flies up: swipe to slice it in half! Cut 3 at once for a combo, grab ice and frenzy stars, and NEVER slice a bomb." },
     { "id": "lolojump", "name": "SKY HOP", "emoji": "🐸", "colors": ["#ffe81a", "#7dff2f"], "price": 6, "round": "one climb, about 2-3 min",
       "blurb": "Froggy bounces by itself, you steer! Hop up through the sky on springs and jetpacks, dodge crumbly platforms and stomp monsters." },
-    { "id": "loloswarm", "name": "SWARM", "emoji": "🧟", "colors": ["#7dff2f", "#ff2fd6"], "price": 12, "round": "one run, up to 5 min",
+    { "id": "loloswarm", "name": "SWARM", "emoji": "🧟", "colors": ["#7dff2f", "#ff2fd6"], "price": 12, "round": "one run, up to 5 min", "players": "1-2", "modes": ["coop"],
       "blurb": "Monsters everywhere! Your weapons fire by themselves: just move, grab gems, level up and pick new powers. Survive 5 minutes and beat two bosses." },
     { "id": "lolomerge", "name": "MERGE MOON", "emoji": "🪐", "colors": ["#b44cff", "#19f7ff"], "price": 8, "round": "one jar, about 4 min",
       "blurb": "Drop space rocks in the jar. Two the same squish into a bigger one: moons, planets, suns… Don't let the jar overflow!" },
@@ -113,7 +113,7 @@
       "blurb": "Steer your runners through the best math gate: +10 or ×2? Grow a huge crowd, smash the red team and beat the giant!" },
     { "id": "loloblocks", "name": "BLOCK BOOM", "emoji": "🧱", "colors": ["#ff7a1a", "#7dff2f"], "price": 8, "round": "one board, about 5 min",
       "blurb": "Drag the blocks onto the board. Fill a row or a column and BOOM, it explodes! Chain clears for giant combos." },
-    { "id": "lolomon", "name": "BALL BANDITS", "emoji": "🐾", "colors": ["#ffd23f", "#ff2fd6"], "price": 12, "round": "one 5-min round",
+    { "id": "lolomon", "name": "BALL BANDITS", "emoji": "🐾", "colors": ["#ffd23f", "#ff2fd6"], "price": 12, "round": "one 5-min round", "players": "1-2", "modes": ["coop", "versus"],
       "blurb": "Explore a big wild world and grab Lolo Balls from nests guarded by bunnies, wolves and dragons. Run home before they catch you, hatch cute critters and steal from rival bases!" },
     { "id": "lolosnake", "name": "WIGGLE.IO", "emoji": "🐍", "colors": ["#ff2fd6", "#7dff2f"], "price": 8, "round": "one 3-min arena",
       "blurb": "Be the biggest snake in the neon arena! Eat glowing dots, boost to cut off rivals and gobble what they leave behind." },
@@ -127,7 +127,7 @@
       "blurb": "Pick one of 8 drivers and race 7 rivals for 3 laps on sunny, candy, cloud and volcano tracks." },
     { "id": "lolobake", "name": "SUPER BAKING", "emoji": "🧁", "colors": ["#ff2fd6", "#ff7a1a"], "price": 6, "round": "one shift, about 3 min",
       "blurb": "Customers are lining up! Crack eggs, whisk, roll and decorate in quick mini-games before time runs out." },
-    { "id": "lolofoot", "name": "FOOT", "emoji": "⚽", "colors": ["#2f8bff", "#ff3b55"], "price": 6, "round": "one 2-min match",
+    { "id": "lolofoot", "name": "FOOT", "emoji": "⚽", "colors": ["#2f8bff", "#ff3b55"], "price": 6, "round": "one 2-min match", "players": "1-2", "modes": ["coop", "versus"],
       "blurb": "Wacky 4 vs 4 football! Tap to pass, hold for a flaming super shot, dash to tackle. Watch out for giant mushrooms and cows." }
   ],
   "avatars": [

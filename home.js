@@ -95,7 +95,8 @@
         <div class="price-tag">${W.free ? 'FREE' : `${W.coin(20)}${g.price}<small>/round</small>`}</div>
         <a class="card-art" href="play/${g.id}/" tabindex="-1" aria-hidden="true">${g.emoji}</a>
         <h2><a href="play/${g.id}/">${esc(g.name)}</a></h2>
-        <div class="round">${esc(g.round)}</div>
+        <div class="round">${esc(g.round)}</div>${g.players ? `
+        <div class="modes"><span class="ppl">👥 ${esc(g.players)} PLAYERS</span>${(g.modes || []).map((m) => `<span class="mode ${m}">${m === 'coop' ? '🤝 TEAM UP' : '⚔️ VERSUS'}</span>`).join('')}</div>` : ''}
         <p>${esc(g.blurb)}</p>
         <div class="card-btns">
           <a class="game-btn" href="play/${g.id}/"><span>PLAY</span></a>

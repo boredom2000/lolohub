@@ -36,10 +36,16 @@
   <div id="title" class="overlay">
     <h1 class="logo"><span class="l1">LOLO</span><span class="l2">FOOT</span></h1>
     <p class="tag">4 vs 4 super-mega football! Super shots, flying tackles, giant mushrooms and the occasional cow.</p>
-    <button id="playBtn" class="big">KICK OFF!</button>
+    <div class="row">
+      <button id="playBtn" class="big">1 PLAYER</button>
+      <button id="coopBtn" class="big two">2P TEAM UP</button>
+      <button id="vsBtn" class="big two vs">2P VERSUS</button>
+    </div>
     <div class="help">
-      <p><b>Your ball:</b> tap to pass or kick there &middot; <b>hold</b> to charge a SUPER SHOT &middot; hold on a teammate for a LOB pass</p>
-      <p><b>Their ball:</b> tap to dash &amp; tackle in that direction (2 s cooldown)</p>
+      <p><b>1 player:</b> tap to pass or kick there &middot; <b>hold</b> to charge a SUPER SHOT &middot; hold on a teammate for a LOB pass &middot; their ball: tap to dash &amp; tackle</p>
+      <p><b>2 players:</b> TEAM UP = both on blue vs the CPU &middot; VERSUS = blue vs red. Your runner chases the ball by itself; steer it if you like.
+        <b>P1</b> WASD + <b>Space</b> &middot; <b>P2</b> arrows + <b>Enter</b> &middot; on a tablet each player gets half the screen.
+        <b>Tap</b> = pass, <b>hold</b> = super shot, no ball = dash &amp; tackle</p>
     </div>
   </div>
 
@@ -63,6 +69,7 @@
     </div>
   </div>
 
+  <script src="../../core/duo.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

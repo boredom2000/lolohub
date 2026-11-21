@@ -14,6 +14,7 @@
   <script src="../../core/ads.js"></script>
   <script src="../../core/wallet.js"></script>
   <script src="../../core/arcade.js"></script>
+  <script src="../../core/duo.js"></script>
   <style>
     #xpbar { position: fixed; left: 0; right: 0; top: 0; height: 8px; z-index: 11; background: rgba(20, 0, 45, 0.7); display: none; }
     #xpbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--lime)); box-shadow: 0 0 12px var(--lime); transition: width 0.15s; }
@@ -68,20 +69,37 @@ const UP = {
 };
 
 /* ---------- state ---------- */
+// G.ps = the heroes: one, or two in 2P TEAM UP (core/duo.js). Levels and powers are shared; each hero has its own
+// health and fires its own weapons. A fallen hero comes back after REVIVE seconds while the other one survives.
+const REVIVE = 10, HERO_COL = ['#19f7ff', '#ff2fd6'];
 let G = null;
 const keys = {};
 const joy = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
-function newGame() {
+const hero = (i, x) => ({ i, x, y: 0, r: 15, hp: 120, max: 120, hurt: 0, face: 1, down: 0, cd: { zap: 0.3, nova: 2, storm: 2 }, orbA: i * 1.5, col: HERO_COL[i] });
+const alive = () => G.ps.filter((p) => !p.down);
+// the camera follows the middle of the living heroes
+function center() {
+  const ps = alive().length ? alive() : G.ps;
+  return { x: ps.reduce((s, p) => s + p.x, 0) / ps.length, y: ps.reduce((s, p) => s + p.y, 0) / ps.length };
+}
+function nearestHero(x, y) {
+  let best = null, bd = 1e18;
+  for (const p of G.ps) { if (p.down) continue; const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = p; } }
+  return best;
+}
+function newGame(mode) {
+  const coop = mode === 'coop';
   G = {
-    mode: 'play', t: 0, kills: 0, lv: 1, xp: 0, need: 6, shake: 0,
-    p: { x: 0, y: 0, r: 15, hp: 120, max: 120, hurt: 0, face: 1 },
+    mode: 'play', coop, t: 0, kills: 0, lv: 1, xp: 0, need: coop ? 12 : 6, shake: 0,
+    ps: coop ? [hero(0, -40), hero(1, 40)] : [hero(0, 0)],
     lvl: { zap: 1, orbit: 0, nova: 0, storm: 0, speed: 0, heart: 0, magnet: 0, power: 0, haste: 0 },
-    cd: { zap: 0.3, nova: 2, storm: 2 },
     foes: [], shots: [], gems: [], parts: [], rings: [], bolts: [], texts: [],
-    spawnAcc: 0, boss1: false, boss2: false, orbA: 0, pendingUps: 0,
+    spawnAcc: 0, boss1: false, boss2: false, pendingUps: 0,
   };
+  G.p = G.ps[0];
+  if (coop) Duo.start(); else Duo.stop();
   document.body.classList.add('playing');
-  Arcade.banner('SURVIVE!', '5 minutes · monsters get tougher');
+  Arcade.banner('SURVIVE!', coop ? '5 minutes · stick together!' : '5 minutes · monsters get tougher');
   sfx.up();
   hud();
 }
@@ -97,9 +115,9 @@ const TYPES = {
   boss:  { r: 50, hp: 420, spd: 62, dmg: 30, xp: 30, col: '#ffe81a' },
 };
 function spawn(type, ang) {
-  const T = TYPES[type], s = 1 + G.t / 80;
-  const a = ang != null ? ang : Math.random() * Math.PI * 2, d = Math.hypot(view.w, view.h) / 2 + 60;
-  G.foes.push({ type, x: G.p.x + Math.cos(a) * d, y: G.p.y + Math.sin(a) * d, r: T.r, hp: T.hp * s, max: T.hp * s,
+  const T = TYPES[type], s = (1 + G.t / 80) * (G.coop ? 1.5 : 1); // two heroes hit twice as hard
+  const a = ang != null ? ang : Math.random() * Math.PI * 2, d = Math.hypot(view.w, view.h) / 2 + 60, c = center();
+  G.foes.push({ type, x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d, r: T.r, hp: T.hp * s, max: T.hp * s,
     spd: T.spd * (0.9 + Math.random() * 0.2) * (type === 'boss' ? 1 : 1 + G.t / 900), dmg: T.dmg, xp: T.xp, col: T.col, flash: 0, kx: 0, ky: 0, hitBy: {}, wob: Math.random() * 6 });
 }
 function spawnBoss(n) {
@@ -138,23 +156,45 @@ function update(dt) {
   if (!G || G.mode !== 'play') { if (G) stepParts(dt); return; }
   G.t += dt;
   if (G.t >= RUN) return endRun(true);
-  const p = G.p;
   // move
-  let mx = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
-  let my = (keys.ArrowDown || keys.KeyS ? 1 : 0) - (keys.ArrowUp || keys.KeyW ? 1 : 0);
-  if (joy.on) {
-    const dx = joy.x - joy.ox, dy = joy.y - joy.oy, d = Math.hypot(dx, dy);
-    if (d > 6) { const m = Math.min(1, d / 50); mx = dx / d * m; my = dy / d * m; }
-  }
-  const ml = Math.hypot(mx, my);
-  if (ml > 1) { mx /= ml; my /= ml; }
+  if (G.coop) Duo.update();
   const spd = 175 * (1 + 0.12 * G.lvl.speed);
-  p.x += mx * spd * dt; p.y += my * spd * dt;
-  if (mx) p.face = Math.sign(mx);
-  p.hurt = Math.max(0, p.hurt - dt);
+  for (const p of G.ps) {
+    p.hurt = Math.max(0, p.hurt - dt);
+    if (p.down) { // knocked out: back next to the other hero after a while
+      p.down = Math.max(0, p.down - dt);
+      const buddy = G.ps.find((q) => q !== p && !q.down);
+      if (buddy) { p.x = buddy.x; p.y = buddy.y; }
+      if (!p.down) { p.hp = p.max * 0.5; p.hurt = 1.5; burst(p.x, p.y, p.col, 30, 260); sfx.up(); G.texts.push({ x: p.x, y: p.y - 30, t: `P${p.i + 1} IS BACK!`, life: 1.4, col: p.col }); }
+      continue;
+    }
+    let mx, my;
+    if (G.coop) { const pad = Duo.pad(p.i); mx = pad.x; my = pad.y; }
+    else {
+      mx = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
+      my = (keys.ArrowDown || keys.KeyS ? 1 : 0) - (keys.ArrowUp || keys.KeyW ? 1 : 0);
+      if (joy.on) {
+        const dx = joy.x - joy.ox, dy = joy.y - joy.oy, d = Math.hypot(dx, dy);
+        if (d > 6) { const m = Math.min(1, d / 50); mx = dx / d * m; my = dy / d * m; }
+      }
+    }
+    const ml = Math.hypot(mx, my);
+    if (ml > 1) { mx /= ml; my /= ml; }
+    p.x += mx * spd * dt; p.y += my * spd * dt;
+    if (mx) p.face = Math.sign(mx);
+  }
+  // two heroes stay on the same screen: an invisible rope pulls them back together
+  const live = alive();
+  if (live.length === 2) {
+    const [a, b] = live, maxX = Math.max(160, view.w - 140), maxY = Math.max(160, view.h - 170);
+    const dx = b.x - a.x, dy = b.y - a.y;
+    if (Math.abs(dx) > maxX) { const k = (Math.abs(dx) - maxX) / 2 * Math.sign(dx); a.x += k; b.x -= k; }
+    if (Math.abs(dy) > maxY) { const k = (Math.abs(dy) - maxY) / 2 * Math.sign(dy); a.y += k; b.y -= k; }
+  }
+  const cam = center();
 
   // spawning: more and tougher over time, two bosses
-  const rate = Math.min(14, 1.3 + G.t / 14);
+  const rate = Math.min(14, 1.3 + G.t / 14) * (G.coop ? 1.8 : 1);
   G.spawnAcc += rate * dt;
   while (G.spawnAcc > 1 && G.foes.length < 280) {
     G.spawnAcc--;
@@ -172,7 +212,9 @@ function update(dt) {
     let c = grid.get(k); if (!c) grid.set(k, c = []); c.push(f);
   }
   for (const f of G.foes) {
+    const p = nearestHero(f.x, f.y) || G.ps[0];
     const dx = p.x - f.x, dy = p.y - f.y, d = Math.hypot(dx, dy) || 1;
+    f.look = Math.atan2(dy, dx);
     f.wob += dt * 6;
     let vx = dx / d * f.spd, vy = dy / d * f.spd;
     const cx = (f.x / cell) | 0, cy = (f.y / cell) | 0;
@@ -187,16 +229,23 @@ function update(dt) {
     f.x += (vx + f.kx) * dt; f.y += (vy + f.ky) * dt;
     f.kx *= Math.pow(0.02, dt); f.ky *= Math.pow(0.02, dt);
     f.flash = Math.max(0, f.flash - dt);
-    if (d < f.r + p.r) {
+    if (!p.down && d < f.r + p.r) {
       p.hp -= f.dmg * dt * 0.9;
       if (p.hurt <= 0) { p.hurt = 0.35; sfx.tone(140, 0.12, 'sawtooth', 0.1, -60); G.shake = Math.max(G.shake, 5); }
     }
     // monsters that fall far behind come back around
-    if (d > Math.hypot(view.w, view.h) * 0.9 && f.type !== 'boss') { const a = Math.atan2(-dy, -dx) + Math.PI + rnd(-0.6, 0.6), r = Math.hypot(view.w, view.h) / 2 + 40; f.x = p.x + Math.cos(a) * r; f.y = p.y + Math.sin(a) * r; }
+    const fdx = cam.x - f.x, fdy = cam.y - f.y;
+    if (Math.hypot(fdx, fdy) > Math.hypot(view.w, view.h) * 0.9 && f.type !== 'boss') { const a = Math.atan2(-fdy, -fdx) + Math.PI + rnd(-0.6, 0.6), r = Math.hypot(view.w, view.h) / 2 + 40; f.x = cam.x + Math.cos(a) * r; f.y = cam.y + Math.sin(a) * r; }
   }
-  if (p.hp <= 0) return endRun(false);
+  for (const p of G.ps) {
+    if (p.down || p.hp > 0) continue;
+    if (!G.coop || alive().length <= 1) return endRun(false);
+    p.down = REVIVE; p.hp = 0;
+    burst(p.x, p.y, p.col, 40, 280); sfx.lose();
+    Arcade.banner(`P${p.i + 1} DOWN!`, `back in ${REVIVE} seconds · stay alive!`, p.col);
+  }
 
-  weapons(dt);
+  for (const p of alive()) weapons(dt, p);
   // shots
   for (const s of G.shots) {
     s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
@@ -214,6 +263,8 @@ function update(dt) {
   // gems
   const mag = 95 * (1 + 0.45 * G.lvl.magnet);
   for (const g of G.gems) {
+    const p = nearestHero(g.x, g.y);
+    if (!p) break;
     const dx = p.x - g.x, dy = p.y - g.y, d = Math.hypot(dx, dy);
     if (d < mag || g.pull) { g.pull = true; const v = 420 + (g.pv = (g.pv || 0) + dt * 900); g.x += dx / d * v * dt; g.y += dy / d * v * dt; }
     if (d < p.r + 6) {
@@ -224,7 +275,7 @@ function update(dt) {
   }
   G.gems = G.gems.filter((g) => !g.got);
   if (G.gems.length > 400) G.gems.splice(0, G.gems.length - 400);
-  while (G.xp >= G.need) { G.xp -= G.need; G.lv++; G.need = Math.round(5 + G.lv * 3 + G.lv * G.lv * 0.2); G.pendingUps++; }
+  while (G.xp >= G.need) { G.xp -= G.need; G.lv++; G.need = Math.round((5 + G.lv * 3 + G.lv * G.lv * 0.2) * (G.coop ? 2 : 1)); G.pendingUps++; } // two heroes share one XP bar
   if (G.pendingUps > 0) levelUp();
   stepParts(dt);
   G.shake = Math.max(0, G.shake - dt * 30);
@@ -240,38 +291,39 @@ function stepParts(dt) {
   for (const t of G.texts) { t.life -= dt; t.y -= 40 * dt; }
   G.texts = G.texts.filter((t) => t.life > 0);
 }
-function nearest(max = 1e9) {
+function nearest(p, max = 1e9) {
   let best = null, bd = max * max;
-  for (const f of G.foes) { const d = (f.x - G.p.x) ** 2 + (f.y - G.p.y) ** 2; if (d < bd) { bd = d; best = f; } }
+  for (const f of G.foes) { const d = (f.x - p.x) ** 2 + (f.y - p.y) ** 2; if (d < bd) { bd = d; best = f; } }
   return best;
 }
-function weapons(dt) {
-  const p = G.p, L = G.lvl, dm = dmgMul(), cm = cdMul();
+// every hero fires the shared weapons from where it stands, with its own cooldowns
+function weapons(dt, p) {
+  const L = G.lvl, dm = dmgMul(), cm = cdMul();
   // ZAP
   if (L.zap) {
-    G.cd.zap -= dt;
-    if (G.cd.zap <= 0) {
-      const f = nearest(520);
+    p.cd.zap -= dt;
+    if (p.cd.zap <= 0) {
+      const f = nearest(p, 520);
       if (f) {
-        G.cd.zap = 0.7 * Math.pow(0.86, L.zap - 1) * cm;
+        p.cd.zap = 0.7 * Math.pow(0.86, L.zap - 1) * cm;
         const n = 1 + Math.floor(L.zap / 2), base = Math.atan2(f.y - p.y, f.x - p.x);
         for (let i = 0; i < n; i++) {
           const a = base + (i - (n - 1) / 2) * 0.16;
           G.shots.push({ x: p.x, y: p.y, vx: Math.cos(a) * 560, vy: Math.sin(a) * 560, life: 1.1, dmg: (3 + L.zap * 1.4) * dm, pierce: L.zap >= 3 ? 2 : 0, hit: new Set() });
         }
         sfx.tone(1200, 0.05, 'square', 0.025, -700);
-      } else G.cd.zap = 0.1;
+      } else p.cd.zap = 0.1;
     }
   }
   // ORBIT
   if (L.orbit) {
-    G.orbA += dt * (2.6 + L.orbit * 0.25);
-    const n = L.orbit + 1, R = 62 + L.orbit * 8, now = G.t;
+    p.orbA += dt * (2.6 + L.orbit * 0.25);
+    const n = L.orbit + 1, R = 62 + L.orbit * 8, now = G.t, key = 'orb' + p.i;
     for (let i = 0; i < n; i++) {
-      const a = G.orbA + (i / n) * Math.PI * 2, ox = p.x + Math.cos(a) * R, oy = p.y + Math.sin(a) * R;
+      const a = p.orbA + (i / n) * Math.PI * 2, ox = p.x + Math.cos(a) * R, oy = p.y + Math.sin(a) * R;
       for (const f of G.foes) {
-        if ((f.x - ox) ** 2 + (f.y - oy) ** 2 < (f.r + 11) ** 2 && (f.hitBy.orb || 0) < now) {
-          f.hitBy.orb = now + 0.35;
+        if ((f.x - ox) ** 2 + (f.y - oy) ** 2 < (f.r + 11) ** 2 && (f.hitBy[key] || 0) < now) {
+          f.hitBy[key] = now + 0.35;
           hitFoe(f, (2.5 + L.orbit * 1.5) * dm, Math.cos(a) * 160, Math.sin(a) * 160);
         }
       }
@@ -279,9 +331,9 @@ function weapons(dt) {
   }
   // NOVA
   if (L.nova) {
-    G.cd.nova -= dt;
-    if (G.cd.nova <= 0) {
-      G.cd.nova = (3.4 - L.nova * 0.35) * cm;
+    p.cd.nova -= dt;
+    if (p.cd.nova <= 0) {
+      p.cd.nova = (3.4 - L.nova * 0.35) * cm;
       const R = 110 + L.nova * 28;
       G.rings.push({ x: p.x, y: p.y, R, t: 0, dur: 0.45 });
       for (const f of G.foes) {
@@ -293,9 +345,9 @@ function weapons(dt) {
   }
   // STORM
   if (L.storm) {
-    G.cd.storm -= dt;
-    if (G.cd.storm <= 0) {
-      G.cd.storm = (2.3 - L.storm * 0.2) * cm;
+    p.cd.storm -= dt;
+    if (p.cd.storm <= 0) {
+      p.cd.storm = (2.3 - L.storm * 0.2) * cm;
       const vis = G.foes.filter((f) => Math.abs(f.x - p.x) < view.w / 2 && Math.abs(f.y - p.y) < view.h / 2);
       for (let i = 0; i < L.storm + 1 && vis.length; i++) {
         const f = vis.splice(irnd(0, vis.length - 1), 1)[0];
@@ -335,10 +387,10 @@ function levelUp() {
 }
 function takeUp(k) {
   if (G.mode !== 'pick') return;
-  if (k === 'heal') G.p.hp = G.p.max;
+  if (k === 'heal') G.ps.forEach((p) => { if (!p.down) p.hp = p.max; });
   else {
     G.lvl[k]++;
-    if (k === 'heart') { G.p.max += 20; G.p.hp = Math.min(G.p.max, G.p.hp + 30); }
+    if (k === 'heart') G.ps.forEach((p) => { p.max += 20; if (!p.down) p.hp = Math.min(p.max, p.hp + 30); });
   }
   $('pickUp').classList.add('hidden');
   sfx.coin();
@@ -348,12 +400,13 @@ function takeUp(k) {
 
 function endRun(won) {
   G.mode = 'over';
+  Duo.stop();
   document.body.classList.remove('playing');
   if (won) { for (const f of G.foes) burst(f.x, f.y, f.col, 4, 200); G.foes = []; }
-  else burst(G.p.x, G.p.y, '#19f7ff', 50, 300);
+  else for (const p of G.ps) burst(p.x, p.y, p.col, 50, 300);
   const score = G.kills + G.lv * 25 + (won ? 1000 : 0);
   setTimeout(() => Arcade.over({
-    title: won ? 'YOU SURVIVED!' : 'GOT SWARMED!', lose: !won, score,
+    title: won ? (G.coop ? 'YOU BOTH SURVIVED!' : 'YOU SURVIVED!') : 'GOT SWARMED!', lose: !won, score: G.coop ? null : score,
     stats: `Time <b>${Arcade.fmtTime(G.t)}</b> · Monsters <b>${G.kills}</b> · Level <b>${G.lv}</b><br>Score <b>${score.toLocaleString()}</b>`,
   }), 900);
 }
@@ -369,7 +422,7 @@ function draw() {
   const w = view.w, h = view.h;
   ctx.fillStyle = '#12001f';
   ctx.fillRect(0, 0, w, h);
-  const cam = G ? G.p : { x: performance.now() / 20, y: performance.now() / 35 };
+  const cam = G ? center() : { x: performance.now() / 20, y: performance.now() / 35 };
   const sx = G && G.shake ? rnd(-G.shake, G.shake) : 0, sy = G && G.shake ? rnd(-G.shake, G.shake) : 0;
   const ox = w / 2 - cam.x + sx, oy = h / 2 - cam.y + sy;
   // neon floor grid
@@ -406,7 +459,7 @@ function draw() {
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath(); ctx.ellipse(f.x, f.y + f.r * 0.35, f.r * 0.8 * sq, f.r * 0.45 / sq, 0, 0, Math.PI); ctx.fill();
     // angry eyes looking at you
-    const a = Math.atan2(G.p.y - f.y, G.p.x - f.x), e = f.r * 0.32;
+    const a = f.look || 0, e = f.r * 0.32;
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.arc(f.x - e + Math.cos(a) * 2, f.y - e * 0.4, e * 0.55, 0, Math.PI * 2); ctx.arc(f.x + e + Math.cos(a) * 2, f.y - e * 0.4, e * 0.55, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#12001f';
@@ -424,10 +477,10 @@ function draw() {
   for (const s of G.shots) { ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 0.025, s.y - s.vy * 0.025); }
   ctx.stroke();
   // orbiters
-  if (G.lvl.orbit) {
+  if (G.lvl.orbit) for (const hp of alive()) {
     const n = G.lvl.orbit + 1, R = 62 + G.lvl.orbit * 8;
     for (let i = 0; i < n; i++) {
-      const a = G.orbA + (i / n) * Math.PI * 2, x = G.p.x + Math.cos(a) * R, y = G.p.y + Math.sin(a) * R;
+      const a = hp.orbA + (i / n) * Math.PI * 2, x = hp.x + Math.cos(a) * R, y = hp.y + Math.sin(a) * R;
       const gr = ctx.createRadialGradient(x, y, 0, x, y, 18);
       gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.35, '#19f7ff'); gr.addColorStop(1, 'rgba(25,247,255,0)');
       ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI * 2); ctx.fill();
@@ -448,12 +501,19 @@ function draw() {
   for (const q of G.parts) { ctx.fillStyle = q.col; ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5); ctx.fillRect(q.x - q.s / 2, q.y - q.s / 2, q.s, q.s); }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
-  // player
-  const p = G.p;
-  if (G.mode !== 'over' || p.hp > 0) {
+  // heroes
+  for (const p of G.ps) {
+    if (p.down) { // knocked out: a ghost with the countdown, riding along with the other hero
+      ctx.globalAlpha = 0.45; ctx.fillStyle = p.col;
+      ctx.beginPath(); ctx.arc(p.x + 26, p.y - 26, p.r * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.font = '14px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = p.col;
+      ctx.fillText(`P${p.i + 1} ${Math.ceil(p.down)}`, p.x + 26, p.y - 46);
+      continue;
+    }
+    if (G.mode === 'over' && p.hp <= 0) continue;
     ctx.save();
-    ctx.shadowColor = '#19f7ff'; ctx.shadowBlur = 22;
-    ctx.fillStyle = p.hurt > 0 && Math.floor(t * 20) % 2 ? '#ff5d8f' : '#19f7ff';
+    ctx.shadowColor = p.col; ctx.shadowBlur = 22;
+    ctx.fillStyle = p.hurt > 0 && Math.floor(t * 20) % 2 ? '#ffffff' : p.col;
     ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
     ctx.fillStyle = '#12001f';
@@ -463,6 +523,7 @@ function draw() {
     // health bar
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - 22, p.y + p.r + 8, 44, 6);
     ctx.fillStyle = p.hp / p.max > 0.35 ? '#7dff2f' : '#ff2fd6'; ctx.fillRect(p.x - 22, p.y + p.r + 8, 44 * Math.max(0, p.hp / p.max), 6);
+    if (G.coop) { ctx.font = '12px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = p.col; ctx.fillText('P' + (p.i + 1), p.x, p.y - p.r - 8); }
   }
   // floating text
   ctx.font = '16px Bungee, sans-serif'; ctx.textAlign = 'center';
@@ -486,16 +547,18 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
-view.cv.addEventListener('pointerdown', (e) => { joy.on = true; joy.id = e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY; });
+view.cv.addEventListener('pointerdown', (e) => { if (Duo.on) return; joy.on = true; joy.id = e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY; });
 addEventListener('pointermove', (e) => { if (joy.on && e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; } });
 const up = (e) => { if (e.pointerId === joy.id) joy.on = false; };
 addEventListener('pointerup', up); addEventListener('pointercancel', up);
 
+Duo.init({ a: null }); // 2P TEAM UP: sticks only, the weapons fire by themselves
 Arcade.init({
   id: 'loloswarm', logo: ['LOLO', 'SWARM'],
-  tag: 'Thousands of monsters. One tiny hero. Your weapons fire by themselves: you just move, grab the gems and pick new powers. Survive 5 minutes!',
-  helpDesk: '<b>WASD</b> or <b>arrows</b> to move · weapons shoot by themselves · <b>1 2 3</b> pick a power',
-  helpTouch: '<b>Drag anywhere</b> to move · weapons shoot by themselves · tap a card to pick a power',
+  tag: 'Thousands of monsters. One tiny hero (or two!). Your weapons fire by themselves: you just move, grab the gems and pick new powers. Survive 5 minutes!',
+  helpDesk: '<b>WASD</b> or <b>arrows</b> to move · weapons shoot by themselves · <b>1 2 3</b> pick a power<br><b>2P TEAM UP:</b> P1 <b>WASD</b> · P2 <b>arrows</b> · shared powers · a fallen hero comes back after 10 s',
+  helpTouch: '<b>Drag anywhere</b> to move · weapons shoot by themselves · tap a card to pick a power<br><b>2P TEAM UP:</b> each player drags on their half of the screen',
+  modes: [{ id: 'solo', label: '1 PLAYER' }, { id: 'coop', label: '2P TEAM UP' }],
   start: newGame,
   playing: () => G && (G.mode === 'play' || G.mode === 'pick'),
 });

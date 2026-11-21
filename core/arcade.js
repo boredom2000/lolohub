@@ -3,6 +3,8 @@
 // next round), the "Back to the Hub?" window, a big banner, a high-DPI canvas, a game loop and little synth sounds.
 //
 //   Arcade.init({ id, logo: ['WORD', 'WORD'], tag, helpDesk, helpTouch, start(), playing() });
+//     modes: [{ id: 'solo', label: '1 PLAYER' }, { id: 'coop', label: '2P TEAM UP' }, ...] shows one button per mode
+//     instead of PLAY; start(modeId) gets the chosen one (PLAY AGAIN repeats it), also kept in Arcade.mode.
 //   Arcade.over({ title, lose, stats, score })   // score = number for the best-score line
 //   const view = Arcade.canvas(onResize)         // view.ctx, view.w, view.h (CSS pixels)
 //   Arcade.loop(update(dt), draw())              // update is skipped while Arcade.paused
@@ -35,7 +37,8 @@
       <div id="arcTitle" class="arc-overlay">
         <h1 class="arc-logo">${o.logo.map((w) => `<span>${w}</span>`).join('')}</h1>
         <p class="arc-tag">${o.tag}</p>${o.titleExtra || ''}
-        <div class="arc-row"><button id="arcPlay" class="arc-big">PLAY</button></div>
+        <div class="arc-row">${o.modes ? o.modes.map((m, i) => `<button class="arc-big arc-mode${i ? ' alt' : ''}" data-mode="${m.id}"${i ? '' : ' id="arcPlay"'}>${m.label}</button>`).join('')
+          : '<button id="arcPlay" class="arc-big">PLAY</button>'}</div>
         <div class="arc-best" id="arcBestT"></div>
         <p class="arc-help desk">${o.helpDesk}</p><p class="arc-help touch">${o.helpTouch}</p>
       </div>
@@ -49,9 +52,13 @@
       </div>`);
     showBest();
     const goHub = () => { location.href = '../../'; };
-    const play = () => { $('arcTitle').classList.add('hidden'); A.sfx.unlock(); o.start(); };
-    const again = () => { $('arcOver').classList.add('hidden'); A.sfx.unlock(); window.loloAd ? window.loloAd('game-over', o.start) : o.start(); };
-    $('arcPlay').onclick = play;
+    A.mode = o.modes ? o.modes[0].id : null;
+    const begin = () => (o.modes ? o.start(A.mode) : o.start()); // games without modes get start() exactly as before
+    const play = (mode) => { if (mode) A.mode = mode; $('arcTitle').classList.add('hidden'); A.sfx.unlock(); begin(); };
+    const restart = begin;
+    const again = () => { $('arcOver').classList.add('hidden'); A.sfx.unlock(); window.loloAd ? window.loloAd('game-over', restart) : restart(); };
+    if (o.modes) document.querySelectorAll('.arc-mode').forEach((b) => { b.onclick = () => play(b.dataset.mode); });
+    else $('arcPlay').onclick = () => play();
     $('arcAgain').onclick = again;
     $('arcOverHub').onclick = goHub;
     const setQuit = (open) => { $('arcQuit').classList.toggle('hidden', !open); A.paused = open; };

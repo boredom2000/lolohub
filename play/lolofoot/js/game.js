@@ -64,6 +64,11 @@
   const cam = { x: W / 2, y: H / 2, zoom: 1, zoomT: 1, shake: 0 };
   const fx = { lines: 0, flash: 0, flashColor: '#fff', x: W / 2, y: H / 2 };
   const inp = { down: false, id: null, sx: 0, sy: 0, t0: 0, kind: null, charging: false, power: 0, maxed: false };
+  // 2 players on one device (core/duo.js): G.duo = 'coop' (both blue vs CPU) or 'versus' (blue vs red), null = 1 player
+  let humans = [];
+  const TEAM_NAMES = { solo: ['YOU', 'CPU'], coop: ['P1+P2', 'CPU'], versus: ['P1', 'P2'] };
+  document.body.classList.toggle('touch', matchMedia('(pointer: coarse)').matches);
+  if (window.Duo) Duo.init({ a: 'KICK' });
 
   function newStats() { return { shots: 0, supers: 0, kos: 0, tackles: 0, items: 0 }; }
 
@@ -248,10 +253,18 @@
     Object.assign(ball, { x: W / 2, y: H / 2, z: 0, vx: 0, vy: 0, vz: 0, fire: false, intended: null, lob: false, inNet: -1, scored: false, kicker: null, team: team });
     ball.owner = f; f.hold = 0; f.think = rand(0.4, 0.8);
     G.ctrl = null;
-    if (!G.demo) banner('KICK OFF!', team === 0 ? 'your ball' : 'their ball');
+    for (const h of humans) { h.ctrl = null; h.down = false; h.charging = false; }
+    if (!G.demo) banner('KICK OFF!', G.duo === 'versus' ? (team === 0 ? 'P1 ball' : 'P2 ball') : team === 0 ? 'your ball' : 'their ball');
   }
 
-  function startMatch() {
+  function startMatch(mode) {
+    mode = mode || G.lastMode || 'solo';
+    G.lastMode = mode;
+    G.duo = mode === 'solo' || !window.Duo ? null : mode;
+    humans = !G.duo ? [] : [0, 1].map((i) => ({ i, team: G.duo === 'versus' ? i : 0, ctrl: null, primary: false, dir: { x: 0, y: 0 }, down: false, t0: 0, charging: false, power: 0, maxed: false }));
+    TEAM[0].name = TEAM_NAMES[mode][0]; TEAM[1].name = TEAM_NAMES[mode][1];
+    $('board').querySelector('.tm.you').textContent = TEAM[0].name; $('board').querySelector('.tm.cpu').textContent = TEAM[1].name;
+    if (G.duo) Duo.start(); else if (window.Duo) Duo.stop();
     $('title').classList.add('hidden'); $('over').classList.add('hidden');
     document.body.classList.add('playing');
     G.mode = 'play'; G.demo = false; G.paused = false;
@@ -281,14 +294,16 @@
     fx.lines = 1.4; fx.flash = 1; fx.flashColor = team === 0 ? '#bfe0ff' : '#ffc4cc'; fx.x = ball.x; fx.y = ball.y;
     burst(ball.x, ball.y, 90, ['#ffe81a', '#ff2fd6', '#19f7ff', '#7dff2f', '#fff', '#ff7a1a'], 320, { kind: 'confetti', vz0: 150, vz1: 450, g: 220, life: 2.2 });
     const sub = own ? 'OWN GOAL by ' + k.name + '!' : k ? (ball.power >= 0.85 ? 'SUPER SHOT by ' : 'scored by ') + k.name : '';
-    banner(team === 0 ? 'GOOOOAL!' : 'THEY SCORE!', sub);
+    if (G.duo === 'versus') banner('GOOOOAL!', `${TEAM[team].name} scores! ${sub}`);
+    else banner(team === 0 ? 'GOOOOAL!' : 'THEY SCORE!', sub);
     Sfx.goal(); G.excite = 1;
   }
 
   function endMatch() {
     G.phase = 'end'; G.endT = 2.2;
     const [a, b] = G.score;
-    banner('FULL TIME!', a > b ? 'YOU WIN!' : a < b ? 'you lose...' : 'it’s a draw');
+    if (G.duo === 'versus') banner('FULL TIME!', a > b ? 'P1 WINS!' : a < b ? 'P2 WINS!' : 'it’s a draw');
+    else banner('FULL TIME!', a > b ? (G.duo ? 'YOU BOTH WIN!' : 'YOU WIN!') : a < b ? 'you lose...' : 'it’s a draw');
     Sfx.whistle(true);
   }
 
@@ -296,8 +311,17 @@
     G.mode = 'over';
     document.body.classList.remove('playing');
     Sfx.chargeStop(); Sfx.crowdLevel(0);
+    if (window.Duo) Duo.stop();
     const [a, b] = G.score, st = G.stats;
     const t = $('overTitle');
+    if (G.duo === 'versus') {
+      t.textContent = a > b ? 'P1 WINS!' : a < b ? 'P2 WINS!' : 'DRAW!';
+      t.className = 'result' + (a === b ? ' draw' : '');
+      $('overStats').innerHTML = `<span class="big"><b style="color:#2f8bff">${a}</b> - <b style="color:#ff3b55">${b}</b></span><br>` +
+        `<b style="color:#2f8bff">P1</b> blue vs <b style="color:#ff3b55">P2</b> red &middot; rematch?`;
+      $('over').classList.remove('hidden');
+      return;
+    }
     t.textContent = a > b ? 'VICTORY!' : a < b ? 'DEFEAT...' : 'DRAW!';
     t.className = 'result' + (a > b ? '' : a < b ? ' lose' : ' draw');
     let wins = 0;
@@ -402,14 +426,14 @@
   // ---------- player input ----------
   function mateNear(o, pt, r) {
     let best = null, bd = r;
-    for (const q of teams[0]) { if (q === o || q.stun > 0) continue; const d = dist(q, pt); if (d < bd) { bd = d; best = q; } }
+    for (const q of teams[o.team]) { if (q === o || q.stun > 0) continue; const d = dist(q, pt); if (d < bd) { bd = d; best = q; } }
     return best;
   }
   function tapKick(o, aim) {
     // bias toward a teammate near the tap, or one roughly in that direction
     const ax = aim.x - ball.x, ay = aim.y - ball.y, ad = Math.hypot(ax, ay) || 1;
     let best = null, bs = 1e9;
-    for (const q of teams[0]) {
+    for (const q of teams[o.team]) {
       if (q === o || q.stun > 0 || q.frozen > 0) continue;
       const dq = dist(q, aim), qx = q.x - ball.x, qy = q.y - ball.y, qd = Math.hypot(qx, qy) || 1;
       const ang = Math.acos(clamp((ax * qx + ay * qy) / (ad * qd), -1, 1));
@@ -446,7 +470,7 @@
 
   cv.addEventListener('pointerdown', (e) => {
     Sfx.init();
-    if (!canInput() || inp.down) return;
+    if (G.duo || !canInput() || inp.down) return;
     inp.sx = e.clientX; inp.sy = e.clientY;
     const o = ball.owner;
     if (o && o.team === 0) {
@@ -488,6 +512,105 @@
     }
   }
 
+  // ---------- 2 players (core/duo.js) ----------
+  // where a human's kick goes. Charged: the stick direction, or straight at the other goal.
+  // Tap (pass): the teammate closest to the stick direction (a wide cone: keyboards only have 8 directions),
+  // else into space that way; no direction = the best open teammate.
+  function humanAim(h, p, charged) {
+    const d = h.dir, has = Math.hypot(d.x, d.y) > 0.25, n = has ? norm(d.x, d.y) : null;
+    if (charged) return has ? { x: ball.x + n.x * 260, y: ball.y + n.y * 260 } : { x: p.team ? 0 : W, y: H / 2 };
+    if (!has) { const m = bestMate(p); return m ? { x: m.x, y: m.y } : { x: ball.x, y: ball.y }; }
+    let best = null, ba = 0.75;
+    for (const q of teams[p.team]) {
+      if (q === p || q.stun > 0 || q.frozen > 0) continue;
+      const qx = q.x - ball.x, qy = q.y - ball.y, qd = Math.hypot(qx, qy);
+      if (qd < 40 || qd > 520) continue;
+      const ang = Math.acos(clamp((qx * n.x + qy * n.y) / qd, -1, 1));
+      if (ang < ba) { ba = ang; best = q; }
+    }
+    return best ? { x: best.x, y: best.y } : { x: ball.x + n.x * 260, y: ball.y + n.y * 260 };
+  }
+  function updateHumans() {
+    Duo.update();
+    const now = performance.now();
+    let anyCharge = 0;
+    for (const h of humans) {
+      const pad = Duo.pad(h.i), p = h.ctrl;
+      h.dir = Duo.toWorld(pad, MI);
+      if (!canInput() || !p) { h.down = false; h.charging = false; continue; }
+      if (pad.aPressed) {
+        if (ball.owner === p) { h.down = true; h.t0 = now; h.charging = false; h.power = 0; h.maxed = false; }
+        else {
+          const d = Math.hypot(h.dir.x, h.dir.y) > 0.25 ? norm(h.dir.x, h.dir.y) : norm(ball.x - p.x, ball.y - p.y);
+          if (!dash(p, p.x + d.x * 100, p.y + d.y * 100, false) && p.dashCD > 0) p.cdNag = 0.4;
+        }
+      }
+      if (h.down) {
+        if (ball.owner !== p) { // lost the ball while winding up
+          if (h.charging) addFloat(p.x, p.y, 'STOLEN!', '#ff3b55', 28);
+          h.down = false; h.charging = false;
+        } else {
+          const held = (now - h.t0) / 1000;
+          if (held > TAP_TIME) {
+            h.charging = true; h.power = clamp((held - TAP_TIME) / CHARGE_TIME, 0, 1);
+            if (h.power >= 1 && !h.maxed) { h.maxed = true; fx.flash = 0.25; fx.flashColor = '#fff3a0'; cam.shake = 4; }
+          }
+        }
+      }
+      if (pad.aReleased && h.down) {
+        const charged = h.charging, power = h.power;
+        h.down = false; h.charging = false;
+        if (ball.owner === p) { const aim = humanAim(h, p, charged); if (charged) chargedKick(p, aim, power); else tapKick(p, aim); }
+      }
+      if (h.charging) anyCharge = Math.max(anyCharge, h.power);
+    }
+    if (anyCharge) Sfx.charge(anyCharge); else Sfx.chargeStop();
+  }
+  function pickCtrlFor(team, cur, exclude) {
+    const o = ball.owner;
+    if (o && o.team === team && o !== exclude) return o;
+    if (cur && cur !== exclude && cur.team === team && cur.role !== 'gk' && cur.dashT > 0) return cur;
+    if (!o && ball.intended && ball.intended.team === team && ball.intended !== exclude && ball.intended.stun <= 0 && ball.intended.frozen <= 0) return ball.intended;
+    let best = null, bd = 1e9;
+    for (const p of teams[team]) {
+      if (p === exclude || p.role === 'gk' || p.stun > 0 || p.frozen > 0) continue;
+      let d = dist(p, ball); if (p === cur) d -= 30;
+      if (d < bd) { bd = d; best = p; }
+    }
+    return best || (cur !== exclude ? cur : null) || teams[team].find((p) => p !== exclude && p.role !== 'gk');
+  }
+  // which footballer each human controls. Two humans on one team: the one closest to the play chases the ball
+  // (and gets passes made to them), the other keeps their own runner.
+  function assignHumans() {
+    for (const team of [0, 1]) {
+      const hs = humans.filter((h) => h.team === team);
+      if (!hs.length) continue;
+      if (hs.length === 1) { hs[0].ctrl = pickCtrlFor(team, hs[0].ctrl, null); hs[0].primary = true; continue; }
+      const o = ball.owner && ball.owner.team === team ? ball.owner : null, target = o || ball.intended;
+      let prim = hs.find((h) => h.ctrl && h.ctrl === target);
+      if (!prim && !o && ball.kicker && ball.kicker.team === team) prim = hs.find((h) => h.ctrl !== ball.kicker); // the other one receives
+      if (!prim) prim = hs.reduce((a, b) => (a.ctrl && b.ctrl && dist(b.ctrl, ball) < dist(a.ctrl, ball) ? b : a));
+      const sec = hs.find((h) => h !== prim);
+      prim.ctrl = pickCtrlFor(team, prim.ctrl, sec.ctrl && sec.ctrl !== target ? sec.ctrl : null);
+      if (!sec.ctrl || sec.ctrl === prim.ctrl || sec.ctrl.role === 'gk' || sec.ctrl.stun > 0)
+        sec.ctrl = teams[team].filter((p) => p !== prim.ctrl && p.role !== 'gk' && p.stun <= 0).sort((a, b) => dist(a, ball) - dist(b, ball))[0] || sec.ctrl;
+      prim.primary = true; sec.primary = false;
+    }
+  }
+  // humans can steer their runner; without input it plays on its own
+  function steerHumans() {
+    if (G.phase !== 'live') return;
+    for (const h of humans) {
+      const p = h.ctrl;
+      if (!p || p.stun > 0 || p.frozen > 0 || p.windup > 0) continue;
+      const own = ball.owner === p, d = h.dir, m = Math.hypot(d.x, d.y);
+      if (m > 0.2) { p.tx = p.x + d.x / m * 80; p.ty = p.y + d.y / m * 80; p.spd = own ? OWNER_SPEED : SPEED * 1.05; }
+      if (own && h.charging) p.spd = OWNER_SPEED * 0.45;
+    }
+  }
+  const humanChaser = (team) => { const h = humans.find((x) => x.team === team && x.primary); return h ? h.ctrl : null; };
+  const humanTeam = (team) => (G.duo ? humans.some((h) => h.team === team) : team === 0);
+
   // ---------- AI ----------
   function ballTarget() {
     let tx = ball.x, ty = ball.y;
@@ -527,9 +650,9 @@
 
   function teamAI(team, dt) {
     const o = ball.owner, have = o && o.team === team, theirs = o && o.team !== team;
-    const cpu = team === 1 || G.demo;
+    const human = humanTeam(team) && !G.demo, cpu = !human;
     let chaser = null;
-    if (!have) chaser = team === 0 && !G.demo ? G.ctrl : pickCpuChaser(team);
+    if (!have) chaser = human ? (G.duo ? humanChaser(team) : G.ctrl) : pickCpuChaser(team);
     if (team === 1) G.cpuChaser = chaser;
     if (team === 0 && G.demo) G.ctrl = chaser;
     const bt = ballTarget();
@@ -979,8 +1102,9 @@
       G.endT -= dt;
       if (G.endT <= 0 && G.mode === 'play') showResults();
     }
-    if (!G.demo) G.ctrl = pickCtrl();
+    if (G.duo && !G.demo) { G.ctrl = null; assignHumans(); } else if (!G.demo) G.ctrl = pickCtrl();
     teamAI(0, dt); teamAI(1, dt);
+    if (G.duo && !G.demo) steerHumans();
     if (G.phase === 'live') { updateItems(dt); updateEvents(dt); }
     updateCows(dt);
     movePlayers(dt);
@@ -1098,18 +1222,23 @@
   }
 
   function drawCtrlRing() {
-    const p = G.ctrl;
-    if (!p || G.demo || G.phase === 'goal' || G.phase === 'end' || G.mode !== 'play') return;
+    if (G.demo || G.phase === 'goal' || G.phase === 'end' || G.mode !== 'play') return;
+    if (!G.duo) { if (G.ctrl) drawRing(G.ctrl, null); return; }
+    for (const h of humans) if (h.ctrl) drawRing(h.ctrl, h);
+  }
+  // h = the human (2 players: ring in their colour with a P1 / P2 tag), null = the 1-player ring
+  function drawRing(p, h) {
     const [sx, sy] = w2s(p.x, p.y), rr = (p.r * p.scale + 8) * S, own = ball.owner === p;
     const pulse = 1 + Math.sin(G.time * 10) * 0.06;
     ctx.save();
     ctx.lineWidth = Math.max(3, S * 2.2);
     ctx.strokeStyle = '#160a2c';
     ctx.beginPath(); ctx.ellipse(sx, sy, rr * pulse + 2, rr * 0.5 * pulse + 2, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = own ? '#ffe81a' : '#19f7ff';
+    ctx.strokeStyle = h ? Duo.color(h.i) : own ? '#ffe81a' : '#19f7ff';
     ctx.setLineDash([rr * 0.5, rr * 0.25]); ctx.lineDashOffset = -G.time * 40;
     ctx.beginPath(); ctx.ellipse(sx, sy, rr * pulse, rr * 0.5 * pulse, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
+    if (h) comicText('P' + (h.i + 1), sx, sy + rr * 0.5 + 16, 20, Duo.color(h.i), 0); // under the feet: the power meter sits above the head
     if (!own && p.dashCD > 0) { // dash cooldown sweep
       ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = Math.max(4, S * 3);
       const f = 1 - p.dashCD / DASH_CD;
@@ -1119,8 +1248,12 @@
   }
 
   function drawAim() {
+    if (G.duo) { for (const h of humans) if (h.charging && ball.owner === h.ctrl) drawAimFor(h.ctrl, humanAim(h, h.ctrl, true), h.power); return; }
     if (!inp.charging || !ball.owner || ball.owner.team !== 0) return;
-    const o = ball.owner, aim = s2w(inp.sx, inp.sy), mate = mateNear(o, aim, 85);
+    drawAimFor(ball.owner, s2w(inp.sx, inp.sy), inp.power);
+  }
+  function drawAimFor(o, aim, power) {
+    const mate = mateNear(o, aim, 85);
     const [bx, by] = w2s(ball.x, ball.y);
     ctx.save();
     if (mate) {
@@ -1131,14 +1264,14 @@
       ctx.beginPath(); ctx.ellipse(mx, my, 22 * S, 11 * S, 0, 0, Math.PI * 2); ctx.stroke();
       comicText('LOB', mx, my - 52 * S, 26, '#19f7ff', 0);
     } else {
-      const n = norm(aim.x - ball.x, aim.y - ball.y), len = 90 + inp.power * 230;
+      const n = norm(aim.x - ball.x, aim.y - ball.y), len = 90 + power * 230;
       const [ex, ey] = w2s(ball.x + n.x * len, ball.y + n.y * len);
-      const hot = inp.power >= 1 ? (Math.floor(G.time * 14) % 2 ? '#fff' : '#ff3b2f') : inp.power > 0.6 ? '#ff7a1a' : '#ffe81a';
+      const hot = power >= 1 ? (Math.floor(G.time * 14) % 2 ? '#fff' : '#ff3b2f') : power > 0.6 ? '#ff7a1a' : '#ffe81a';
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#160a2c'; ctx.lineWidth = Math.max(6, S * (4 + inp.power * 6)) + 4;
+      ctx.strokeStyle = '#160a2c'; ctx.lineWidth = Math.max(6, S * (4 + power * 6)) + 4;
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
       ctx.strokeStyle = hot; ctx.lineWidth -= 4; ctx.stroke();
-      const ang = Math.atan2(ey - by, ex - bx), hs = 14 + inp.power * 10;
+      const ang = Math.atan2(ey - by, ex - bx), hs = 14 + power * 10;
       ctx.fillStyle = hot; ctx.strokeStyle = '#160a2c'; ctx.lineWidth = 3;
       poly([ex + Math.cos(ang) * hs, ey + Math.sin(ang) * hs, ex + Math.cos(ang + 2.4) * hs, ey + Math.sin(ang + 2.4) * hs, ex + Math.cos(ang - 2.4) * hs, ey + Math.sin(ang - 2.4) * hs]);
       ctx.fill(); ctx.stroke();
@@ -1148,8 +1281,8 @@
     ctx.fillStyle = '#160a2c'; rrect(ox - bw / 2 - 3, top - 3, bw + 6, 14, 6); ctx.fill();
     const g = ctx.createLinearGradient(ox - bw / 2, 0, ox + bw / 2, 0);
     g.addColorStop(0, '#ffe81a'); g.addColorStop(0.6, '#ff7a1a'); g.addColorStop(1, '#ff2f4f');
-    ctx.fillStyle = g; rrect(ox - bw / 2, top, Math.max(4, bw * inp.power), 8, 4); ctx.fill();
-    if (inp.power >= 1) comicText('MAX!', ox, top - 16, 22, '#ff3b2f', 0);
+    ctx.fillStyle = g; rrect(ox - bw / 2, top, Math.max(4, bw * power), 8, 4); ctx.fill();
+    if (power >= 1) comicText('MAX!', ox, top - 16, 22, '#ff3b2f', 0);
     ctx.restore();
   }
 
@@ -1426,7 +1559,7 @@
   function frame(now) {
     const rdt = Math.min(0.05, (now - last) / 1000); last = now;
     if (!G.paused) {
-      updateCharge();
+      if (G.duo && G.mode === 'play') updateHumans(); else updateCharge();
       let s = 1;
       if (G.hitstop > 0) { G.hitstop -= rdt; s = 0.03; }
       else {
@@ -1455,9 +1588,12 @@
   $('quitNo').addEventListener('click', () => setQuitOpen(false));
   $('quitYes').addEventListener('click', goHub);
   $('quitModal').addEventListener('click', (ev) => { if (ev.target.id === 'quitModal') setQuitOpen(false); });
-  $('playBtn').addEventListener('click', () => { Sfx.init(); startMatch(); });
-  // ad break before a new match (the hub's ../../core/ads.js; skipped when ads are off or missing)
-  $('againBtn').addEventListener('click', () => (window.loloAd ? loloAd('game-over', startMatch) : startMatch()));
+  $('playBtn').addEventListener('click', () => { Sfx.init(); startMatch('solo'); });
+  $('coopBtn').addEventListener('click', () => { Sfx.init(); startMatch('coop'); });
+  $('vsBtn').addEventListener('click', () => { Sfx.init(); startMatch('versus'); });
+  // ad break before a new match (the hub's ../../core/ads.js; skipped when ads are off or missing); same mode again
+  const again = () => startMatch(G.lastMode);
+  $('againBtn').addEventListener('click', () => (window.loloAd ? loloAd('game-over', again) : again()));
   $('overHub').addEventListener('click', goHub);
   document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'play' && !G.paused) setQuitOpen(true); });
 
@@ -1483,7 +1619,7 @@
 
   // debug hook for testing
   window.__foot = {
-    G, ball, teams, inp, startEvent, applyItem, dash, shoot, tapKick, chargedKick,
+    G, ball, teams, inp, startEvent, startMatch, humans: () => humans, update, updateHumans, assignHumans, applyItem, dash, shoot, tapKick, chargedKick,
     sim(sec) { for (let i = 0; i < sec * 60; i++) { update(1 / 60); updateFx(1 / 60); } updateCamera(1 / 60); render(); },
   };
 
