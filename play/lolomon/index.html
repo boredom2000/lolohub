@@ -18,6 +18,7 @@
     .arc-hud, #board, .tbtn { display: none; }
     body.playing .arc-hud, body.playing #board { display: flex; }
     body.playing.touch .tbtn { display: block; }
+    .arc-hud { gap: 26px; }
     #board {
       position: fixed; z-index: 10; right: calc(12px + env(safe-area-inset-right)); top: calc(72px + env(safe-area-inset-top)); flex-direction: column; gap: 2px;
       font-size: 12px; min-width: 160px; padding: 8px 10px; border-radius: 12px; background: rgba(20, 0, 45, 0.6); border: 1px solid rgba(25, 247, 255, 0.4); pointer-events: none;
@@ -33,13 +34,12 @@
     #lockBtn { bottom: calc(132px + env(safe-area-inset-bottom)); width: 72px; height: 72px; font-size: 13px; border: 3px solid var(--cyan); background: rgba(25, 247, 255, 0.2); box-shadow: 0 0 16px var(--cyan); }
     #lockBtn.off { opacity: 0.35; }
     .tbtn:active { transform: scale(0.93); }
-    .arc-hud { gap: 26px; }
-    @media (max-width: 560px) { .arc-hud { gap: 20px; } #board { min-width: 128px; font-size: 10px; top: calc(64px + env(safe-area-inset-top)); } }
+    @media (max-width: 560px) { .arc-hud { gap: 30px; } #board { min-width: 128px; font-size: 10px; top: calc(64px + env(safe-area-inset-top)); } }
   </style>
 </head>
 <body>
   <div class="arc-hud">
-    <div class="arc-stat" id="sTime"><small>TIME</small><span>4:00</span></div>
+    <div class="arc-stat" id="sTime"><small>TIME</small><span>5:00</span></div>
     <div class="arc-stat" id="sCoins"><small>COINS</small><span>0</span></div>
   </div>
   <div id="board"></div>
@@ -47,21 +47,31 @@
   <button class="tbtn" id="grabBtn">GRAB</button>
 <script>
 'use strict';
-// Ball Bandits: buy Lolo Balls on the belt, carry them home, they hatch into critters that make coins.
-// Sneak into rival bases to steal theirs; catch thieves to get yours back; lock your base for a while.
+// Ball Bandits: a big world with nests of Lolo Balls guarded by wild animals. Grab a ball (better while the guard
+// naps), outrun the guard back to your base, and the ball hatches into a critter that makes coins. Rival bandits
+// raid the wild too, and steal from bases: catch thieves to get your critters back, and lock your base for a while.
 // After ROUND seconds the richest base (critters + coins) wins. All creatures are original, drawn in code.
-const { rnd, irnd, pick, clamp, sfx } = Arcade;
-const W = 1800, H = 1300, BELT_Y = 650, BELT_H = 100, BELT_SPEED = 72, ROUND = 240;
+const { rnd, pick, clamp, sfx } = Arcade;
+const W = 3600, H = 3600, CX = W / 2, CY = H / 2, ROUND = 300;
 const BASE_W = 380, BASE_H = 260, LOCK_TIME = 15, LOCK_CD = 40, SPEED = 235, CARRY = 0.66;
+const RINGS = { plaza: 640, meadow: 1180, forest: 1660 }; // beyond the forest: snow / desert / volcano / swamp
 const view = Arcade.canvas();
 const ctx = view.ctx;
 const $ = (id) => document.getElementById(id);
 
 const RAR = [
-  { name: 'COMMON', col: '#7dff2f', p: 0.6, price: [15, 35], inc: [1, 2], hatch: 5 },
-  { name: 'RARE', col: '#19f7ff', p: 0.27, price: [70, 130], inc: [4, 7], hatch: 8 },
-  { name: 'EPIC', col: '#b44cff', p: 0.1, price: [260, 420], inc: [13, 20], hatch: 11 },
-  { name: 'LEGENDARY', col: '#ffd23f', p: 0.03, price: [900, 1300], inc: [45, 65], hatch: 15 },
+  { name: 'COMMON', col: '#7dff2f', price: [15, 35], inc: [1, 2], hatch: 5 },
+  { name: 'RARE', col: '#19f7ff', price: [70, 130], inc: [4, 7], hatch: 8 },
+  { name: 'EPIC', col: '#b44cff', price: [260, 420], inc: [13, 20], hatch: 11 },
+  { name: 'LEGENDARY', col: '#ffd23f', price: [900, 1300], inc: [45, 65], hatch: 15 },
+];
+// wild guards per nest tier: speed (a player carrying a ball runs 155), how far they chase from the nest,
+// how close you can sneak while they are awake, and how long they take to wake up when a ball is grabbed
+const TIERS = [
+  { animals: ['🐰', '🦆', '🐿️', '🐸'], speed: 140, leash: 520, notice: 0, wake: 1.2, cap: 2, respawn: 12 },
+  { animals: ['🦊', '🐗', '🦉', '🦡'], speed: 170, leash: 650, notice: 110, wake: 1.5, cap: 2, respawn: 18 },
+  { animals: ['🐺', '🐻', '🐊', '🦏'], speed: 190, leash: 800, notice: 140, wake: 1.8, cap: 1, respawn: 26 },
+  { animals: ['🐉', '🦁'], speed: 205, leash: 1000, notice: 170, wake: 2.8, cap: 1, respawn: 45 },
 ];
 const SPECIES = [
   [{ n: 'Sparkit', c: '#ffe14a', ear: 'pointy', tail: 'bolt' }, { n: 'Leaflet', c: '#6fdc5a', ear: 'leaf', tail: 'leaf' },
@@ -76,43 +86,94 @@ const SPECIES = [
 const PLAYERS = [
   { name: 'YOU', col: '#19f7ff' }, { name: 'Rex', col: '#ff2fd6' }, { name: 'Mika', col: '#ffe81a' }, { name: 'Juno', col: '#7dff2f' },
 ];
+// outer biomes by direction from the middle
+const BIOMES = {
+  top: { name: 'SNOW', col: '#2c3f66', decor: ['❄️', '⛄', '🌲', '🌲'] },
+  right: { name: 'DESERT', col: '#5e4219', decor: ['🌵', '🌵', '🪨', '🦴'] },
+  bottom: { name: 'VOLCANO', col: '#46121d', decor: ['🌋', '🔥', '🪨', '🪨'] },
+  left: { name: 'SWAMP', col: '#173a36', decor: ['🌿', '🍄', '🪷', '🌿'] },
+};
 
 let G = null;
 const keys = {};
 const joy = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const inRect = (p, r, m = 0) => p.x > r.x - m && p.x < r.x + r.w + m && p.y > r.y - m && p.y < r.y + r.h + m;
+const inAnyBase = (p) => G.bases.some((b) => inRect(p, b, 10));
+function biomeAt(x, y) {
+  const dx = x - CX, dy = y - CY;
+  return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'bottom' : 'top');
+}
 
-function newItem() {
-  let r = 0, roll = Math.random();
-  while (r < RAR.length - 1 && roll > RAR[r].p) { roll -= RAR[r].p; r++; }
+function newItem(tier) {
+  let r = tier;
+  if (tier < 3 && Math.random() < 0.12) r++; // now and then a nest holds something better
   const R = RAR[r], k = Math.random();
   const price = Math.round((R.price[0] + (R.price[1] - R.price[0]) * k) / 5) * 5;
   return { rar: r, sp: pick(SPECIES[r]), price, inc: +(R.inc[0] + (R.inc[1] - R.inc[0]) * k).toFixed(1), hatch: R.hatch, wob: rnd(0, 6) };
 }
 
-// bases in the four corners (you: bottom-left), each with 8 pads and a door facing the belt
+// four bases around the plaza (you: bottom-left), each with 8 pads and a door facing the middle street
 function makeBase(i) {
-  const corners = [[90, H - BASE_H - 90], [W - BASE_W - 90, H - BASE_H - 90], [90, 90], [W - BASE_W - 90, 90]];
-  const [x, y] = corners[i];
-  const b = { i, x, y, w: BASE_W, h: BASE_H, top: y < BELT_Y, lockT: 0, lockCd: 0, pads: [] };
+  const xs = [CX - 70 - BASE_W, CX + 70], ys = [CY + 70, CY - 70 - BASE_H];
+  const x = xs[i % 2], y = ys[i < 2 ? 0 : 1];
+  const b = { i, x, y, w: BASE_W, h: BASE_H, top: y < CY, lockT: 0, lockCd: 0, pads: [] };
   for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) b.pads.push({ base: i, x: x + 62 + c * 85, y: y + (b.top ? 70 : 90) + r * 100, item: null });
   return b;
 }
 
+function makeNests() {
+  const nests = [];
+  const free = (x, y, gap) => nests.every((n) => Math.hypot(n.x - x, n.y - y) > gap);
+  const add = (tier, x, y) => {
+    const T = TIERS[tier];
+    const n = { x, y, tier, cap: T.cap, balls: [], respawnT: 0 };
+    for (let k = 0; k < T.cap; k++) n.balls.push(newItem(tier));
+    n.guard = { nest: n, x: x + rnd(-50, 50), y: y + rnd(30, 60), emoji: pick(T.animals), state: Math.random() < 0.5 ? 'sleep' : 'awake',
+      t: rnd(2, 8), target: null, why: null, face: 1, wx: x, wy: y };
+    nests.push(n);
+  };
+  const ring = (tier, count, r0, r1) => {
+    for (let tries = 0, made = 0; made < count && tries < 3000; tries++) {
+      const a = rnd(0, Math.PI * 2), r = rnd(r0, r1);
+      const x = CX + Math.cos(a) * r, y = CY + Math.sin(a) * r;
+      if (x < 160 || y < 160 || x > W - 160 || y > H - 160 || !free(x, y, 300)) continue;
+      add(tier, x, y); made++;
+    }
+  };
+  ring(0, 10, RINGS.plaza + 120, RINGS.meadow - 60);
+  ring(1, 8, RINGS.meadow + 80, RINGS.forest - 60);
+  ring(2, 8, RINGS.forest + 120, 2350);
+  // the legendary lairs: two far corners
+  const corners = [[260, 260], [W - 260, 260], [260, H - 260], [W - 260, H - 260]].sort(() => Math.random() - 0.5);
+  for (const [x, y] of corners.slice(0, 2)) add(3, x, y);
+  return nests;
+}
+
+function makeDecor() {
+  const out = [];
+  for (let k = 0; k < 520; k++) {
+    const x = rnd(40, W - 40), y = rnd(40, H - 40), r = Math.hypot(x - CX, y - CY);
+    if (r < RINGS.plaza + 40) continue;
+    const e = r < RINGS.meadow ? pick(['🌼', '🌷', '🌳', '🌼']) : r < RINGS.forest ? pick(['🌲', '🌳', '🍄', '🌲']) : pick(BIOMES[biomeAt(x, y)].decor);
+    out.push({ x, y, e, s: rnd(22, 38) });
+  }
+  return out;
+}
+
 function start() {
-  G = { t: ROUND, belt: [], spawnT: 0.2, fx: [], floats: [], over: false, alertT: 0, stolen: 0, caught: 0 };
+  G = { t: ROUND, fx: [], floats: [], over: false, stolen: 0, caught: 0, wild: 0, nests: makeNests(), decor: makeDecor() };
   G.bases = [0, 1, 2, 3].map(makeBase);
   G.tr = PLAYERS.map((p, i) => {
     const b = G.bases[i];
-    return { i, name: p.name, col: p.col, x: b.x + b.w / 2, y: b.top ? b.y + b.h - 30 : b.y + 30, coins: 60, carry: null, stun: 0,
-      bot: i > 0, goal: null, think: rnd(0, 0.3), stealT: rnd(8, 16), mode: 'idle', target: null, face: 1, step: 0,
-      speed: i > 0 ? SPEED * rnd(0.84, 0.9) : SPEED };
+    // everyone starts with one hatched critter so coins start flowing
+    const it = newItem(0); it.rar = 0; it.hatch = 0; b.pads[0].item = it;
+    return { i, name: p.name, col: p.col, x: b.x + b.w / 2, y: b.top ? b.y + b.h - 30 : b.y + 30, coins: 0, carry: null, stun: 0,
+      bot: i > 0, goal: null, think: rnd(0, 0.3), stealT: rnd(20, 40), mode: 'idle', target: null, face: 1, step: 0,
+      speed: i > 0 ? SPEED * rnd(0.86, 0.92) : SPEED };
   });
-  for (let k = 0; k < 14; k++) G.belt.push({ x: k * 130 + rnd(0, 40), item: newItem() });
-  G.belt.forEach((b) => { if (b.item.rar === 3) b.item = newItem(); });
   document.body.classList.add('playing');
-  Arcade.banner('BALL BANDITS', 'BUY · HATCH · STEAL!');
+  Arcade.banner('BALL BANDITS', 'GRAB · RUN · HATCH!');
   sfx.up();
 }
 
@@ -137,19 +198,33 @@ function sell(owner, item, at) {
   owner.coins += gain;
   float(at.x, at.y - 30, `SOLD +${gain}`, '#ffd23f');
 }
+// what a carrier drops when caught goes back where it came from: its nest, or the base it was stolen from
+function returnCarry(t) {
+  const c = t.carry;
+  if (!c) return null;
+  t.carry = null;
+  if (c.nest) { if (c.nest.balls.length < c.nest.cap) c.nest.balls.push(c.item); }
+  else if (c.from >= 0) place(G.bases[c.from], c.item);
+  return c.item;
+}
+function stun(t, from, time) {
+  t.stun = time;
+  const a = Math.atan2(t.y - from.y, t.x - from.x) || rnd(0, 6);
+  t.x = clamp(t.x + Math.cos(a) * 60, 20, W - 20); t.y = clamp(t.y + Math.sin(a) * 60, 20, H - 20);
+  burst(t.x, t.y, '#ffffff', 14);
+}
 
 /* ---------- actions ---------- */
 function act(t) {
   if (t.carry || t.stun > 0) return false;
-  // buy from the belt
-  let best = null, bd = t.bot ? 46 : 64;
-  for (const b of G.belt) { const d = Math.hypot(b.x - t.x, BELT_Y - t.y); if (d < bd) { bd = d; best = b; } }
-  if (best) {
-    if (t.coins < best.item.price) { if (!t.bot) { float(t.x, t.y - 50, `NEED ${best.item.price}`, '#ff2fd6'); sfx.hit(); } return false; }
-    t.coins -= best.item.price;
-    t.carry = { item: best.item, from: -1 };
-    G.belt.splice(G.belt.indexOf(best), 1);
-    if (!t.bot) { sfx.coin(); float(t.x, t.y - 50, `-${best.item.price}`, '#ffd23f'); }
+  // grab from a wild nest
+  let nest = null, nd = t.bot ? 46 : 64;
+  for (const n of G.nests) { const d = dist(n, t); if (n.balls.length && d < nd) { nd = d; nest = n; } }
+  if (nest) {
+    const item = nest.balls.pop();
+    t.carry = { item, from: -1, nest };
+    alarm(nest.guard, t);
+    if (!t.bot) { sfx.pop(1.2); float(t.x, t.y - 60, RAR[item.rar].name + '!', RAR[item.rar].col); }
     return true;
   }
   // steal from a rival base
@@ -176,46 +251,92 @@ function lock(t) {
   return true;
 }
 
+/* ---------- wild guards ---------- */
+function alarm(g, t) {
+  if (g.state === 'chase' || g.state === 'alarm') return;
+  const asleep = g.state === 'sleep';
+  g.target = t; g.why = 'ball';
+  g.t = asleep ? TIERS[g.nest.tier].wake : 0.25;
+  g.state = 'alarm';
+  if (t.i === 0) sfx.tone(asleep ? 300 : 500, 0.2, 'sawtooth', 0.12, 300);
+}
+function updateGuard(g, dt) {
+  const T = TIERS[g.nest.tier], n = g.nest;
+  const move = (tx, ty, sp) => {
+    const dx = tx - g.x, dy = ty - g.y, d = Math.hypot(dx, dy);
+    if (d > 2) { g.x += dx / d * Math.min(d, sp * dt); g.y += dy / d * Math.min(d, sp * dt); if (Math.abs(dx) > 1) g.face = dx > 0 ? 1 : -1; }
+    return d;
+  };
+  g.t -= dt;
+  if (g.state === 'sleep') { if (g.t <= 0) { g.state = 'awake'; g.t = rnd(4, 7); } return; }
+  if (g.state === 'awake') {
+    if (g.t <= 0) { g.state = 'sleep'; g.t = rnd(5, 9); return; }
+    if (move(g.wx, g.wy, 50) < 4) { g.wx = n.x + rnd(-70, 70); g.wy = n.y + rnd(-50, 70); }
+    if (T.notice) for (const t of G.tr) {
+      if (t.stun > 0 || inAnyBase(t) || dist(t, g) > T.notice) continue;
+      g.state = 'chase'; g.target = t; g.why = 'intruder';
+      if (t.i === 0) sfx.tone(500, 0.2, 'sawtooth', 0.12, 300);
+      break;
+    }
+    return;
+  }
+  if (g.state === 'alarm') { if (g.t <= 0) g.state = 'chase'; return; }
+  if (g.state === 'chase') {
+    const t = g.target;
+    const lost = !t || inAnyBase(t) || dist(g, n) > T.leash || t.stun > 0 ||
+      (g.why === 'ball' && (!t.carry || t.carry.nest !== n));
+    if (lost) { g.state = 'return'; g.target = null; return; }
+    if (move(t.x, t.y, T.speed) < 30) {
+      const item = returnCarry(t);
+      stun(t, g, item ? 1.4 : 0.9);
+      g.state = 'return'; g.target = null;
+      if (t.i === 0) { Arcade.banner('CAUGHT!', item ? `the ${g.emoji} took its ball back` : `watch out for the ${g.emoji}`, '#ff2fd6'); sfx.boom(); }
+    }
+    return;
+  }
+  // return home, then nap a little
+  if (move(n.x, n.y + 40, T.speed * 0.6) < 6) { g.state = 'awake'; g.t = rnd(2, 4); }
+}
+
 /* ---------- bots ---------- */
 function think(b) {
   const home = G.bases[b.i];
   const homeSpot = { x: home.x + home.w / 2, y: home.top ? home.y + home.h - 40 : home.y + 40 };
-  if (b.mode !== 'steal') b.target = null;
+  if (b.mode !== 'steal' && b.mode !== 'raid') b.target = null;
   if (b.carry) { b.mode = 'home'; b.goal = { x: home.x + home.w / 2, y: home.y + home.h / 2 }; return; }
   const thief = G.tr.find((t) => t.carry && t.carry.from === b.i);
-  if (thief && dist(b, thief) < 800) { b.mode = 'chase'; b.goal = { x: thief.x, y: thief.y }; return; }
+  if (thief && dist(b, thief) < 900) { b.mode = 'chase'; b.goal = { x: thief.x, y: thief.y }; return; }
   const intruder = G.tr.find((t) => t !== b && !t.carry && inRect(t, home, 40));
   if (intruder && home.lockCd <= 0) {
-    if (inRect(b, home, 20)) { lock(b); } else { b.mode = 'defend'; b.goal = homeSpot; return; }
+    if (inRect(b, home, 20)) lock(b); else if (dist(b, home) < 700) { b.mode = 'defend'; b.goal = homeSpot; return; }
   }
-  // steal now and then: the best item in an unlocked base whose owner is away from it
-  if (b.mode === 'steal' && b.target && b.target.item && !G.bases[b.target.base].lockT && G.t > b.stealUntil) { b.goal = b.target; return; }
+  // keep going for the current target while it is still there
+  if (b.mode === 'steal' && b.target && b.target.item && !G.bases[b.target.base].lockT && G.t > b.giveUp) { b.goal = b.target; return; }
+  if (b.mode === 'raid' && b.target && b.target.balls.length && G.t > b.giveUp) { b.goal = b.target; return; }
+  // now and then: steal the best item of an unlocked base whose owner is away
   if (b.stealT <= 0) {
-    b.stealT = rnd(8, 16);
+    b.stealT = rnd(12, 24);
     let best = null;
     for (const base of G.bases) {
       if (base.i === b.i || base.lockT > 0) continue;
       const owner = G.tr[base.i];
-      for (const p of base.pads) if (p.item && dist(owner, p) > 170 && (!best || p.item.price > best.item.price)) best = p;
+      for (const p of base.pads) if (p.item && dist(owner, p) > 200 && (!best || p.item.price > best.item.price)) best = p;
     }
-    if (best && Math.random() < 0.8) { b.mode = 'steal'; b.target = best; b.goal = best; b.stealUntil = G.t - 14; return; }
+    if (best && best.item.price > 30 && Math.random() < 0.75) { b.mode = 'steal'; b.target = best; b.goal = best; b.giveUp = G.t - 20; return; }
   }
-  // buy the best ball we can afford that improves the base
+  // raid a wild nest: bigger rewards further out, braver as the round goes on
+  const elapsed = ROUND - G.t, maxTier = elapsed < 50 ? 0 : elapsed < 120 ? 1 : elapsed < 190 ? 2 : 3;
   const empty = home.pads.some((p) => !p.item);
   const weak = empty ? 0 : Math.min(...home.pads.map((p) => p.item.price));
-  let pickBall = null;
-  for (const ball of G.belt) {
-    const it = ball.item;
-    if (it.price > b.coins || it.price <= weak * 1.15) continue;
-    const eta = Math.hypot(ball.x - b.x, BELT_Y - b.y) / b.speed;
-    if (ball.x + BELT_SPEED * eta > W - 40) continue;
-    if (!pickBall || it.price > pickBall.item.price) pickBall = ball;
+  let best = null, score = 0;
+  for (const n of G.nests) {
+    if (!n.balls.length || n.tier > maxTier || n.balls[n.balls.length - 1].price <= weak) continue;
+    if (G.tr.some((t) => t !== b && t.target === n)) continue; // someone is already going there
+    const safe = n.guard.state === 'sleep' ? 1 : n.guard.state === 'awake' ? 0.6 : 0.2;
+    const s = n.balls[n.balls.length - 1].price * safe / (dist(b, n) + 500);
+    if (s > score) { score = s; best = n; }
   }
-  if (pickBall) {
-    const eta = Math.hypot(pickBall.x - b.x, BELT_Y - b.y) / b.speed;
-    b.mode = 'buy'; b.target = pickBall; b.goal = { x: pickBall.x + BELT_SPEED * eta * 0.9, y: BELT_Y };
-    return;
-  }
+  if (best) { b.mode = 'raid'; b.target = best; b.goal = best; b.giveUp = G.t - 35; return; }
   b.mode = 'idle'; b.target = null;
   if (!b.goal || dist(b, b.goal) < 10 || Math.random() < 0.05) b.goal = { x: homeSpot.x + rnd(-120, 120), y: homeSpot.y + (home.top ? rnd(20, 120) : rnd(-120, -20)) };
 }
@@ -226,16 +347,17 @@ function update(dt) {
   G.t -= dt;
   if (G.t <= 0) return end();
 
-  // belt
-  G.spawnT -= dt;
-  if (G.spawnT <= 0) {
-    G.spawnT = rnd(1.3, 1.9);
-    const it = newItem();
-    G.belt.push({ x: -40, item: it });
-    if (it.rar === 3) { Arcade.banner('LEGENDARY!', `a ${it.sp.n} ball is on the belt`, RAR[3].col); sfx.fanfare(); }
+  // nests refill
+  for (const n of G.nests) {
+    if (n.balls.length >= n.cap) { n.respawnT = TIERS[n.tier].respawn; continue; }
+    n.respawnT -= dt;
+    if (n.respawnT <= 0) {
+      n.respawnT = TIERS[n.tier].respawn;
+      n.balls.push(newItem(n.tier));
+      if (n.tier === 3) { Arcade.banner('LEGENDARY!', `a golden ball appeared at the ${n.guard.emoji} lair`, RAR[3].col); sfx.fanfare(); }
+    }
   }
-  for (const b of G.belt) b.x += BELT_SPEED * dt;
-  G.belt = G.belt.filter((b) => b.x < W + 40);
+  for (const n of G.nests) updateGuard(n.guard, dt);
 
   // bases: locks, hatching, income
   for (const b of G.bases) {
@@ -262,8 +384,7 @@ function update(dt) {
       t.think -= dt; t.stealT -= dt;
       if (t.think <= 0) { t.think = rnd(0.25, 0.4); think(t); }
       if (t.goal) { const dx = t.goal.x - t.x, dy = t.goal.y - t.y, d = Math.hypot(dx, dy); if (d > 6) { mx = dx / d; my = dy / d; } }
-      if (t.mode === 'buy' && t.target && G.belt.includes(t.target) && Math.hypot(t.target.x - t.x, BELT_Y - t.y) < 44) act(t);
-      if (t.mode === 'steal' && t.target && dist(t, t.target) < 40) { act(t); t.mode = 'idle'; t.target = null; }
+      if ((t.mode === 'steal' || t.mode === 'raid') && t.target && dist(t, t.target) < 40) { act(t); t.mode = 'idle'; t.target = null; }
     }
     const m = Math.hypot(mx, my);
     if (m > 1) { mx /= m; my /= m; }
@@ -277,13 +398,14 @@ function update(dt) {
     for (const b of G.bases) if (b.lockT > 0 && b.i !== t.i && inRect(t, b, 14)) pushOut(t, b);
     // carrying home: deliver
     if (t.carry && inRect(t, G.bases[t.i], -10)) {
-      const it = t.carry.item, stolen = t.carry.from >= 0;
+      const c = t.carry;
       t.carry = null;
-      const pad = place(G.bases[t.i], it);
-      if (pad) burst(pad.x, pad.y, RAR[it.rar].col, 12);
+      const pad = place(G.bases[t.i], c.item);
+      if (pad) burst(pad.x, pad.y, RAR[c.item.rar].col, 12);
       if (!t.bot) {
         sfx.coin();
-        if (stolen) { G.stolen++; Arcade.banner('STOLEN!', `${it.sp.n} is yours now`, '#7dff2f'); }
+        if (c.from >= 0) { G.stolen++; Arcade.banner('STOLEN!', `${c.item.sp.n} is yours now`, '#7dff2f'); }
+        else { G.wild++; float(t.x, t.y - 60, 'SAFE!', '#7dff2f'); }
       }
     }
   }
@@ -292,12 +414,8 @@ function update(dt) {
     if (!thief.carry || thief.carry.from < 0) continue;
     const owner = G.tr[thief.carry.from];
     if (owner.stun > 0 || dist(owner, thief) > 34) continue;
-    const it = thief.carry.item;
-    thief.carry = null; thief.stun = 1.3;
-    const a = Math.atan2(thief.y - owner.y, thief.x - owner.x);
-    thief.x = clamp(thief.x + Math.cos(a) * 50, 20, W - 20); thief.y = clamp(thief.y + Math.sin(a) * 50, 20, H - 20);
-    place(G.bases[owner.i], it);
-    burst(thief.x, thief.y, '#ffffff', 16);
+    const it = returnCarry(thief);
+    stun(thief, owner, 1.3);
     if (owner.i === 0) { G.caught++; Arcade.banner('GOT IT BACK!', `${it.sp.n} is home again`, '#7dff2f'); sfx.up(); }
     else if (thief.i === 0) { Arcade.banner('CAUGHT!', `${owner.name} took it back`, '#ff2fd6'); sfx.boom(); }
     else sfx.hit();
@@ -345,7 +463,7 @@ function end() {
   Arcade.over({
     title: place1 === 1 ? 'TOP BANDIT!' : `#${place1} PLACE`,
     lose: place1 > 1,
-    stats: `Base worth <b>${worth(me).toLocaleString()}</b> · Critters <b>${crit}</b><br>Stolen <b>${G.stolen}</b> · Saved from thieves <b>${G.caught}</b><br>` +
+    stats: `Base worth <b>${worth(me).toLocaleString()}</b> · Critters <b>${crit}</b><br>Wild balls <b>${G.wild}</b> · Stolen <b>${G.stolen}</b> · Saved <b>${G.caught}</b><br>` +
       ranks.map((r, k) => `${k + 1}. ${r.t.name} ${r.w.toLocaleString()}`).join(' &nbsp; '),
     score: worth(me),
   });
@@ -359,10 +477,10 @@ function drawBall(x, y, r, rar, t) {
   ctx.fillStyle = '#f4f0ff'; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0;
   ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, 0, r, Math.PI, 0); ctx.fill();
-  // a star stripe on top (Lolo Balls have stars, not a button)
+  // Lolo Balls have a star, not a button
   ctx.fillStyle = 'rgba(255,255,255,0.55)'; star(-r * 0.4, -r * 0.5, r * 0.22);
   ctx.fillStyle = '#2b1640'; ctx.fillRect(-r, -r * 0.12, r * 2, r * 0.24);
-  ctx.fillStyle = '#2b1640'; ctx.beginPath(); ctx.arc(0, 0, r * 0.36, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, 0, r * 0.36, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = col; star(0, 0, r * 0.24);
   ctx.strokeStyle = '#2b1640'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
   ctx.restore();
@@ -382,7 +500,6 @@ function drawCritter(sp, x, y, s, t) {
   ctx.lineWidth = 2.5; ctx.strokeStyle = '#2b1640'; ctx.lineJoin = 'round';
   if (sp.halo) { ctx.strokeStyle = '#ffe81a'; ctx.shadowColor = '#ffe81a'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.ellipse(0, -30, 14, 5, 0, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0; ctx.strokeStyle = '#2b1640'; }
   if (sp.wings) { ctx.fillStyle = dark; for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(d * 12, -4); ctx.quadraticCurveTo(d * 34, -26 + Math.sin(t * 8) * 6, d * 30, 2); ctx.quadraticCurveTo(d * 24, -2, d * 12, 6); ctx.fill(); ctx.stroke(); } }
-  // tail
   ctx.fillStyle = sp.tail === 'flame' ? '#ff7a1a' : sp.tail === 'wisp' ? 'rgba(200,160,255,0.8)' : dark;
   ctx.beginPath();
   if (sp.tail === 'bolt') { ctx.moveTo(14, 4); ctx.lineTo(26, -6); ctx.lineTo(22, 0); ctx.lineTo(32, -12); ctx.lineTo(24, 8); ctx.lineTo(28, 2); ctx.closePath(); }
@@ -391,7 +508,6 @@ function drawCritter(sp, x, y, s, t) {
   else if (sp.tail === 'flame' || sp.tail === 'wisp') { ctx.moveTo(14, 6); ctx.quadraticCurveTo(30, 0, 26 + Math.sin(t * 9) * 3, -16); ctx.quadraticCurveTo(22, 0, 14, -2); }
   else if (sp.tail === 'round') { ctx.arc(18, 6, 5, 0, Math.PI * 2); }
   if (sp.tail !== 'none') { ctx.fill(); ctx.stroke(); }
-  // ears
   ctx.fillStyle = sp.ear === 'flame' ? '#ff7a1a' : sp.ear === 'leaf' ? '#3fb84a' : sp.ear === 'horn' ? '#fff6d0' : c;
   for (const d of [-1, 1]) {
     ctx.beginPath();
@@ -404,10 +520,8 @@ function drawCritter(sp, x, y, s, t) {
     ctx.closePath(); ctx.fill(); ctx.stroke();
   }
   if (sp.horn) { ctx.fillStyle = '#fff6d0'; ctx.beginPath(); ctx.moveTo(-3, -16); ctx.lineTo(0, -32); ctx.lineTo(3, -16); ctx.closePath(); ctx.fill(); ctx.stroke(); }
-  // body
   ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(0, 0, 17, 16, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.ellipse(0, 6, 9, 7, 0, 0, Math.PI * 2); ctx.fill();
-  // face
   const blink = (t * 0.7 + x * 0.01) % 4 < 0.1;
   ctx.fillStyle = '#2b1640';
   for (const d of [-1, 1]) {
@@ -435,22 +549,51 @@ function drawTrainer(t, now) {
   ctx.fillStyle = t.col; ctx.lineWidth = 2.5;
   ctx.beginPath(); ctx.ellipse(0, -2, 11, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#ffd9b8'; ctx.beginPath(); ctx.arc(0, -18, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  // cap
   ctx.fillStyle = t.col; ctx.beginPath(); ctx.arc(0, -20, 9.5, Math.PI, 0); ctx.fill(); ctx.stroke();
   ctx.fillRect(t.face > 0 ? 0 : -14, -21, 14, 4);
   ctx.fillStyle = '#2b1640'; ctx.beginPath(); ctx.arc(t.face * 3.5, -17, 1.6, 0, Math.PI * 2); ctx.fill();
   ctx.globalAlpha = 1;
+  if (t.stun > 0) { ctx.font = '16px serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText('💫', Math.sin(now * 8) * 8, -36); }
   ctx.font = '11px Bungee, sans-serif'; ctx.textAlign = 'center';
   ctx.fillStyle = t.i === 0 ? '#fff' : t.col; ctx.fillText(t.name, 0, -34);
   ctx.restore();
   if (t.carry) drawItem(t.carry.item, t.x, t.y - 52, 1, now);
 }
 
+function drawGuard(g, now) {
+  const T = TIERS[g.nest.tier], size = 42 + g.nest.tier * 10;
+  ctx.save(); ctx.translate(g.x, g.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, size * 0.35, size * 0.45, size * 0.15, 0, 0, Math.PI * 2); ctx.fill();
+  if (g.state === 'chase') { ctx.shadowColor = '#ff2fd6'; ctx.shadowBlur = 18; }
+  const hop = g.state === 'chase' ? Math.abs(Math.sin(now * 14)) * -6 : g.state === 'sleep' ? 0 : Math.abs(Math.sin(now * 4)) * -2;
+  ctx.scale(-g.face, 1); // emoji animals face left
+  ctx.font = `${size}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#000'; // solid, or the emoji comes out see-through
+  ctx.fillText(g.emoji, 0, hop);
+  ctx.restore();
+  ctx.font = '14px Bungee, sans-serif'; ctx.textAlign = 'center';
+  if (g.state === 'sleep') { ctx.fillStyle = '#b8f8ff'; ctx.fillText('z', g.x + 16 + Math.sin(now * 2) * 3, g.y - size * 0.6 - (now * 12) % 10); ctx.fillText('Z', g.x + 26, g.y - size * 0.8 - (now * 12 + 5) % 10); }
+  else if (g.state === 'chase' || g.state === 'alarm') {
+    ctx.font = '22px Bungee, sans-serif'; ctx.fillStyle = '#ff2fd6'; ctx.fillText('!', g.x, g.y - size * 0.75 + Math.sin(now * 20) * 2);
+  }
+  // the area an awake guard watches
+  if (g.state === 'awake' && T.notice) {
+    ctx.strokeStyle = 'rgba(255,47,214,0.25)'; ctx.setLineDash([6, 8]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(g.x, g.y, T.notice, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+function drawNest(n, now) {
+  ctx.fillStyle = '#5a3a1e'; ctx.strokeStyle = '#8a5a2e'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(n.x, n.y + 10, 40, 16, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  for (let k = 0; k < 6; k++) { const a = k * 1.05; ctx.beginPath(); ctx.moveTo(n.x + Math.cos(a) * 30, n.y + 10 + Math.sin(a) * 10); ctx.lineTo(n.x + Math.cos(a + 0.8) * 42, n.y + 6 + Math.sin(a + 0.8) * 14); ctx.stroke(); }
+  n.balls.forEach((it, k) => drawBall(n.x + (k - (n.balls.length - 1) / 2) * 28, n.y, 14, it.rar, now * 2 + it.wob));
+  if (n.tier === 3) { ctx.font = '12px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = RAR[3].col; ctx.fillText('LEGENDARY LAIR', n.x, n.y + 48); }
+}
+
 function drawBase(b, now) {
   const owner = G.tr[b.i], col = owner.col;
-  ctx.fillStyle = 'rgba(30,10,60,0.85)'; ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.fillStyle = 'rgba(30,10,60,0.92)'; ctx.fillRect(b.x, b.y, b.w, b.h);
   ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.globalAlpha = 0.85;
-  // fence with a door facing the belt
   const dy = b.top ? b.y + b.h : b.y, gy = b.top ? b.y : b.y + b.h, door = 110, mid = b.x + b.w / 2;
   ctx.beginPath();
   ctx.moveTo(b.x, dy); ctx.lineTo(b.x, gy); ctx.lineTo(b.x + b.w, gy); ctx.lineTo(b.x + b.w, dy);
@@ -472,30 +615,61 @@ function drawBase(b, now) {
     ctx.setLineDash([14, 8]); ctx.lineDashOffset = -now * 60; ctx.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
     ctx.setLineDash([]); ctx.shadowBlur = 0;
     ctx.font = '14px Bungee, sans-serif'; ctx.fillStyle = '#19f7ff';
-    ctx.fillText(`LOCKED ${Math.ceil(b.lockT)}`, mid, b.top ? b.y + b.h + 26 : b.y - 14);
+    ctx.fillText(`LOCKED ${Math.ceil(b.lockT)}`, mid, b.top ? b.y - 14 : b.y + b.h + 26);
   }
 }
 
-function drawBelt(now) {
-  const y = BELT_Y - BELT_H / 2;
-  ctx.fillStyle = '#25163a'; ctx.fillRect(0, y, W, BELT_H);
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
-  const off = (now * BELT_SPEED) % 60;
-  for (let x = -60 + off; x < W; x += 60) ctx.fillRect(x, y + 6, 26, BELT_H - 12);
-  ctx.fillStyle = '#ff7a1a'; ctx.fillRect(0, y - 6, W, 6); ctx.fillRect(0, y + BELT_H, W, 6);
-  for (const b of G.belt) {
-    drawBall(b.x, BELT_Y - 6, 17, b.item.rar, now * 3 + b.item.wob);
-    ctx.font = '12px Bungee, sans-serif'; ctx.textAlign = 'center';
-    ctx.fillStyle = G.tr[0].coins >= b.item.price ? '#ffd23f' : '#9a8ab8';
-    ctx.fillText(b.item.price, b.x, BELT_Y + 32);
+function drawGround() {
+  // outer biomes: four triangles from the middle, then forest, meadow and plaza rings
+  const tri = (ax, ay, bx, by, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(CX, CY); ctx.lineTo(ax, ay); ctx.lineTo(bx, by); ctx.closePath(); ctx.fill(); };
+  tri(0, 0, W, 0, BIOMES.top.col); tri(W, 0, W, H, BIOMES.right.col); tri(W, H, 0, H, BIOMES.bottom.col); tri(0, H, 0, 0, BIOMES.left.col);
+  const ring = (r, col, edge) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(CX, CY, r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = edge; ctx.lineWidth = 6; ctx.stroke(); };
+  ring(RINGS.forest, '#123a24', 'rgba(125,255,47,0.25)');
+  ring(RINGS.meadow, '#1f5230', 'rgba(125,255,47,0.35)');
+  ring(RINGS.plaza, '#241040', 'rgba(25,247,255,0.5)');
+  ctx.strokeStyle = 'rgba(180,76,255,0.15)'; ctx.lineWidth = 2;
+  for (let x = CX - RINGS.plaza; x <= CX + RINGS.plaza; x += 80) { const h = Math.sqrt(Math.max(0, RINGS.plaza ** 2 - (x - CX) ** 2)); ctx.beginPath(); ctx.moveTo(x, CY - h); ctx.lineTo(x, CY + h); ctx.stroke(); }
+  for (let y = CY - RINGS.plaza; y <= CY + RINGS.plaza; y += 80) { const w = Math.sqrt(Math.max(0, RINGS.plaza ** 2 - (y - CY) ** 2)); ctx.beginPath(); ctx.moveTo(CX - w, y); ctx.lineTo(CX + w, y); ctx.stroke(); }
+  ctx.strokeStyle = '#ff2fd6'; ctx.lineWidth = 8; ctx.strokeRect(4, 4, W - 8, H - 8);
+  ctx.font = '40px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillText(BIOMES.top.name, CX, 220); ctx.fillText(BIOMES.bottom.name, CX, H - 200);
+  ctx.fillText(BIOMES.left.name, 260, CY); ctx.fillText(BIOMES.right.name, W - 260, CY);
+}
+
+function drawMinimap(me) {
+  const size = Math.min(170, Math.round(Math.min(view.w, view.h) * 0.3)), m = size / W;
+  const x0 = 12, y0 = 62;
+  ctx.save(); ctx.translate(x0, y0);
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = 'rgba(10,0,25,0.8)'; ctx.fillRect(-3, -3, size + 6, size + 6);
+  ctx.scale(m, m);
+  const tri = (ax, ay, bx, by, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(CX, CY); ctx.lineTo(ax, ay); ctx.lineTo(bx, by); ctx.closePath(); ctx.fill(); };
+  tri(0, 0, W, 0, BIOMES.top.col); tri(W, 0, W, H, BIOMES.right.col); tri(W, H, 0, H, BIOMES.bottom.col); tri(0, H, 0, 0, BIOMES.left.col);
+  for (const [r, c] of [[RINGS.forest, '#123a24'], [RINGS.meadow, '#1f5230'], [RINGS.plaza, '#241040']]) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(CX, CY, r, 0, Math.PI * 2); ctx.fill(); }
+  for (const b of G.bases) { ctx.fillStyle = G.tr[b.i].col; ctx.fillRect(b.x, b.y, b.w, b.h); }
+  ctx.globalAlpha = 1;
+  for (const n of G.nests) {
+    if (!n.balls.length) continue;
+    ctx.fillStyle = RAR[Math.max(...n.balls.map((it) => it.rar))].col;
+    ctx.beginPath(); ctx.arc(n.x, n.y, n.tier === 3 ? 90 : 60, 0, Math.PI * 2); ctx.fill();
   }
+  for (const n of G.nests) if (n.guard.state === 'chase') { ctx.fillStyle = '#ff2fd6'; ctx.fillRect(n.guard.x - 40, n.guard.y - 40, 80, 80); }
+  for (const t of G.tr) {
+    if (t.i === 0) continue;
+    ctx.fillStyle = t.carry && t.carry.from === 0 ? '#ff2fd6' : t.col;
+    ctx.beginPath(); ctx.arc(t.x, t.y, t.carry && t.carry.from === 0 ? 90 : 55, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#19f7ff'; ctx.lineWidth = 30;
+  ctx.beginPath(); ctx.arc(me.x, me.y, 80, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(25,247,255,0.6)'; ctx.lineWidth = 2; ctx.strokeRect(x0 - 3, y0 - 3, size + 6, size + 6);
 }
 
 function arrowTo(p, cam, z, col, label) {
   const sx = (p.x - cam.x) * z + view.w / 2, sy = (p.y - cam.y) * z + view.h / 2;
   if (sx > 30 && sx < view.w - 30 && sy > 30 && sy < view.h - 30) return;
   const a = Math.atan2(sy - view.h / 2, sx - view.w / 2);
-  const ex = clamp(view.w / 2 + Math.cos(a) * view.w, 36, view.w - 36), ey = clamp(view.h / 2 + Math.sin(a) * view.h, 190, view.h - 36); // below the HUD and leaderboard
+  const ex = clamp(view.w / 2 + Math.cos(a) * view.w, 36, view.w - 36), ey = clamp(view.h / 2 + Math.sin(a) * view.h, 250, view.h - 36); // below the HUD, minimap and leaderboard
   ctx.save(); ctx.translate(ex, ey); ctx.rotate(a);
   ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 12;
   ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-10, -11); ctx.lineTo(-10, 11); ctx.closePath(); ctx.fill();
@@ -511,29 +685,33 @@ function draw() {
   const me = G.tr[0];
   const z = clamp(Math.max(view.w, view.h) / 1150, 0.55, 1.25);
   const cam = { x: clamp(me.x, view.w / 2 / z, W - view.w / 2 / z), y: clamp(me.y, view.h / 2 / z, H - view.h / 2 / z) };
-  if (view.w / z > W) cam.x = W / 2;
-  if (view.h / z > H) cam.y = H / 2;
+  const vis = (x, y, m = 80) => Math.abs(x - cam.x) < view.w / 2 / z + m && Math.abs(y - cam.y) < view.h / 2 / z + m;
   ctx.save();
   ctx.translate(view.w / 2, view.h / 2); ctx.scale(z, z); ctx.translate(-cam.x, -cam.y);
-  // ground
-  ctx.fillStyle = '#1b0b33'; ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = 'rgba(180,76,255,0.12)'; ctx.lineWidth = 2;
-  for (let x = 0; x <= W; x += 100) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-  for (let y = 0; y <= H; y += 100) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-  ctx.strokeStyle = '#ff2fd6'; ctx.lineWidth = 6; ctx.strokeRect(3, 3, W - 6, H - 6);
-  drawBelt(now);
+  drawGround();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#000'; // emoji take the fill colour's transparency: keep it solid
+  for (const d of G.decor) if (vis(d.x, d.y)) { ctx.font = `${d.s}px serif`; ctx.fillText(d.e, d.x, d.y); }
+  ctx.textBaseline = 'alphabetic';
+  for (const n of G.nests) if (vis(n.x, n.y, 120)) drawNest(n, now);
   for (const b of G.bases) drawBase(b, now);
   // prompt over what the player can grab
-  if (!me.carry && !G.over) {
+  if (!me.carry && !G.over && me.stun <= 0) {
     let hint = null;
-    for (const b of G.belt) if (Math.hypot(b.x - me.x, BELT_Y - me.y) < 64) { hint = { x: b.x, y: BELT_Y - 40, t: me.coins >= b.item.price ? `BUY ${b.item.price}` : `NEED ${b.item.price}`, c: RAR[b.item.rar].col }; break; }
+    for (const n of G.nests) if (n.balls.length && dist(n, me) < 64) {
+      const top = n.balls[n.balls.length - 1];
+      hint = { x: n.x, y: n.y - 40, t: n.guard.state === 'sleep' ? `GRAB ${RAR[top.rar].name}` : 'GRAB… IT SEES YOU!', c: n.guard.state === 'sleep' ? RAR[top.rar].col : '#ff2fd6' };
+      break;
+    }
     if (!hint) for (const b of G.bases) if (b.i !== 0 && inRect(me, b)) for (const p of b.pads) if (p.item && dist(p, me) < 60) { hint = { x: p.x, y: p.y - 40, t: 'STEAL!', c: '#ff2fd6' }; break; }
     if (hint) {
       ctx.font = '13px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = hint.c; ctx.shadowColor = hint.c; ctx.shadowBlur = 10;
       ctx.fillText((Arcade.touch ? '' : 'SPACE: ') + hint.t, hint.x, hint.y - Math.abs(Math.sin(now * 5)) * 5); ctx.shadowBlur = 0;
     }
   }
-  for (const t of [...G.tr].sort((a, b) => a.y - b.y)) drawTrainer(t, now);
+  const actors = G.tr.map((t) => ({ y: t.y, d: () => drawTrainer(t, now) }));
+  for (const n of G.nests) if (vis(n.guard.x, n.guard.y, 200)) actors.push({ y: n.guard.y, d: () => drawGuard(n.guard, now) });
+  actors.sort((a, b) => a.y - b.y).forEach((a) => a.d());
   for (const f of G.fx) { ctx.globalAlpha = Math.min(1, f.life * 2); ctx.fillStyle = f.col; ctx.fillRect(f.x - 3, f.y - 3, 6, 6); }
   ctx.globalAlpha = 1;
   for (const f of G.floats) { ctx.globalAlpha = Math.min(1, f.life * 1.5); ctx.font = '15px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, f.y); }
@@ -543,7 +721,7 @@ function draw() {
   const home = G.bases[0];
   if (me.carry) arrowTo({ x: home.x + home.w / 2, y: home.y + home.h / 2 }, cam, z, '#19f7ff', 'HOME');
   for (const t of G.tr) if (t.carry && t.carry.from === 0) arrowTo(t, cam, z, '#ff2fd6', 'THIEF');
-  // touch joystick
+  drawMinimap(me);
   if (joy.on) {
     ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(joy.ox, joy.oy, 50, 0, Math.PI * 2); ctx.stroke();
@@ -572,9 +750,9 @@ $('lockBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); if (pl
 Arcade.init({
   id: 'lolomon',
   logo: ['BALL', 'BANDITS'],
-  tag: 'Buy Lolo Balls on the belt and carry them home: they hatch into critters that make coins. Sneak into rival bases to steal theirs, chase thieves to get yours back, and lock your base when bandits come. Richest base after 4 minutes wins!',
-  helpDesk: '<b>WASD</b> / <b>arrows</b> move · <b>Space</b> buy or steal · <b>L</b> lock your base (stand in it)',
-  helpTouch: '<b>Drag</b> to move · <b>GRAB</b> buys or steals · <b>LOCK</b> locks your base (stand in it)',
+  tag: 'Explore a big wild world! Lolo Balls sit in nests guarded by wild animals: grab one (best while the guard naps) and run home before it catches you. Balls hatch into critters that make coins. Steal from rival bases, chase thieves, lock your base. Richest base after 5 minutes wins!',
+  helpDesk: '<b>WASD</b> / <b>arrows</b> move · <b>Space</b> grab or steal · <b>L</b> lock your base (stand in it)',
+  helpTouch: '<b>Drag</b> to move · <b>GRAB</b> grabs or steals · <b>LOCK</b> locks your base (stand in it)',
   quitNote: 'This round will end.',
   start,
   playing,
