@@ -1,5 +1,5 @@
 {
-  "version": "f8deed8261c2",
+  "version": "d378de227402",
   "files": [
     "about.html",
     "ads.txt",
@@ -83,6 +83,9 @@
     "play/lolomerge/about.html",
     "play/lolomerge/index.html",
     "play/lolomerge/",
+    "play/lolomon/about.html",
+    "play/lolomon/index.html",
+    "play/lolomon/",
     "play/loloslice/about.html",
     "play/loloslice/index.html",
     "play/loloslice/",

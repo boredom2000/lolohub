@@ -113,6 +113,8 @@
       "blurb": "Steer your runners through the best math gate: +10 or ×2? Grow a huge crowd, smash the red team and beat the giant!" },
     { "id": "loloblocks", "name": "BLOCK BOOM", "emoji": "🧱", "colors": ["#ff7a1a", "#7dff2f"], "price": 8, "round": "one board, about 5 min",
       "blurb": "Drag the blocks onto the board. Fill a row or a column and BOOM, it explodes! Chain clears for giant combos." },
+    { "id": "lolomon", "name": "BALL BANDITS", "emoji": "🐾", "colors": ["#ffd23f", "#ff2fd6"], "price": 10, "round": "one 4-min round",
+      "blurb": "Buy Lolo Balls on the belt, hatch cute critters that make coins, and sneak into rival bases to steal theirs. Lock your base before the bandits come!" },
     { "id": "lolosnake", "name": "WIGGLE.IO", "emoji": "🐍", "colors": ["#ff2fd6", "#7dff2f"], "price": 8, "round": "one 3-min arena",
       "blurb": "Be the biggest snake in the neon arena! Eat glowing dots, boost to cut off rivals and gobble what they leave behind." },
     { "id": "lolocastle", "name": "CASTLE", "emoji": "🏰", "colors": ["#ff7a1a", "#ffe81a"], "price": 12, "round": "one battle, 5-15 min",

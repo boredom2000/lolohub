@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#12001f">
+  <title>Ball Bandits</title>
+  <link rel="icon" href="../../icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Orbitron:wght@500;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../core/arcade.css">
+  <script src="../../core/ads.js"></script>
+  <script src="../../core/wallet.js"></script>
+  <script src="../../core/arcade.js"></script>
+  <style>
+    .arc-hud, #board, .tbtn { display: none; }
+    body.playing .arc-hud, body.playing #board { display: flex; }
+    body.playing.touch .tbtn { display: block; }
+    #board {
+      position: fixed; z-index: 10; right: calc(12px + env(safe-area-inset-right)); top: calc(72px + env(safe-area-inset-top)); flex-direction: column; gap: 2px;
+      font-size: 12px; min-width: 160px; padding: 8px 10px; border-radius: 12px; background: rgba(20, 0, 45, 0.6); border: 1px solid rgba(25, 247, 255, 0.4); pointer-events: none;
+    }
+    #board div { display: flex; justify-content: space-between; gap: 10px; color: #d8c8ff; }
+    #board div i { font-style: normal; }
+    #board div.me { color: var(--yellow); text-shadow: 0 0 8px var(--orange); }
+    #board b { font-family: 'Bungee', sans-serif; font-weight: 400; color: var(--cyan); font-size: 11px; letter-spacing: 1px; margin-bottom: 2px; }
+    .tbtn {
+      position: fixed; z-index: 11; right: calc(18px + env(safe-area-inset-right)); border-radius: 50%; color: #fff; font-family: 'Bungee', sans-serif; touch-action: none;
+    }
+    #grabBtn { bottom: calc(22px + env(safe-area-inset-bottom)); width: 96px; height: 96px; font-size: 17px; border: 3px solid var(--yellow); background: rgba(255, 232, 26, 0.22); box-shadow: 0 0 20px var(--orange); }
+    #lockBtn { bottom: calc(132px + env(safe-area-inset-bottom)); width: 72px; height: 72px; font-size: 13px; border: 3px solid var(--cyan); background: rgba(25, 247, 255, 0.2); box-shadow: 0 0 16px var(--cyan); }
+    #lockBtn.off { opacity: 0.35; }
+    .tbtn:active { transform: scale(0.93); }
+    .arc-hud { gap: 26px; }
+    @media (max-width: 560px) { .arc-hud { gap: 20px; } #board { min-width: 128px; font-size: 10px; top: calc(64px + env(safe-area-inset-top)); } }
+  </style>
+</head>
+<body>
+  <div class="arc-hud">
+    <div class="arc-stat" id="sTime"><small>TIME</small><span>4:00</span></div>
+    <div class="arc-stat" id="sCoins"><small>COINS</small><span>0</span></div>
+  </div>
+  <div id="board"></div>
+  <button class="tbtn" id="lockBtn">LOCK</button>
+  <button class="tbtn" id="grabBtn">GRAB</button>
+<script>
+'use strict';
+// Ball Bandits: buy Lolo Balls on the belt, carry them home, they hatch into critters that make coins.
+// Sneak into rival bases to steal theirs; catch thieves to get yours back; lock your base for a while.
+// After ROUND seconds the richest base (critters + coins) wins. All creatures are original, drawn in code.
+const { rnd, irnd, pick, clamp, sfx } = Arcade;
+const W = 1800, H = 1300, BELT_Y = 650, BELT_H = 100, BELT_SPEED = 72, ROUND = 240;
+const BASE_W = 380, BASE_H = 260, LOCK_TIME = 15, LOCK_CD = 40, SPEED = 235, CARRY = 0.66;
+const view = Arcade.canvas();
+const ctx = view.ctx;
+const $ = (id) => document.getElementById(id);
+
+const RAR = [
+  { name: 'COMMON', col: '#7dff2f', p: 0.6, price: [15, 35], inc: [1, 2], hatch: 5 },
+  { name: 'RARE', col: '#19f7ff', p: 0.27, price: [70, 130], inc: [4, 7], hatch: 8 },
+  { name: 'EPIC', col: '#b44cff', p: 0.1, price: [260, 420], inc: [13, 20], hatch: 11 },
+  { name: 'LEGENDARY', col: '#ffd23f', p: 0.03, price: [900, 1300], inc: [45, 65], hatch: 15 },
+];
+const SPECIES = [
+  [{ n: 'Sparkit', c: '#ffe14a', ear: 'pointy', tail: 'bolt' }, { n: 'Leaflet', c: '#6fdc5a', ear: 'leaf', tail: 'leaf' },
+    { n: 'Bubbit', c: '#5ab8ff', ear: 'fin', tail: 'round' }, { n: 'Embit', c: '#ff8a3a', ear: 'flame', tail: 'flame' },
+    { n: 'Pebblo', c: '#b0a8c4', ear: 'round', tail: 'none' }],
+  [{ n: 'Frostail', c: '#c4f4ff', ear: 'pointy', tail: 'fluff' }, { n: 'Thornix', c: '#2f9e57', ear: 'horn', tail: 'leaf' },
+    { n: 'Voltoad', c: '#c8f03a', ear: 'round', tail: 'bolt' }],
+  [{ n: 'Blazewing', c: '#ff5040', ear: 'flame', tail: 'flame', wings: true }, { n: 'Aquadra', c: '#2fd6c0', ear: 'fin', tail: 'fluff', horn: true },
+    { n: 'Shadowisp', c: '#8a4cff', ear: 'pointy', tail: 'wisp' }],
+  [{ n: 'Starlune', c: '#fff1a8', ear: 'pointy', tail: 'fluff', horn: true, halo: true }, { n: 'Dracoray', c: '#ff4fd8', ear: 'horn', tail: 'wisp', wings: true }],
+];
+const PLAYERS = [
+  { name: 'YOU', col: '#19f7ff' }, { name: 'Rex', col: '#ff2fd6' }, { name: 'Mika', col: '#ffe81a' }, { name: 'Juno', col: '#7dff2f' },
+];
+
+let G = null;
+const keys = {};
+const joy = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const inRect = (p, r, m = 0) => p.x > r.x - m && p.x < r.x + r.w + m && p.y > r.y - m && p.y < r.y + r.h + m;
+
+function newItem() {
+  let r = 0, roll = Math.random();
+  while (r < RAR.length - 1 && roll > RAR[r].p) { roll -= RAR[r].p; r++; }
+  const R = RAR[r], k = Math.random();
+  const price = Math.round((R.price[0] + (R.price[1] - R.price[0]) * k) / 5) * 5;
+  return { rar: r, sp: pick(SPECIES[r]), price, inc: +(R.inc[0] + (R.inc[1] - R.inc[0]) * k).toFixed(1), hatch: R.hatch, wob: rnd(0, 6) };
+}
+
+// bases in the four corners (you: bottom-left), each with 8 pads and a door facing the belt
+function makeBase(i) {
+  const corners = [[90, H - BASE_H - 90], [W - BASE_W - 90, H - BASE_H - 90], [90, 90], [W - BASE_W - 90, 90]];
+  const [x, y] = corners[i];
+  const b = { i, x, y, w: BASE_W, h: BASE_H, top: y < BELT_Y, lockT: 0, lockCd: 0, pads: [] };
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) b.pads.push({ base: i, x: x + 62 + c * 85, y: y + (b.top ? 70 : 90) + r * 100, item: null });
+  return b;
+}
+
+function start() {
+  G = { t: ROUND, belt: [], spawnT: 0.2, fx: [], floats: [], over: false, alertT: 0, stolen: 0, caught: 0 };
+  G.bases = [0, 1, 2, 3].map(makeBase);
+  G.tr = PLAYERS.map((p, i) => {
+    const b = G.bases[i];
+    return { i, name: p.name, col: p.col, x: b.x + b.w / 2, y: b.top ? b.y + b.h - 30 : b.y + 30, coins: 60, carry: null, stun: 0,
+      bot: i > 0, goal: null, think: rnd(0, 0.3), stealT: rnd(8, 16), mode: 'idle', target: null, face: 1, step: 0,
+      speed: i > 0 ? SPEED * rnd(0.84, 0.9) : SPEED };
+  });
+  for (let k = 0; k < 14; k++) G.belt.push({ x: k * 130 + rnd(0, 40), item: newItem() });
+  G.belt.forEach((b) => { if (b.item.rar === 3) b.item = newItem(); });
+  document.body.classList.add('playing');
+  Arcade.banner('BALL BANDITS', 'BUY · HATCH · STEAL!');
+  sfx.up();
+}
+
+/* ---------- items in bases ---------- */
+const value = (b) => b.pads.reduce((s, p) => s + (p.item ? p.item.price : 0), 0);
+const worth = (t) => value(G.bases[t.i]) + Math.floor(t.coins);
+// put an item in a base: empty pad, else replace the weakest if better (sold for half), else sell it for half
+function place(b, item) {
+  const owner = G.tr[b.i];
+  let pad = b.pads.find((p) => !p.item);
+  if (!pad) {
+    const weak = b.pads.reduce((a, p) => (p.item.price < a.item.price ? p : a));
+    if (weak.item.price >= item.price) { sell(owner, item, weak); return null; }
+    sell(owner, weak.item, weak);
+    pad = weak;
+  }
+  pad.item = item;
+  return pad;
+}
+function sell(owner, item, at) {
+  const gain = Math.round(item.price / 2);
+  owner.coins += gain;
+  float(at.x, at.y - 30, `SOLD +${gain}`, '#ffd23f');
+}
+
+/* ---------- actions ---------- */
+function act(t) {
+  if (t.carry || t.stun > 0) return false;
+  // buy from the belt
+  let best = null, bd = t.bot ? 46 : 64;
+  for (const b of G.belt) { const d = Math.hypot(b.x - t.x, BELT_Y - t.y); if (d < bd) { bd = d; best = b; } }
+  if (best) {
+    if (t.coins < best.item.price) { if (!t.bot) { float(t.x, t.y - 50, `NEED ${best.item.price}`, '#ff2fd6'); sfx.hit(); } return false; }
+    t.coins -= best.item.price;
+    t.carry = { item: best.item, from: -1 };
+    G.belt.splice(G.belt.indexOf(best), 1);
+    if (!t.bot) { sfx.coin(); float(t.x, t.y - 50, `-${best.item.price}`, '#ffd23f'); }
+    return true;
+  }
+  // steal from a rival base
+  for (const b of G.bases) {
+    if (b.i === t.i || !inRect(t, b)) continue;
+    let pad = null, pd = t.bot ? 44 : 60;
+    for (const p of b.pads) { const d = dist(p, t); if (p.item && d < pd) { pd = d; pad = p; } }
+    if (!pad) return false;
+    t.carry = { item: pad.item, from: b.i };
+    pad.item = null;
+    sfx.pop(1.4);
+    if (b.i === 0) { Arcade.banner('THIEF!', `${t.name} grabbed your ${t.carry.item.sp.n}`, '#ff2fd6'); sfx.lose(); }
+    return true;
+  }
+  return false;
+}
+
+function lock(t) {
+  const b = G.bases[t.i];
+  if (b.lockCd > 0 || !inRect(t, b, 20)) return false;
+  b.lockT = LOCK_TIME; b.lockCd = LOCK_CD;
+  sfx.arp([300, 600, 900], 0.05, 'sawtooth', 0.1);
+  if (!t.bot) float(t.x, t.y - 50, 'LOCKED!', '#19f7ff');
+  return true;
+}
+
+/* ---------- bots ---------- */
+function think(b) {
+  const home = G.bases[b.i];
+  const homeSpot = { x: home.x + home.w / 2, y: home.top ? home.y + home.h - 40 : home.y + 40 };
+  if (b.mode !== 'steal') b.target = null;
+  if (b.carry) { b.mode = 'home'; b.goal = { x: home.x + home.w / 2, y: home.y + home.h / 2 }; return; }
+  const thief = G.tr.find((t) => t.carry && t.carry.from === b.i);
+  if (thief && dist(b, thief) < 800) { b.mode = 'chase'; b.goal = { x: thief.x, y: thief.y }; return; }
+  const intruder = G.tr.find((t) => t !== b && !t.carry && inRect(t, home, 40));
+  if (intruder && home.lockCd <= 0) {
+    if (inRect(b, home, 20)) { lock(b); } else { b.mode = 'defend'; b.goal = homeSpot; return; }
+  }
+  // steal now and then: the best item in an unlocked base whose owner is away from it
+  if (b.mode === 'steal' && b.target && b.target.item && !G.bases[b.target.base].lockT && G.t > b.stealUntil) { b.goal = b.target; return; }
+  if (b.stealT <= 0) {
+    b.stealT = rnd(8, 16);
+    let best = null;
+    for (const base of G.bases) {
+      if (base.i === b.i || base.lockT > 0) continue;
+      const owner = G.tr[base.i];
+      for (const p of base.pads) if (p.item && dist(owner, p) > 170 && (!best || p.item.price > best.item.price)) best = p;
+    }
+    if (best && Math.random() < 0.8) { b.mode = 'steal'; b.target = best; b.goal = best; b.stealUntil = G.t - 14; return; }
+  }
+  // buy the best ball we can afford that improves the base
+  const empty = home.pads.some((p) => !p.item);
+  const weak = empty ? 0 : Math.min(...home.pads.map((p) => p.item.price));
+  let pickBall = null;
+  for (const ball of G.belt) {
+    const it = ball.item;
+    if (it.price > b.coins || it.price <= weak * 1.15) continue;
+    const eta = Math.hypot(ball.x - b.x, BELT_Y - b.y) / b.speed;
+    if (ball.x + BELT_SPEED * eta > W - 40) continue;
+    if (!pickBall || it.price > pickBall.item.price) pickBall = ball;
+  }
+  if (pickBall) {
+    const eta = Math.hypot(pickBall.x - b.x, BELT_Y - b.y) / b.speed;
+    b.mode = 'buy'; b.target = pickBall; b.goal = { x: pickBall.x + BELT_SPEED * eta * 0.9, y: BELT_Y };
+    return;
+  }
+  b.mode = 'idle'; b.target = null;
+  if (!b.goal || dist(b, b.goal) < 10 || Math.random() < 0.05) b.goal = { x: homeSpot.x + rnd(-120, 120), y: homeSpot.y + (home.top ? rnd(20, 120) : rnd(-120, -20)) };
+}
+
+/* ---------- update ---------- */
+function update(dt) {
+  if (!G || G.over) return;
+  G.t -= dt;
+  if (G.t <= 0) return end();
+
+  // belt
+  G.spawnT -= dt;
+  if (G.spawnT <= 0) {
+    G.spawnT = rnd(1.3, 1.9);
+    const it = newItem();
+    G.belt.push({ x: -40, item: it });
+    if (it.rar === 3) { Arcade.banner('LEGENDARY!', `a ${it.sp.n} ball is on the belt`, RAR[3].col); sfx.fanfare(); }
+  }
+  for (const b of G.belt) b.x += BELT_SPEED * dt;
+  G.belt = G.belt.filter((b) => b.x < W + 40);
+
+  // bases: locks, hatching, income
+  for (const b of G.bases) {
+    b.lockT = Math.max(0, b.lockT - dt); b.lockCd = Math.max(0, b.lockCd - dt);
+    const owner = G.tr[b.i];
+    for (const p of b.pads) {
+      const it = p.item; if (!it) continue;
+      if (it.hatch > 0) {
+        it.hatch -= dt;
+        if (it.hatch <= 0) { burst(p.x, p.y, RAR[it.rar].col, 22); if (b.i === 0) { sfx.up(); float(p.x, p.y - 40, `${it.sp.n}!`, RAR[it.rar].col); } }
+      } else owner.coins += it.inc * dt;
+    }
+  }
+
+  // move trainers
+  for (const t of G.tr) {
+    t.stun = Math.max(0, t.stun - dt);
+    let mx = 0, my = 0;
+    if (!t.bot) {
+      if (keys.ArrowLeft || keys.KeyA) mx -= 1; if (keys.ArrowRight || keys.KeyD) mx += 1;
+      if (keys.ArrowUp || keys.KeyW) my -= 1; if (keys.ArrowDown || keys.KeyS) my += 1;
+      if (joy.on) { const dx = joy.x - joy.ox, dy = joy.y - joy.oy, d = Math.hypot(dx, dy); if (d > 8) { mx = dx / Math.max(d, 45); my = dy / Math.max(d, 45); } }
+    } else {
+      t.think -= dt; t.stealT -= dt;
+      if (t.think <= 0) { t.think = rnd(0.25, 0.4); think(t); }
+      if (t.goal) { const dx = t.goal.x - t.x, dy = t.goal.y - t.y, d = Math.hypot(dx, dy); if (d > 6) { mx = dx / d; my = dy / d; } }
+      if (t.mode === 'buy' && t.target && G.belt.includes(t.target) && Math.hypot(t.target.x - t.x, BELT_Y - t.y) < 44) act(t);
+      if (t.mode === 'steal' && t.target && dist(t, t.target) < 40) { act(t); t.mode = 'idle'; t.target = null; }
+    }
+    const m = Math.hypot(mx, my);
+    if (m > 1) { mx /= m; my /= m; }
+    if (t.stun > 0) mx = my = 0;
+    const sp = t.speed * (t.carry ? CARRY : 1);
+    t.x = clamp(t.x + mx * sp * dt, 20, W - 20);
+    t.y = clamp(t.y + my * sp * dt, 20, H - 20);
+    if (mx) t.face = mx > 0 ? 1 : -1;
+    t.step += Math.hypot(mx, my) * dt * 10;
+    // locked bases push out everyone but the owner
+    for (const b of G.bases) if (b.lockT > 0 && b.i !== t.i && inRect(t, b, 14)) pushOut(t, b);
+    // carrying home: deliver
+    if (t.carry && inRect(t, G.bases[t.i], -10)) {
+      const it = t.carry.item, stolen = t.carry.from >= 0;
+      t.carry = null;
+      const pad = place(G.bases[t.i], it);
+      if (pad) burst(pad.x, pad.y, RAR[it.rar].col, 12);
+      if (!t.bot) {
+        sfx.coin();
+        if (stolen) { G.stolen++; Arcade.banner('STOLEN!', `${it.sp.n} is yours now`, '#7dff2f'); }
+      }
+    }
+  }
+  // owners catch thieves carrying their stuff
+  for (const thief of G.tr) {
+    if (!thief.carry || thief.carry.from < 0) continue;
+    const owner = G.tr[thief.carry.from];
+    if (owner.stun > 0 || dist(owner, thief) > 34) continue;
+    const it = thief.carry.item;
+    thief.carry = null; thief.stun = 1.3;
+    const a = Math.atan2(thief.y - owner.y, thief.x - owner.x);
+    thief.x = clamp(thief.x + Math.cos(a) * 50, 20, W - 20); thief.y = clamp(thief.y + Math.sin(a) * 50, 20, H - 20);
+    place(G.bases[owner.i], it);
+    burst(thief.x, thief.y, '#ffffff', 16);
+    if (owner.i === 0) { G.caught++; Arcade.banner('GOT IT BACK!', `${it.sp.n} is home again`, '#7dff2f'); sfx.up(); }
+    else if (thief.i === 0) { Arcade.banner('CAUGHT!', `${owner.name} took it back`, '#ff2fd6'); sfx.boom(); }
+    else sfx.hit();
+  }
+  // light bumping between trainers
+  for (let a = 0; a < G.tr.length; a++) for (let b = a + 1; b < G.tr.length; b++) {
+    const A = G.tr[a], B = G.tr[b], d = dist(A, B);
+    if (d > 0 && d < 28) { const push = (28 - d) / 2, nx = (B.x - A.x) / d, ny = (B.y - A.y) / d; A.x -= nx * push; A.y -= ny * push; B.x += nx * push; B.y += ny * push; }
+  }
+
+  for (const f of G.fx) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.92; f.vy *= 0.92; f.life -= dt; }
+  G.fx = G.fx.filter((f) => f.life > 0);
+  for (const f of G.floats) { f.y -= 40 * dt; f.life -= dt; }
+  G.floats = G.floats.filter((f) => f.life > 0);
+  hud();
+}
+
+function pushOut(t, b) {
+  const l = t.x - (b.x - 14), r = b.x + b.w + 14 - t.x, u = t.y - (b.y - 14), d = b.y + b.h + 14 - t.y, m = Math.min(l, r, u, d);
+  if (m === l) t.x = b.x - 15; else if (m === r) t.x = b.x + b.w + 15; else if (m === u) t.y = b.y - 15; else t.y = b.y + b.h + 15;
+}
+function burst(x, y, col, n) { for (let i = 0; i < n; i++) { const a = rnd(0, 6.28), s = rnd(60, 260); G.fx.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, col, life: rnd(0.4, 0.9) }); } }
+function float(x, y, text, col) { G.floats.push({ x, y, text, col, life: 1.2 }); }
+
+let lastBoard = '';
+function hud() {
+  const me = G.tr[0], base = G.bases[0];
+  Arcade.stat('sTime', Arcade.fmtTime(Math.max(0, G.t)));
+  Arcade.stat('sCoins', Math.floor(me.coins).toLocaleString());
+  const rows = G.tr.map((t) => ({ t, w: worth(t) })).sort((a, b) => b.w - a.w)
+    .map((r, k) => `<div class="${r.t.i === 0 ? 'me' : ''}"><i>${k + 1}. ${r.t.name}</i><i>${r.w.toLocaleString()}</i></div>`).join('');
+  const html = '<b>RICHEST BASE</b>' + rows;
+  if (html !== lastBoard) { $('board').innerHTML = html; lastBoard = html; }
+  const lb = $('lockBtn');
+  lb.textContent = base.lockT > 0 ? Math.ceil(base.lockT) + 's' : base.lockCd > 0 ? Math.ceil(base.lockCd) : 'LOCK';
+  lb.classList.toggle('off', base.lockCd > 0 || !inRect(me, base, 20));
+}
+
+function end() {
+  G.over = true;
+  document.body.classList.remove('playing');
+  const ranks = G.tr.map((t) => ({ t, w: worth(t) })).sort((a, b) => b.w - a.w);
+  const place1 = ranks.findIndex((r) => r.t.i === 0) + 1;
+  const me = G.tr[0], crit = G.bases[0].pads.filter((p) => p.item).length;
+  Arcade.over({
+    title: place1 === 1 ? 'TOP BANDIT!' : `#${place1} PLACE`,
+    lose: place1 > 1,
+    stats: `Base worth <b>${worth(me).toLocaleString()}</b> · Critters <b>${crit}</b><br>Stolen <b>${G.stolen}</b> · Saved from thieves <b>${G.caught}</b><br>` +
+      ranks.map((r, k) => `${k + 1}. ${r.t.name} ${r.w.toLocaleString()}`).join(' &nbsp; '),
+    score: worth(me),
+  });
+}
+
+/* ---------- drawing ---------- */
+function drawBall(x, y, r, rar, t) {
+  const col = RAR[rar].col;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(t) * 0.15);
+  ctx.shadowColor = col; ctx.shadowBlur = rar ? 14 : 6;
+  ctx.fillStyle = '#f4f0ff'; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, 0, r, Math.PI, 0); ctx.fill();
+  // a star stripe on top (Lolo Balls have stars, not a button)
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'; star(-r * 0.4, -r * 0.5, r * 0.22);
+  ctx.fillStyle = '#2b1640'; ctx.fillRect(-r, -r * 0.12, r * 2, r * 0.24);
+  ctx.fillStyle = '#2b1640'; ctx.beginPath(); ctx.arc(0, 0, r * 0.36, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = col; star(0, 0, r * 0.24);
+  ctx.strokeStyle = '#2b1640'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+function star(x, y, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+  ctx.closePath(); ctx.fill();
+}
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16), f = (v) => clamp(Math.round(v * k), 0, 255);
+  return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
+}
+function drawCritter(sp, x, y, s, t) {
+  const c = sp.c, dark = shade(c, 0.6), bob = Math.sin(t * 3) * 2 * s;
+  ctx.save(); ctx.translate(x, y + bob); ctx.scale(s, s);
+  ctx.lineWidth = 2.5; ctx.strokeStyle = '#2b1640'; ctx.lineJoin = 'round';
+  if (sp.halo) { ctx.strokeStyle = '#ffe81a'; ctx.shadowColor = '#ffe81a'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.ellipse(0, -30, 14, 5, 0, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0; ctx.strokeStyle = '#2b1640'; }
+  if (sp.wings) { ctx.fillStyle = dark; for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(d * 12, -4); ctx.quadraticCurveTo(d * 34, -26 + Math.sin(t * 8) * 6, d * 30, 2); ctx.quadraticCurveTo(d * 24, -2, d * 12, 6); ctx.fill(); ctx.stroke(); } }
+  // tail
+  ctx.fillStyle = sp.tail === 'flame' ? '#ff7a1a' : sp.tail === 'wisp' ? 'rgba(200,160,255,0.8)' : dark;
+  ctx.beginPath();
+  if (sp.tail === 'bolt') { ctx.moveTo(14, 4); ctx.lineTo(26, -6); ctx.lineTo(22, 0); ctx.lineTo(32, -12); ctx.lineTo(24, 8); ctx.lineTo(28, 2); ctx.closePath(); }
+  else if (sp.tail === 'leaf') { ctx.ellipse(24, -2, 10, 5, -0.6, 0, Math.PI * 2); }
+  else if (sp.tail === 'fluff') { ctx.arc(22, 0, 9, 0, Math.PI * 2); }
+  else if (sp.tail === 'flame' || sp.tail === 'wisp') { ctx.moveTo(14, 6); ctx.quadraticCurveTo(30, 0, 26 + Math.sin(t * 9) * 3, -16); ctx.quadraticCurveTo(22, 0, 14, -2); }
+  else if (sp.tail === 'round') { ctx.arc(18, 6, 5, 0, Math.PI * 2); }
+  if (sp.tail !== 'none') { ctx.fill(); ctx.stroke(); }
+  // ears
+  ctx.fillStyle = sp.ear === 'flame' ? '#ff7a1a' : sp.ear === 'leaf' ? '#3fb84a' : sp.ear === 'horn' ? '#fff6d0' : c;
+  for (const d of [-1, 1]) {
+    ctx.beginPath();
+    if (sp.ear === 'pointy') { ctx.moveTo(d * 6, -14); ctx.lineTo(d * 14, -30); ctx.lineTo(d * 15, -10); }
+    else if (sp.ear === 'leaf') { ctx.ellipse(d * 10, -20, 5, 10, d * 0.5, 0, Math.PI * 2); }
+    else if (sp.ear === 'fin') { ctx.moveTo(d * 12, -10); ctx.quadraticCurveTo(d * 24, -18, d * 20, -2); }
+    else if (sp.ear === 'flame') { ctx.moveTo(d * 4, -14); ctx.quadraticCurveTo(d * 10, -34 - Math.sin(t * 10 + d) * 3, d * 12, -12); }
+    else if (sp.ear === 'horn') { ctx.moveTo(d * 5, -15); ctx.lineTo(d * 9, -28); ctx.lineTo(d * 11, -13); }
+    else { ctx.arc(d * 11, -13, 6, 0, Math.PI * 2); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  if (sp.horn) { ctx.fillStyle = '#fff6d0'; ctx.beginPath(); ctx.moveTo(-3, -16); ctx.lineTo(0, -32); ctx.lineTo(3, -16); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  // body
+  ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(0, 0, 17, 16, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.ellipse(0, 6, 9, 7, 0, 0, Math.PI * 2); ctx.fill();
+  // face
+  const blink = (t * 0.7 + x * 0.01) % 4 < 0.1;
+  ctx.fillStyle = '#2b1640';
+  for (const d of [-1, 1]) {
+    if (blink) ctx.fillRect(d * 6 - 3, -4, 6, 2);
+    else { ctx.beginPath(); ctx.ellipse(d * 6, -3, 3, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(d * 6 + 1, -5, 1.3, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#2b1640'; }
+  }
+  ctx.fillStyle = 'rgba(255,90,140,0.55)'; ctx.beginPath(); ctx.arc(-11, 3, 3, 0, Math.PI * 2); ctx.arc(11, 3, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#2b1640'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.arc(0, 2, 3, 0.2, Math.PI - 0.2); ctx.stroke();
+  ctx.restore();
+}
+function drawItem(it, x, y, s, t) {
+  if (it.hatch > 0) {
+    const shake = it.hatch < 2 ? Math.sin(t * 30) * 0.5 : 0;
+    drawBall(x, y, 15 * s, it.rar, t * 2 + it.wob + shake * 4);
+  } else drawCritter(it.sp, x, y, s * 1.15, t + it.wob);
+}
+
+function drawTrainer(t, now) {
+  ctx.save(); ctx.translate(t.x, t.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0, 14, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+  if (t.stun > 0) ctx.globalAlpha = 0.5 + Math.sin(now * 30) * 0.3;
+  const legs = Math.sin(t.step) * 4;
+  ctx.strokeStyle = '#2b1640'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-5, 4); ctx.lineTo(-5 + legs, 14); ctx.moveTo(5, 4); ctx.lineTo(5 - legs, 14); ctx.stroke();
+  ctx.fillStyle = t.col; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.ellipse(0, -2, 11, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ffd9b8'; ctx.beginPath(); ctx.arc(0, -18, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // cap
+  ctx.fillStyle = t.col; ctx.beginPath(); ctx.arc(0, -20, 9.5, Math.PI, 0); ctx.fill(); ctx.stroke();
+  ctx.fillRect(t.face > 0 ? 0 : -14, -21, 14, 4);
+  ctx.fillStyle = '#2b1640'; ctx.beginPath(); ctx.arc(t.face * 3.5, -17, 1.6, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.font = '11px Bungee, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = t.i === 0 ? '#fff' : t.col; ctx.fillText(t.name, 0, -34);
+  ctx.restore();
+  if (t.carry) drawItem(t.carry.item, t.x, t.y - 52, 1, now);
+}
+
+function drawBase(b, now) {
+  const owner = G.tr[b.i], col = owner.col;
+  ctx.fillStyle = 'rgba(30,10,60,0.85)'; ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.globalAlpha = 0.85;
+  // fence with a door facing the belt
+  const dy = b.top ? b.y + b.h : b.y, gy = b.top ? b.y : b.y + b.h, door = 110, mid = b.x + b.w / 2;
+  ctx.beginPath();
+  ctx.moveTo(b.x, dy); ctx.lineTo(b.x, gy); ctx.lineTo(b.x + b.w, gy); ctx.lineTo(b.x + b.w, dy);
+  ctx.moveTo(b.x, dy); ctx.lineTo(mid - door / 2, dy); ctx.moveTo(mid + door / 2, dy); ctx.lineTo(b.x + b.w, dy);
+  ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.font = '18px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = col;
+  ctx.fillText(owner.i === 0 ? 'YOUR BASE' : `${owner.name.toUpperCase()}'S BASE`, mid, b.top ? b.y + 28 : b.y + b.h - 12);
+  for (const p of b.pads) {
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 14, 30, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    if (p.item) {
+      drawItem(p.item, p.x, p.y, 1, now);
+      ctx.font = '10px Orbitron, sans-serif'; ctx.fillStyle = p.item.hatch > 0 ? '#fff' : RAR[p.item.rar].col;
+      ctx.fillText(p.item.hatch > 0 ? `${Math.ceil(p.item.hatch)}s` : `+${p.item.inc}/s`, p.x, p.y + 38);
+    }
+  }
+  if (b.lockT > 0) {
+    ctx.strokeStyle = '#19f7ff'; ctx.lineWidth = 5; ctx.shadowColor = '#19f7ff'; ctx.shadowBlur = 18;
+    ctx.setLineDash([14, 8]); ctx.lineDashOffset = -now * 60; ctx.strokeRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
+    ctx.setLineDash([]); ctx.shadowBlur = 0;
+    ctx.font = '14px Bungee, sans-serif'; ctx.fillStyle = '#19f7ff';
+    ctx.fillText(`LOCKED ${Math.ceil(b.lockT)}`, mid, b.top ? b.y + b.h + 26 : b.y - 14);
+  }
+}
+
+function drawBelt(now) {
+  const y = BELT_Y - BELT_H / 2;
+  ctx.fillStyle = '#25163a'; ctx.fillRect(0, y, W, BELT_H);
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  const off = (now * BELT_SPEED) % 60;
+  for (let x = -60 + off; x < W; x += 60) ctx.fillRect(x, y + 6, 26, BELT_H - 12);
+  ctx.fillStyle = '#ff7a1a'; ctx.fillRect(0, y - 6, W, 6); ctx.fillRect(0, y + BELT_H, W, 6);
+  for (const b of G.belt) {
+    drawBall(b.x, BELT_Y - 6, 17, b.item.rar, now * 3 + b.item.wob);
+    ctx.font = '12px Bungee, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = G.tr[0].coins >= b.item.price ? '#ffd23f' : '#9a8ab8';
+    ctx.fillText(b.item.price, b.x, BELT_Y + 32);
+  }
+}
+
+function arrowTo(p, cam, z, col, label) {
+  const sx = (p.x - cam.x) * z + view.w / 2, sy = (p.y - cam.y) * z + view.h / 2;
+  if (sx > 30 && sx < view.w - 30 && sy > 30 && sy < view.h - 30) return;
+  const a = Math.atan2(sy - view.h / 2, sx - view.w / 2);
+  const ex = clamp(view.w / 2 + Math.cos(a) * view.w, 36, view.w - 36), ey = clamp(view.h / 2 + Math.sin(a) * view.h, 190, view.h - 36); // below the HUD and leaderboard
+  ctx.save(); ctx.translate(ex, ey); ctx.rotate(a);
+  ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 12;
+  ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-10, -11); ctx.lineTo(-10, 11); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.font = '11px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = col;
+  ctx.fillText(label, ex - Math.cos(a) * 30, ey - Math.sin(a) * 24);
+}
+
+function draw() {
+  const now = performance.now() / 1000;
+  ctx.fillStyle = '#12001f'; ctx.fillRect(0, 0, view.w, view.h);
+  if (!G) return;
+  const me = G.tr[0];
+  const z = clamp(Math.max(view.w, view.h) / 1150, 0.55, 1.25);
+  const cam = { x: clamp(me.x, view.w / 2 / z, W - view.w / 2 / z), y: clamp(me.y, view.h / 2 / z, H - view.h / 2 / z) };
+  if (view.w / z > W) cam.x = W / 2;
+  if (view.h / z > H) cam.y = H / 2;
+  ctx.save();
+  ctx.translate(view.w / 2, view.h / 2); ctx.scale(z, z); ctx.translate(-cam.x, -cam.y);
+  // ground
+  ctx.fillStyle = '#1b0b33'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(180,76,255,0.12)'; ctx.lineWidth = 2;
+  for (let x = 0; x <= W; x += 100) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y <= H; y += 100) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.strokeStyle = '#ff2fd6'; ctx.lineWidth = 6; ctx.strokeRect(3, 3, W - 6, H - 6);
+  drawBelt(now);
+  for (const b of G.bases) drawBase(b, now);
+  // prompt over what the player can grab
+  if (!me.carry && !G.over) {
+    let hint = null;
+    for (const b of G.belt) if (Math.hypot(b.x - me.x, BELT_Y - me.y) < 64) { hint = { x: b.x, y: BELT_Y - 40, t: me.coins >= b.item.price ? `BUY ${b.item.price}` : `NEED ${b.item.price}`, c: RAR[b.item.rar].col }; break; }
+    if (!hint) for (const b of G.bases) if (b.i !== 0 && inRect(me, b)) for (const p of b.pads) if (p.item && dist(p, me) < 60) { hint = { x: p.x, y: p.y - 40, t: 'STEAL!', c: '#ff2fd6' }; break; }
+    if (hint) {
+      ctx.font = '13px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = hint.c; ctx.shadowColor = hint.c; ctx.shadowBlur = 10;
+      ctx.fillText((Arcade.touch ? '' : 'SPACE: ') + hint.t, hint.x, hint.y - Math.abs(Math.sin(now * 5)) * 5); ctx.shadowBlur = 0;
+    }
+  }
+  for (const t of [...G.tr].sort((a, b) => a.y - b.y)) drawTrainer(t, now);
+  for (const f of G.fx) { ctx.globalAlpha = Math.min(1, f.life * 2); ctx.fillStyle = f.col; ctx.fillRect(f.x - 3, f.y - 3, 6, 6); }
+  ctx.globalAlpha = 1;
+  for (const f of G.floats) { ctx.globalAlpha = Math.min(1, f.life * 1.5); ctx.font = '15px Bungee, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, f.y); }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  // arrows: home when carrying, thieves running off with your critters
+  const home = G.bases[0];
+  if (me.carry) arrowTo({ x: home.x + home.w / 2, y: home.y + home.h / 2 }, cam, z, '#19f7ff', 'HOME');
+  for (const t of G.tr) if (t.carry && t.carry.from === 0) arrowTo(t, cam, z, '#ff2fd6', 'THIEF');
+  // touch joystick
+  if (joy.on) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(joy.ox, joy.oy, 50, 0, Math.PI * 2); ctx.stroke();
+    const dx = joy.x - joy.ox, dy = joy.y - joy.oy, d = Math.min(50, Math.hypot(dx, dy)), a = Math.atan2(dy, dx);
+    ctx.fillStyle = 'rgba(25,247,255,0.5)'; ctx.beginPath(); ctx.arc(joy.ox + Math.cos(a) * d, joy.oy + Math.sin(a) * d, 20, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+/* ---------- input ---------- */
+const playing = () => !!G && !G.over;
+addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (!playing() || Arcade.paused || document.querySelector('.lolo-gate')) return;
+  if (e.code === 'Space' || e.code === 'KeyE') { e.preventDefault(); if (!e.repeat) act(G.tr[0]); }
+  if (e.code === 'KeyL' || e.code === 'KeyQ') { if (!lock(G.tr[0])) sfx.hit(); }
+});
+addEventListener('keyup', (e) => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; joy.on = false; });
+view.cv.addEventListener('pointerdown', (e) => { joy.on = true; joy.id = e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY; });
+addEventListener('pointermove', (e) => { if (joy.on && e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; } });
+const up = (e) => { if (e.pointerId === joy.id) joy.on = false; };
+addEventListener('pointerup', up); addEventListener('pointercancel', up);
+$('grabBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); if (playing() && !Arcade.paused) act(G.tr[0]); });
+$('lockBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); if (playing() && !Arcade.paused && !lock(G.tr[0])) sfx.hit(); });
+
+Arcade.init({
+  id: 'lolomon',
+  logo: ['BALL', 'BANDITS'],
+  tag: 'Buy Lolo Balls on the belt and carry them home: they hatch into critters that make coins. Sneak into rival bases to steal theirs, chase thieves to get yours back, and lock your base when bandits come. Richest base after 4 minutes wins!',
+  helpDesk: '<b>WASD</b> / <b>arrows</b> move · <b>Space</b> buy or steal · <b>L</b> lock your base (stand in it)',
+  helpTouch: '<b>Drag</b> to move · <b>GRAB</b> buys or steals · <b>LOCK</b> locks your base (stand in it)',
+  quitNote: 'This round will end.',
+  start,
+  playing,
+});
+Arcade.loop(update, draw);
+</script>
+</body>
+</html>
