@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#12001f">
+  <title>Gem Pop</title>
+  <link rel="icon" href="../../icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Orbitron:wght@500;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../core/arcade.css">
+  <script src="../../core/ads.js"></script>
+  <script src="../../core/wallet.js"></script>
+  <script src="../../core/arcade.js"></script>
+  <style>
+    .arc-hud { display: none; }
+    body.playing .arc-hud { display: flex; }
+    .arc-logo { --c1: var(--cyan); }
+  </style>
+</head>
+<body>
+  <div class="arc-hud">
+    <div class="arc-stat" id="sMoves"><small>MOVES</small><span>25</span></div>
+    <div class="arc-stat" id="sScore"><small>SCORE</small><span>0</span></div>
+  </div>
+<script>
+'use strict';
+const { rnd, irnd, pick, clamp, sfx } = Arcade;
+let sprites = {};
+const view = Arcade.canvas(() => { sprites = {}; });
+const ctx = view.ctx;
+
+/* ---------- gems ---------- */
+const N = 8, MOVES = 25, STARS = [2000, 4000, 6500]; // a greedy bot scores 2,400-4,700
+const GEMS = [
+  { em: '💎', col: '#19f7ff' }, { em: '🍓', col: '#ff3b55' }, { em: '🍋', col: '#ffe81a' },
+  { em: '🍀', col: '#7dff2f' }, { em: '🍇', col: '#b44cff' }, { em: '🍊', col: '#ff7a1a' },
+];
+const EMOJI_FONT = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+function sprite(t, size) {
+  const key = t + ':' + size;
+  if (sprites[key]) return sprites[key];
+  const c = document.createElement('canvas'), pad = 8, d = size + pad * 2;
+  c.width = c.height = Math.ceil(d * view.dpr);
+  const g = c.getContext('2d');
+  g.scale(view.dpr, view.dpr);
+  const G0 = GEMS[t], r = size * 0.22;
+  g.shadowColor = G0.col; g.shadowBlur = 10;
+  const gr = g.createLinearGradient(0, pad, 0, pad + size);
+  gr.addColorStop(0, shade(G0.col, 0.7)); gr.addColorStop(1, shade(G0.col, 0.22));
+  g.fillStyle = gr; rrect(g, pad, pad, size, size, r); g.fill();
+  g.shadowBlur = 0; g.strokeStyle = G0.col; g.lineWidth = 2.5; rrect(g, pad + 1, pad + 1, size - 2, size - 2, r); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,0.18)'; rrect(g, pad + 4, pad + 4, size - 8, size * 0.36, r * 0.7); g.fill();
+  g.font = `${size * 0.62}px ${EMOJI_FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; // colour emoji take the fill's alpha
+  g.fillText(G0.em, pad + size / 2, pad + size * 0.55);
+  return (sprites[key] = { c, d });
+}
+function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function shade(hex, k) { const n = parseInt(hex.slice(1), 16); return `rgb(${(n >> 16) * k | 0},${((n >> 8) & 255) * k | 0},${(n & 255) * k | 0})`; }
+
+/* ---------- state ---------- */
+// grid[r][c] = { t (0-5, -1 = rainbow), sp: null|'h'|'v'|'bomb'|'rainbow', x, y (drawn position, in cells), vy, die }
+let G = null;
+const gem = (t, r, c, fromY) => ({ t, sp: null, x: c, y: fromY == null ? r : fromY, vy: 0, die: 0 });
+function newGame() {
+  G = { mode: 'idle', grid: [], score: 0, moves: MOVES, cascade: 0, parts: [], pops: [], beams: [], sel: null, swap: null, idle: 0, hint: null, shake: 0, t: 0, best: 0, over: false };
+  do {
+    G.grid = Array.from({ length: N }, (_, r) => Array.from({ length: N }, (_, c) => gem(irnd(0, GEMS.length - 1), r, c, r - N - 2)));
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      while (runAt(r, c)) G.grid[r][c].t = irnd(0, GEMS.length - 1);
+    }
+  } while (!findMove());
+  G.mode = 'fall';
+  document.body.classList.add('playing');
+  Arcade.stat('sMoves', G.moves); Arcade.stat('sScore', 0);
+  sfx.up();
+}
+const at = (r, c) => (r >= 0 && r < N && c >= 0 && c < N ? G.grid[r][c] : null);
+const same = (a, b) => a && b && a.t >= 0 && a.t === b.t;
+function runAt(r, c) { // does (r, c) finish a run of 3 to its left or above? (only used to build a clean board)
+  const g = at(r, c);
+  return (same(g, at(r, c - 1)) && same(g, at(r, c - 2))) || (same(g, at(r - 1, c)) && same(g, at(r - 2, c)));
+}
+
+/* ---------- matching ---------- */
+function findRuns() {
+  const runs = [];
+  for (let r = 0; r < N; r++) for (let c = 0; c < N;) {
+    let e = c + 1; while (e < N && same(G.grid[r][c], G.grid[r][e])) e++;
+    if (e - c >= 3) runs.push({ dir: 'h', cells: Array.from({ length: e - c }, (_, k) => [r, c + k]) });
+    c = e;
+  }
+  for (let c = 0; c < N; c++) for (let r = 0; r < N;) {
+    let e = r + 1; while (e < N && same(G.grid[r][c], G.grid[e][c])) e++;
+    if (e - r >= 3) runs.push({ dir: 'v', cells: Array.from({ length: e - r }, (_, k) => [r + k, c]) });
+    r = e;
+  }
+  return runs;
+}
+function wouldMatch(r1, c1, r2, c2) {
+  const a = G.grid[r1][c1], b = G.grid[r2][c2];
+  if (a.sp === 'rainbow' || b.sp === 'rainbow') return true;
+  G.grid[r1][c1] = b; G.grid[r2][c2] = a;
+  const ok = findRuns().length > 0;
+  G.grid[r1][c1] = a; G.grid[r2][c2] = b;
+  return ok;
+}
+function findMove() {
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    if (c < N - 1 && wouldMatch(r, c, r, c + 1)) return [[r, c], [r, c + 1]];
+    if (r < N - 1 && wouldMatch(r, c, r + 1, c)) return [[r, c], [r + 1, c]];
+  }
+  return null;
+}
+
+/* ---------- a move ---------- */
+function trySwap(r1, c1, r2, c2) {
+  if (G.mode !== 'idle' || G.moves <= 0 || Math.abs(r1 - r2) + Math.abs(c1 - c2) !== 1) return;
+  G.sel = null; G.hint = null; G.idle = 0;
+  const a = G.grid[r1][c1], b = G.grid[r2][c2];
+  G.grid[r1][c1] = b; G.grid[r2][c2] = a;
+  G.swap = { a, b, r1, c1, r2, c2, t: 0, back: false };
+  G.mode = 'swap';
+  sfx.tone(520, 0.07, 'sine', 0.12, 160);
+}
+function afterSwap() {
+  const { a, b, r1, c1, r2, c2 } = G.swap;
+  // rainbow swapped onto a gem: every gem of that colour goes
+  if (a.sp === 'rainbow' || b.sp === 'rainbow') {
+    useMove();
+    const rb = a.sp === 'rainbow' ? a : b, other = rb === a ? b : a;
+    const kill = new Set([key(...pos(rb))]);
+    if (other.sp === 'rainbow') { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) kill.add(key(r, c)); Arcade.banner('MEGA RAINBOW!', 'the whole board', '#ff2fd6'); }
+    else { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (G.grid[r][c].t === other.t) kill.add(key(r, c)); Arcade.banner('RAINBOW!', `all the ${GEMS[other.t].em}`, '#ffe81a'); }
+    rb.sp = null; // the rainbow is spent; don't trigger it again
+    for (const k of kill) { const [r, c] = unkey(k); const g = G.grid[r][c]; G.beams.push({ x1: rb.x, y1: rb.y, x2: g.x, y2: g.y, life: 0.4, col: GEMS[Math.max(0, other.t)].col }); }
+    sfx.boom();
+    G.cascade = 1;
+    clearCells(kill, []);
+    return;
+  }
+  const runs = findRuns();
+  if (!runs.length) {
+    G.grid[r1][c1] = a; G.grid[r2][c2] = b;
+    G.swap = { a: b, b: a, r1, c1, r2, c2, t: 0, back: true };
+    sfx.tone(200, 0.12, 'square', 0.08, -60);
+    return;
+  }
+  useMove();
+  G.cascade = 0;
+  resolve(runs, [[r1, c1], [r2, c2]]);
+}
+function useMove() { G.moves--; Arcade.stat('sMoves', G.moves); }
+const key = (r, c) => r * N + c, unkey = (k) => [Math.floor(k / N), k % N];
+function pos(g) { for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (G.grid[r][c] === g) return [r, c]; return [0, 0]; }
+
+function resolve(runs, swapped) {
+  G.cascade++;
+  const kill = new Set(), make = [];
+  const count = {};
+  runs.forEach((run) => run.cells.forEach(([r, c]) => { const k = key(r, c); count[k] = (count[k] || 0) + 1; kill.add(k); }));
+  // specials: 5 in a row = rainbow, a cross (L / T) = bomb, 4 in a row = line blaster
+  const pickCell = (cells) => cells.find(([r, c]) => swapped && swapped.some(([sr, sc]) => sr === r && sc === c)) || cells[Math.floor(cells.length / 2)];
+  const usedCross = new Set();
+  for (const run of runs) {
+    const cross = run.cells.find(([r, c]) => count[key(r, c)] > 1);
+    if (run.cells.length >= 5) make.push({ at: pickCell(run.cells), sp: 'rainbow' });
+    else if (cross && !usedCross.has(key(...cross))) { usedCross.add(key(...cross)); make.push({ at: cross, sp: 'bomb' }); }
+    else if (run.cells.length === 4) make.push({ at: pickCell(run.cells), sp: run.dir === 'h' ? 'v' : 'h' });
+  }
+  clearCells(kill, make);
+}
+function clearCells(kill, make) {
+  // specials caught in the blast go off too (and may set off more)
+  const keep = new Set(make.map((m) => key(...m.at)));
+  const queue = [...kill], fired = new Set();
+  while (queue.length) {
+    const k = queue.pop(), [r, c] = unkey(k), g = G.grid[r][c];
+    if (!g || !g.sp || fired.has(k) || keep.has(k)) continue;
+    fired.add(k);
+    const add = (rr, cc) => { if (rr >= 0 && rr < N && cc >= 0 && cc < N) { const kk = key(rr, cc); if (!kill.has(kk)) { kill.add(kk); queue.push(kk); } } };
+    if (g.sp === 'h') { for (let cc = 0; cc < N; cc++) add(r, cc); G.beams.push({ x1: -0.5, y1: r, x2: N - 0.5, y2: r, life: 0.45, col: GEMS[g.t].col, w: 1 }); sfx.tone(900, 0.3, 'sawtooth', 0.08, -600); }
+    if (g.sp === 'v') { for (let rr = 0; rr < N; rr++) add(rr, c); G.beams.push({ x1: c, y1: -0.5, x2: c, y2: N - 0.5, life: 0.45, col: GEMS[g.t].col, w: 1 }); sfx.tone(900, 0.3, 'sawtooth', 0.08, -600); }
+    if (g.sp === 'bomb') { for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) add(r + dr, c + dc); burst(c, r, '#ffe81a', 40, 9); sfx.boom(); G.shake = 0.35; }
+    if (g.sp === 'rainbow') { const t = irnd(0, GEMS.length - 1); for (let rr = 0; rr < N; rr++) for (let cc = 0; cc < N; cc++) if (G.grid[rr][cc].t === t) add(rr, cc); }
+  }
+  for (const k of keep) kill.delete(k);
+  const mult = G.cascade;
+  let pts = kill.size * 10 * mult + fired.size * 50 + make.length * 30;
+  G.score += pts;
+  Arcade.stat('sScore', G.score.toLocaleString());
+  let cx = 0, cy = 0;
+  for (const k of kill) { const [r, c] = unkey(k); const g = G.grid[r][c]; g.die = 0.001; cx += c; cy += r; burst(c, r, GEMS[Math.max(0, g.t)].col, 8, 5); }
+  if (kill.size) G.pops.push({ x: cx / kill.size, y: cy / kill.size, t: `+${pts}${mult > 1 ? ` ×${mult}` : ''}`, life: 1, big: mult > 2 });
+  for (const m of make) {
+    const g = G.grid[m.at[0]][m.at[1]];
+    g.sp = m.sp; if (m.sp === 'rainbow') g.t = -1;
+    burst(m.at[1], m.at[0], '#ffffff', 20, 6);
+  }
+  if (make.length) sfx.up();
+  sfx.pop(0.8 + Math.min(G.cascade, 6) * 0.18);
+  if (G.cascade === 3) Arcade.banner('SUPER!', 'combo ×3', '#7dff2f');
+  if (G.cascade === 5) Arcade.banner('GEM-TASTIC!', 'combo ×5', '#19f7ff');
+  if (G.cascade === 7) Arcade.banner('UNSTOPPABLE!', 'combo ×7', '#ff2fd6');
+  G.mode = 'clear'; G.clearT = 0.22;
+}
+function gravity() {
+  for (let c = 0; c < N; c++) {
+    const col = [];
+    for (let r = N - 1; r >= 0; r--) if (!G.grid[r][c].die) col.push(G.grid[r][c]);
+    let spawn = 0;
+    for (let r = N - 1; r >= 0; r--) {
+      const k = N - 1 - r;
+      if (k < col.length) G.grid[r][c] = col[k];
+      else { spawn++; G.grid[r][c] = gem(irnd(0, GEMS.length - 1), r, c, -spawn - 0.3); }
+    }
+  }
+  G.mode = 'fall';
+}
+function settle() {
+  const runs = findRuns();
+  if (runs.length) return resolve(runs, null);
+  G.best = Math.max(G.best, G.cascade);
+  G.cascade = 0;
+  G.mode = 'idle'; G.idle = 0; G.hint = null;
+  if (G.moves <= 0) return finish();
+  if (!findMove()) shuffleBoard();
+}
+function shuffleBoard() {
+  const all = G.grid.flat();
+  let tries = 0;
+  do {
+    for (let i = all.length - 1; i > 0; i--) { const j = irnd(0, i); [all[i], all[j]] = [all[j], all[i]]; }
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) G.grid[r][c] = all[r * N + c];
+  } while ((findRuns().length || !findMove()) && tries++ < 200);
+  if (tries >= 200) for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) G.grid[r][c].t = irnd(0, GEMS.length - 1);
+  Arcade.banner('SHUFFLE!', 'no moves left on the board', '#19f7ff');
+  sfx.noise(0.4, 0.2, 1500);
+}
+function finish() {
+  G.over = true; G.mode = 'over';
+  document.body.classList.remove('playing');
+  const stars = STARS.filter((s) => G.score >= s).length;
+  if (stars) sfx.fanfare(); else sfx.lose();
+  setTimeout(() => Arcade.over({
+    title: stars === 3 ? 'GEM MASTER!' : stars ? 'SWEET!' : 'OUT OF MOVES', lose: !stars, score: G.score,
+    stats: `<span style="font-size:1.8em">${'⭐'.repeat(stars)}${'☆'.repeat(3 - stars)}</span><br>Score <b>${G.score.toLocaleString()}</b> · best combo <b>×${G.best}</b><br>` +
+      `<small>⭐ ${STARS[0].toLocaleString()} · ⭐⭐ ${STARS[1].toLocaleString()} · ⭐⭐⭐ ${STARS[2].toLocaleString()}</small>`,
+  }), 700);
+}
+function burst(c, r, col, n, spd) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = rnd(spd * 0.3, spd);
+    G.parts.push({ x: c, y: r, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rnd(0.35, 0.8), col, s: rnd(2, 5) });
+  }
+}
+
+/* ---------- update ---------- */
+function update(dt) {
+  if (!G) return;
+  G.t += dt;
+  G.shake = Math.max(0, G.shake - dt);
+  for (const p of G.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 12 * dt; p.life -= dt; }
+  G.parts = G.parts.filter((p) => p.life > 0);
+  for (const p of G.pops) { p.y -= 0.8 * dt; p.life -= dt; }
+  G.pops = G.pops.filter((p) => p.life > 0);
+  for (const b of G.beams) b.life -= dt;
+  G.beams = G.beams.filter((b) => b.life > 0);
+  if (G.mode === 'swap') {
+    const s = G.swap;
+    s.t = Math.min(1, s.t + dt / 0.16);
+    const e = s.t * s.t * (3 - 2 * s.t);
+    s.a.x = s.c1 + (s.c2 - s.c1) * e; s.a.y = s.r1 + (s.r2 - s.r1) * e;
+    s.b.x = s.c2 + (s.c1 - s.c2) * e; s.b.y = s.r2 + (s.r1 - s.r2) * e;
+    if (s.t >= 1) { if (s.back) { G.mode = 'idle'; G.swap = null; } else afterSwap(); }
+  } else if (G.mode === 'clear') {
+    for (const row of G.grid) for (const g of row) if (g.die) g.die += dt;
+    G.clearT -= dt;
+    if (G.clearT <= 0) gravity();
+  } else if (G.mode === 'fall') {
+    let moving = false;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const g = G.grid[r][c];
+      g.x = c;
+      if (g.y < r) { g.vy += 40 * dt; g.y = Math.min(r, g.y + g.vy * dt); moving = true; if (g.y >= r) { g.vy = 0; } }
+      else { g.y = r; g.vy = 0; }
+    }
+    if (!moving) { sfx.tone(300, 0.04, 'sine', 0.05); settle(); }
+  } else if (G.mode === 'idle') {
+    G.idle += dt;
+    if (G.idle > 6 && !G.hint) G.hint = findMove();
+  }
+}
+
+/* ---------- drawing ---------- */
+let L = { cs: 50, x0: 0, y0: 0 };
+const BG = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), s: Math.random() * 2 + 0.5, p: Math.random() * 6 }));
+function draw() {
+  const w = view.w, h = view.h, now = performance.now() / 1000;
+  ctx.fillStyle = '#12001f'; ctx.fillRect(0, 0, w, h);
+  for (const s of BG) { ctx.globalAlpha = 0.3 + 0.3 * Math.sin(now * 2 + s.p); ctx.fillStyle = '#d8c8ff'; ctx.fillRect(s.x * w, s.y * h, s.s, s.s); }
+  ctx.globalAlpha = 1;
+  const top = 74, bottom = 70;
+  const cs = Math.max(12, Math.floor(Math.min((w - 20) / N, (h - top - bottom) / N, 74)));
+  const x0 = (w - cs * N) / 2, y0 = top + (h - top - bottom - cs * N) / 2;
+  L = { cs, x0, y0 };
+  ctx.save();
+  if (G && G.shake) ctx.translate(rnd(-8, 8) * G.shake, rnd(-8, 8) * G.shake);
+  // board
+  ctx.shadowColor = '#b44cff'; ctx.shadowBlur = 24;
+  ctx.fillStyle = 'rgba(40, 0, 80, 0.75)'; rrect(ctx, x0 - 8, y0 - 8, cs * N + 16, cs * N + 16, 18); ctx.fill();
+  ctx.shadowBlur = 0; ctx.strokeStyle = '#b44cff'; ctx.lineWidth = 3; ctx.stroke();
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    ctx.fillStyle = (r + c) % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.09)';
+    ctx.fillRect(x0 + c * cs, y0 + r * cs, cs, cs);
+  }
+  if (G) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x0 - 8, y0 - 8, cs * N + 16, cs * N + 16); ctx.clip();
+    const gs = cs - 6;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const g = G.grid[r][c];
+      let sc = 1, ox = 0;
+      if (g.die) sc = Math.max(0, 1 - g.die / 0.22) * (1 + g.die * 2);
+      if (G.sel && G.sel[0] === r && G.sel[1] === c) sc = 1.1 + Math.sin(now * 10) * 0.05;
+      if (G.hint && G.hint.some(([hr, hc]) => hr === r && hc === c)) ox = Math.sin(now * 14) * cs * 0.06;
+      drawGem(g, x0 + g.x * cs + cs / 2 + ox, y0 + g.y * cs + cs / 2, gs * sc, now);
+    }
+    ctx.restore();
+    if (G.sel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.shadowColor = '#fff'; ctx.shadowBlur = 12; rrect(ctx, x0 + G.sel[1] * cs + 1, y0 + G.sel[0] * cs + 1, cs - 2, cs - 2, cs * 0.22); ctx.stroke(); ctx.shadowBlur = 0; }
+    ctx.globalCompositeOperation = 'lighter';
+    for (const b of G.beams) {
+      ctx.globalAlpha = b.life / 0.45; ctx.strokeStyle = b.col; ctx.lineWidth = b.w ? cs * 0.5 * (b.life / 0.45) : 4; ctx.shadowColor = b.col; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.moveTo(x0 + (b.x1 + 0.5) * cs, y0 + (b.y1 + 0.5) * cs); ctx.lineTo(x0 + (b.x2 + 0.5) * cs, y0 + (b.y2 + 0.5) * cs); ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    for (const p of G.parts) { ctx.globalAlpha = Math.min(1, p.life * 1.8); ctx.fillStyle = p.col; ctx.fillRect(x0 + (p.x + 0.5) * cs - p.s / 2, y0 + (p.y + 0.5) * cs - p.s / 2, p.s, p.s); }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    ctx.textAlign = 'center';
+    for (const p of G.pops) {
+      ctx.globalAlpha = Math.min(1, p.life * 2);
+      ctx.font = `${p.big ? 30 : 20}px Bungee, sans-serif`;
+      ctx.fillStyle = p.big ? '#ffe81a' : '#fff'; ctx.shadowColor = '#ff2fd6'; ctx.shadowBlur = 10;
+      ctx.fillText(p.t, x0 + (p.x + 0.5) * cs, y0 + (p.y + 0.5) * cs);
+    }
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    // star bar under the board
+    const by = y0 + cs * N + 24, bw = cs * N, frac = clamp(G.score / STARS[2], 0, 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.12)'; rrect(ctx, x0, by, bw, 12, 6); ctx.fill();
+    const grd = ctx.createLinearGradient(x0, 0, x0 + bw, 0); grd.addColorStop(0, '#ff2fd6'); grd.addColorStop(1, '#ffe81a');
+    ctx.fillStyle = grd; rrect(ctx, x0, by, Math.max(12, bw * frac), 12, 6); ctx.fill();
+    ctx.font = `20px ${EMOJI_FONT}`; ctx.textBaseline = 'middle';
+    STARS.forEach((s) => { const sx = x0 + bw * s / STARS[2]; ctx.globalAlpha = G.score >= s ? 1 : 0.35; ctx.fillText('⭐', Math.min(sx, x0 + bw - 10), by + 6); });
+    ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+  }
+  ctx.restore();
+}
+function drawGem(g, cx, cy, size, now) {
+  if (size <= 1) return;
+  if (g.sp === 'rainbow') {
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(now * 2);
+    const n = 6;
+    for (let i = 0; i < n; i++) { ctx.fillStyle = GEMS[i].col; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, size * 0.46, i / n * Math.PI * 2, (i + 1) / n * Math.PI * 2); ctx.fill(); }
+    ctx.rotate(-now * 2);
+    ctx.fillStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(0, 0, size * 0.18, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    return;
+  }
+  const s = sprite(g.t, Math.round(size));
+  const d = s.d;
+  ctx.drawImage(s.c, cx - d / 2, cy - d / 2, d, d);
+  if (g.sp === 'h' || g.sp === 'v') {
+    ctx.save(); ctx.translate(cx, cy); if (g.sp === 'v') ctx.rotate(Math.PI / 2);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.shadowColor = '#fff'; ctx.shadowBlur = 8 + Math.sin(now * 8) * 6;
+    for (const y of [-size * 0.3, size * 0.3]) { ctx.beginPath(); ctx.moveTo(-size * 0.4, y); ctx.lineTo(size * 0.4, y); ctx.stroke(); }
+    ctx.fillStyle = '#fff';
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * size * 0.5, 0); ctx.lineTo(sx * size * 0.34, -size * 0.1); ctx.lineTo(sx * size * 0.34, size * 0.1); ctx.fill(); }
+    ctx.restore();
+  }
+  if (g.sp === 'bomb') {
+    ctx.save(); ctx.strokeStyle = '#ffe81a'; ctx.lineWidth = 3.5; ctx.shadowColor = '#ff7a1a'; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.arc(cx, cy, size * (0.48 + Math.sin(now * 9) * 0.04), 0, Math.PI * 2); ctx.stroke();
+    ctx.font = `${size * 0.32}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText('💥', cx + size * 0.3, cy - size * 0.22);
+    ctx.restore();
+  }
+}
+
+/* ---------- input: drag a gem onto its neighbour, or tap one then the other ---------- */
+const cellAt = (x, y) => { const c = Math.floor((x - L.x0) / L.cs), r = Math.floor((y - L.y0) / L.cs); return r >= 0 && r < N && c >= 0 && c < N ? [r, c] : null; };
+let down = null;
+view.cv.addEventListener('pointerdown', (e) => {
+  if (!G || G.mode === 'over') return;
+  const cell = cellAt(e.clientX, e.clientY);
+  if (!cell) { G.sel = null; return; }
+  if (G.sel && Math.abs(G.sel[0] - cell[0]) + Math.abs(G.sel[1] - cell[1]) === 1) { trySwap(G.sel[0], G.sel[1], cell[0], cell[1]); down = null; return; }
+  down = { cell, x: e.clientX, y: e.clientY, id: e.pointerId };
+  G.sel = cell; sfx.tone(700, 0.04, 'sine', 0.06);
+});
+addEventListener('pointermove', (e) => {
+  if (!down || e.pointerId !== down.id || !G) return;
+  const dx = e.clientX - down.x, dy = e.clientY - down.y;
+  if (Math.hypot(dx, dy) < L.cs * 0.35) return;
+  const [r, c] = down.cell;
+  const [r2, c2] = Math.abs(dx) > Math.abs(dy) ? [r, c + Math.sign(dx)] : [r + Math.sign(dy), c];
+  down = null;
+  if (r2 >= 0 && r2 < N && c2 >= 0 && c2 < N) trySwap(r, c, r2, c2);
+});
+addEventListener('pointerup', () => { down = null; });
+// keyboard: arrows move a cursor, Space picks up / swaps
+addEventListener('keydown', (e) => {
+  if (!G || G.mode === 'over' || document.querySelector('.lolo-gate')) return;
+  const d = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.code];
+  if (!d) return;
+  e.preventDefault();
+  const base = G.sel || [3, 3];
+  const next = [clamp(base[0] + d[0], 0, N - 1), clamp(base[1] + d[1], 0, N - 1)];
+  if (G.sel && G.grab) { G.grab = false; trySwap(base[0], base[1], next[0], next[1]); return; }
+  G.sel = next;
+});
+addEventListener('keydown', (e) => {
+  if (!G || G.mode === 'over' || e.code !== 'KeyX' || !G.sel) return;
+  G.grab = !G.grab; sfx.tone(G.grab ? 880 : 500, 0.06, 'sine', 0.08);
+});
+
+Arcade.init({
+  id: 'lologems', logo: ['GEM', 'POP'],
+  tag: 'Swap two neighbours to line up 3 or more of the same. Match 4 for a line blaster, an L or T for a bomb, 5 for a spinning rainbow! You have 25 moves: how many stars can you get?',
+  helpDesk: '<b>Drag</b> a gem onto its neighbour, or <b>click</b> one then the other · keyboard: <b>arrows</b> pick, <b>X</b> grabs, then an <b>arrow</b> swaps',
+  helpTouch: '<b>Swipe</b> a gem toward its neighbour, or <b>tap</b> one then the other',
+  start: newGame,
+  playing: () => G && !G.over,
+  quitNote: 'Your moves will be lost.',
+});
+Arcade.loop(update, draw);
+</script>
+</body>
+</html>

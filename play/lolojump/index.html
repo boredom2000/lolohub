@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#12001f">
+  <title>Sky Hop</title>
+  <link rel="icon" href="../../icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Orbitron:wght@500;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../core/arcade.css">
+  <script src="../../core/ads.js"></script>
+  <script src="../../core/wallet.js"></script>
+  <script src="../../core/arcade.js"></script>
+  <style>
+    .arc-hud { display: none; }
+    body.playing .arc-hud { display: flex; }
+    .arc-logo { --c1: var(--yellow); }
+    .arc-hud { gap: 30px; }
+  </style>
+</head>
+<body>
+  <div class="arc-hud">
+    <div class="arc-stat" id="sStars"><small>STARS</small><span>0</span></div>
+    <div class="arc-stat" id="sHeight"><small>HEIGHT</small><span>0 m</span></div>
+  </div>
+<script>
+'use strict';
+const { rnd, irnd, pick, clamp, sfx } = Arcade;
+let sprites = {};
+const view = Arcade.canvas(() => { sprites = {}; });
+const ctx = view.ctx;
+const EMOJI_FONT = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+function emo(em, size) {
+  const key = em + size;
+  if (sprites[key]) return sprites[key];
+  const c = document.createElement('canvas'), d = Math.ceil(size * 1.4);
+  c.width = c.height = Math.ceil(d * view.dpr);
+  const g = c.getContext('2d');
+  g.scale(view.dpr, view.dpr);
+  g.font = `${size}px ${EMOJI_FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(em, d / 2, d / 2 + size * 0.06);
+  return (sprites[key] = { c, d });
+}
+
+/* ---------- world (units: a 400-wide column, y grows downward, so going up = more negative) ---------- */
+const WW = 400, GRAV = 1500, JUMP = 820, SPRING = 1380, PW = 70, PH = 14, HERO = 44;
+const TYPES = {
+  normal: { col: '#7dff2f' },
+  move: { col: '#19f7ff' },
+  crumble: { col: '#ff7a1a' },
+  cloud: { col: '#ffffff' },
+};
+let G = null;
+function newGame() {
+  G = { mode: 'play', plats: [], items: [], foes: [], parts: [], pops: [], hero: { x: WW / 2, y: -20, vx: 0, vy: -JUMP, sq: 0, face: 1, jet: 0, shield: 0 },
+    cam: -visH() * 0.8, top: 0, stars: 0, genY: 0, t: 0, nextZone: 1000, combo: 0 };
+  G.plats.push({ x: WW / 2 - PW / 2, y: 0, w: PW, type: 'normal' });
+  while (G.genY > -1600) genRow();
+  document.body.classList.add('playing');
+  Arcade.stat('sStars', 0); Arcade.stat('sHeight', '0 m');
+  sfx.up();
+}
+const height = () => Math.max(0, Math.round(-G.hero.y / 10));
+function genRow() {
+  const h = -G.genY / 10; // metres
+  const maxGap = Math.min(190, 70 + h * 0.06);
+  G.genY -= rnd(Math.max(40, maxGap * 0.45), maxGap);
+  const r = Math.random(), lvl = Math.min(1, h / 1500);
+  let type = 'normal';
+  if (h > 80 && r < 0.12 + lvl * 0.22) type = 'move';
+  else if (h > 150 && r < 0.22 + lvl * 0.25) type = 'cloud';
+  const p = { x: rnd(0, WW - PW), y: G.genY, w: PW, type, vx: type === 'move' ? pick([-1, 1]) * rnd(50, 90 + lvl * 80) : 0 };
+  G.plats.push(p);
+  // a crumbly decoy next to it (it breaks, no bounce)
+  if (h > 60 && Math.random() < 0.18 + lvl * 0.2) G.plats.push({ x: (p.x + WW / 2 + rnd(-60, 60) + WW) % (WW - PW), y: G.genY + rnd(-30, 30), w: PW, type: 'crumble' });
+  // goodies and baddies sit on regular platforms
+  const q = Math.random();
+  if (type !== 'cloud') {
+    if (q < 0.09) p.spring = rnd(10, PW - 30);
+    else if (q < 0.115 && h > 100) G.items.push({ kind: 'jet', x: p.x + PW / 2, y: p.y - 30 });
+    else if (q < 0.14 && h > 200) G.items.push({ kind: 'shield', x: p.x + PW / 2, y: p.y - 30 });
+    else if (q < 0.5) G.items.push({ kind: 'star', x: p.x + PW / 2 + rnd(-20, 20), y: p.y - rnd(40, 90) });
+  }
+  if (h > 250 && Math.random() < 0.03 + lvl * 0.06) {
+    G.foes.push({ x: rnd(40, WW - 40), y: G.genY - rnd(60, 100), r: 24, em: pick(['👾', '👻', '🐙', '🦇']), ph: rnd(0, 6), vx: Math.random() < 0.5 ? 0 : rnd(40, 80) });
+  }
+}
+
+/* ---------- update ---------- */
+const keys = {};
+let touchDir = 0, tiltDir = 0;
+function update(dt) {
+  if (!G) return;
+  for (const p of G.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 600 * dt; p.life -= dt; }
+  G.parts = G.parts.filter((p) => p.life > 0);
+  for (const p of G.pops) { p.y -= 50 * dt; p.life -= dt; }
+  G.pops = G.pops.filter((p) => p.life > 0);
+  const H = G.hero;
+  if (G.mode === 'fall') { H.vy += GRAV * dt; H.y += H.vy * dt; H.sq += dt * 8; return; }
+  if (G.mode !== 'play') return;
+  G.t += dt;
+  // steer
+  const dir = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0) || touchDir || tiltDir;
+  const want = dir * 360;
+  H.vx += (want - H.vx) * Math.min(1, dt * (dir ? 9 : 5));
+  if (dir) H.face = dir;
+  H.x += H.vx * dt;
+  if (H.x < -HERO / 2) H.x += WW + HERO; if (H.x > WW + HERO / 2) H.x -= WW + HERO;
+  // fly or fall
+  const prevY = H.y;
+  if (H.jet > 0) {
+    H.jet -= dt; H.vy = -1050;
+    for (let i = 0; i < 2; i++) G.parts.push({ x: H.x + rnd(-6, 6), y: H.y + 6, vx: rnd(-40, 40), vy: rnd(200, 400), life: rnd(0.2, 0.45), col: pick(['#ffe81a', '#ff7a1a', '#ff2fd6']), s: rnd(3, 7) });
+  } else H.vy += GRAV * dt;
+  H.y += H.vy * dt;
+  H.sq = Math.max(0, H.sq - dt * 4);
+  H.shield = Math.max(0, H.shield - dt);
+  // land on platforms (only when falling, feet crossing the top edge)
+  if (H.vy > 0) {
+    for (const p of G.plats) {
+      if (p.gone) continue;
+      if (prevY <= p.y && H.y >= p.y && H.x > p.x - 12 && H.x < p.x + p.w + 12) {
+        if (p.type === 'crumble') { p.gone = 0.001; crumbleFx(p); sfx.noise(0.2, 0.2, 700); continue; }
+        H.y = p.y;
+        const spring = p.spring != null && Math.abs(H.x - (p.x + p.spring + 10)) < 22;
+        H.vy = spring ? -SPRING : -JUMP;
+        H.sq = 1;
+        if (spring) { p.boing = 1; sfx.arp([392, 523, 784, 1046], 0.04, 'square', 0.1); }
+        else sfx.tone(380 + Math.min(500, height() * 0.2), 0.12, 'sine', 0.14, 260);
+        if (p.type === 'cloud') { p.gone = 0.001; puff(p); }
+        break;
+      }
+    }
+  }
+  // moving platforms and fading ones
+  for (const p of G.plats) {
+    if (p.type === 'move') { p.x += p.vx * dt; if (p.x < 0 || p.x > WW - p.w) { p.vx *= -1; p.x = clamp(p.x, 0, WW - p.w); } }
+    if (p.gone) p.gone += dt;
+    if (p.boing) p.boing = Math.max(0, p.boing - dt * 4);
+  }
+  // goodies
+  for (const it of G.items) {
+    if (it.got || Math.hypot(it.x - H.x, it.y - (H.y - HERO / 2)) > 34) continue;
+    it.got = true;
+    if (it.kind === 'star') { G.stars++; Arcade.stat('sStars', G.stars); sfx.coin(); G.pops.push({ x: it.x, y: it.y, t: '+1 ⭐', life: 0.8 }); }
+    if (it.kind === 'jet') { H.jet = 2.6; Arcade.banner('JETPACK!', 'whoosh', '#ffe81a'); sfx.up(); }
+    if (it.kind === 'shield') { H.shield = 8; Arcade.banner('BUBBLE!', 'monsters can\'t hurt you', '#19f7ff'); sfx.up(); }
+  }
+  // monsters: stomp them from above, or bounce off with a bubble
+  for (const f of G.foes) {
+    if (f.dead) continue;
+    f.ph += dt * 3;
+    if (f.vx) { f.x += f.vx * dt; if (f.x < 30 || f.x > WW - 30) f.vx *= -1; }
+    const fy = f.y + Math.sin(f.ph) * 8;
+    const dx = H.x - f.x, dy = (H.y - HERO / 2) - fy;
+    if (Math.hypot(dx, dy) > f.r + HERO * 0.4) continue;
+    if ((H.vy > 0 && H.y < fy + 6) || H.jet > 0 || H.shield > 0) {
+      f.dead = true; H.vy = -JUMP * 1.1; H.sq = 1;
+      G.stars += 3; Arcade.stat('sStars', G.stars);
+      boomFx(f.x, fy, '#ff2fd6'); sfx.boom();
+      G.pops.push({ x: f.x, y: fy, t: 'STOMP! +3 ⭐', life: 1, big: true });
+    } else { die(f); return; }
+  }
+  // camera follows upward only
+  G.cam = Math.min(G.cam, H.y - visH() * 0.42);
+  const hm = height();
+  if (hm > G.top) {
+    G.top = hm; Arcade.stat('sHeight', hm + ' m');
+    if (hm >= G.nextZone) { Arcade.banner(`${G.nextZone} m!`, ZONES[Math.min(ZONES.length - 1, G.nextZone / 1000)].name, '#7dff2f'); sfx.fanfare(); G.nextZone += 1000; }
+  }
+  while (G.genY > G.cam - 400) genRow();
+  const bottom = G.cam + visH() + 40;
+  G.plats = G.plats.filter((p) => p.y < bottom + 200 && !(p.gone > 0.5));
+  G.items = G.items.filter((it) => !it.got && it.y < bottom + 200);
+  G.foes = G.foes.filter((f) => !f.dead && f.y < bottom + 200);
+  if (H.y > bottom) die();
+}
+function die(foe) {
+  G.mode = 'fall';
+  document.body.classList.remove('playing');
+  if (foe) { G.hero.vy = -400; boomFx(G.hero.x, G.hero.y - HERO / 2, '#ffffff'); sfx.boom(); } else sfx.lose();
+  const score = G.top + G.stars * 10;
+  setTimeout(() => Arcade.over({
+    title: foe ? 'BONK!' : 'FELL DOWN!', lose: true, score,
+    stats: `Height <b>${G.top} m</b> · stars <b>${G.stars}</b> × 10<br>Score <b>${score.toLocaleString()}</b> · ${Arcade.fmtTime(G.t)}`,
+  }), 1000);
+}
+function crumbleFx(p) { for (let i = 0; i < 12; i++) G.parts.push({ x: p.x + rnd(0, p.w), y: p.y + rnd(0, PH), vx: rnd(-60, 60), vy: rnd(-40, 80), life: rnd(0.4, 0.8), col: '#ff7a1a', s: rnd(4, 8) }); }
+function puff(p) { for (let i = 0; i < 14; i++) G.parts.push({ x: p.x + rnd(0, p.w), y: p.y + rnd(0, PH), vx: rnd(-90, 90), vy: rnd(-90, 20), life: rnd(0.3, 0.6), col: '#ffffff', s: rnd(5, 10) }); }
+function boomFx(x, y, col) { for (let i = 0; i < 30; i++) { const a = Math.random() * Math.PI * 2, v = rnd(80, 360); G.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rnd(0.3, 0.8), col, s: rnd(3, 7) }); } }
+
+/* ---------- drawing ---------- */
+const ZONES = [
+  { name: 'meadow sky', top: '#1a0b4d', bottom: '#3d1a7a' },
+  { name: 'cloud city', top: '#0b2a4d', bottom: '#5a1a7a' },
+  { name: 'aurora', top: '#00241f', bottom: '#2a0b4d' },
+  { name: 'deep space', top: '#05000f', bottom: '#1a0033' },
+];
+let sc = 1, ox = 0;
+const visH = () => view.h / sc;
+const STARFIELD = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), s: Math.random() * 2 + 0.5, p: Math.random() * 6, d: rnd(0.1, 0.4) }));
+function draw() {
+  const w = view.w, h = view.h, now = performance.now() / 1000;
+  sc = Math.min(w / WW, h / 640) * 0.98;
+  ox = (w - WW * sc) / 2;
+  const hm = G ? Math.max(0, -G.cam / 10) : 0;
+  const z = ZONES[Math.min(ZONES.length - 1, Math.floor(hm / 1000))];
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, z.top); bg.addColorStop(1, z.bottom);
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+  for (const s of STARFIELD) {
+    const yy = ((s.y * h - (G ? G.cam : 0) * s.d * sc) % h + h) % h;
+    ctx.globalAlpha = 0.3 + 0.4 * Math.sin(now * 2 + s.p); ctx.fillStyle = '#e8dcff'; ctx.fillRect(s.x * w, yy, s.s, s.s);
+  }
+  ctx.globalAlpha = 1;
+  // the play column
+  ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(ox, 0, WW * sc, h);
+  ctx.strokeStyle = 'rgba(180,76,255,0.5)'; ctx.lineWidth = 2; ctx.strokeRect(ox, -2, WW * sc, h + 4);
+  if (!G) return;
+  const X = (x) => ox + x * sc, Y = (y) => (y - G.cam) * sc;
+  for (const p of G.plats) {
+    const T = TYPES[p.type], a = p.gone ? Math.max(0, 1 - p.gone * 2) : 1;
+    ctx.globalAlpha = a;
+    ctx.shadowColor = T.col; ctx.shadowBlur = 12;
+    ctx.fillStyle = p.type === 'cloud' ? 'rgba(255,255,255,0.85)' : T.col;
+    const yy = Y(p.y) + (p.gone ? p.gone * 80 * sc : 0);
+    roundRect(X(p.x), yy, p.w * sc, PH * sc, PH * sc / 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    if (p.type === 'crumble') { ctx.strokeStyle = '#5a1a00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(p.x + p.w * 0.3), yy); ctx.lineTo(X(p.x + p.w * 0.4), yy + PH * sc); ctx.moveTo(X(p.x + p.w * 0.7), yy); ctx.lineTo(X(p.x + p.w * 0.6), yy + PH * sc); ctx.stroke(); }
+    if (p.spring != null) {
+      const sx = X(p.x + p.spring), ext = (p.boing ? 14 : 6) * sc;
+      ctx.strokeStyle = '#ffe81a'; ctx.lineWidth = 3; ctx.beginPath();
+      for (let k = 0; k <= 4; k++) ctx.lineTo(sx + (k % 2 ? 0 : 20 * sc), yy - (k / 4) * ext);
+      ctx.stroke(); ctx.fillStyle = '#ff2fd6'; ctx.fillRect(sx - 2, yy - ext - 4 * sc, 24 * sc, 4 * sc);
+    }
+  }
+  ctx.globalAlpha = 1;
+  for (const it of G.items) {
+    const em = it.kind === 'star' ? '⭐' : it.kind === 'jet' ? '🚀' : '🫧';
+    const s = emo(em, Math.round(26 * sc)), bob = Math.sin(now * 4 + it.x) * 4 * sc;
+    ctx.drawImage(s.c, X(it.x) - s.d / 2, Y(it.y) - s.d / 2 + bob, s.d, s.d);
+  }
+  for (const f of G.foes) {
+    const s = emo(f.em, Math.round(f.r * 2 * sc));
+    ctx.shadowColor = '#ff2fd6'; ctx.shadowBlur = 16;
+    ctx.drawImage(s.c, X(f.x) - s.d / 2, Y(f.y + Math.sin(f.ph) * 8) - s.d / 2, s.d, s.d);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of G.parts) { ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = p.col; ctx.fillRect(X(p.x) - p.s / 2, Y(p.y) - p.s / 2, p.s, p.s); }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  // the hero (drawn twice near an edge so wrapping looks smooth)
+  const H = G.hero;
+  for (const dx of [0, H.x < HERO ? WW + HERO : H.x > WW - HERO ? -(WW + HERO) : null]) {
+    if (dx === null) continue;
+    drawHero(X(H.x + dx), Y(H.y), now);
+  }
+  ctx.textAlign = 'center';
+  for (const p of G.pops) {
+    ctx.globalAlpha = Math.min(1, p.life * 2);
+    ctx.font = `${p.big ? 22 : 16}px Bungee, sans-serif`; ctx.fillStyle = p.big ? '#ff2fd6' : '#ffe81a';
+    ctx.fillText(p.t, X(p.x), Y(p.y));
+  }
+  ctx.globalAlpha = 1;
+  // touch hint arrows
+  if (Arcade.touch && G.mode === 'play' && G.t < 4) {
+    ctx.globalAlpha = 0.5 * (1 - G.t / 4); ctx.font = '48px Bungee, sans-serif'; ctx.fillStyle = '#fff';
+    ctx.fillText('◀', w * 0.15, h * 0.8); ctx.fillText('▶', w * 0.85, h * 0.8); ctx.globalAlpha = 1;
+  }
+}
+function drawHero(x, y, now) {
+  const H = G.hero, size = HERO * sc;
+  const sqx = 1 + H.sq * 0.25, sqy = 1 - H.sq * 0.22;
+  ctx.save(); ctx.translate(x, y); ctx.scale(H.face * sqx, sqy);
+  if (G.mode === 'fall') ctx.rotate(H.sq);
+  const s = emo('🐸', Math.round(size));
+  ctx.shadowColor = '#7dff2f'; ctx.shadowBlur = 14;
+  ctx.drawImage(s.c, -s.d / 2, -s.d + size * 0.15, s.d, s.d);
+  ctx.shadowBlur = 0;
+  if (H.jet > 0) { const j = emo('🚀', Math.round(size * 0.6)); ctx.save(); ctx.rotate(-Math.PI / 4); ctx.drawImage(j.c, -size * 0.75, -size * 0.2, j.d, j.d); ctx.restore(); }
+  ctx.restore();
+  if (H.shield > 0 && (H.shield > 2 || Math.sin(now * 20) > 0)) {
+    ctx.strokeStyle = '#19f7ff'; ctx.lineWidth = 3; ctx.shadowColor = '#19f7ff'; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.arc(x, y - size * 0.45, size * 0.75, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
+  }
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+/* ---------- input: arrows / A D, hold the left or right side of the screen ---------- */
+addEventListener('keydown', (e) => { keys[e.code] = true; if (e.code.startsWith('Arrow')) e.preventDefault(); });
+addEventListener('keyup', (e) => { keys[e.code] = false; });
+const touches = new Map();
+const updTouch = () => { let d = 0; for (const x of touches.values()) d = x < view.w / 2 ? -1 : 1; touchDir = d; };
+view.cv.addEventListener('pointerdown', (e) => { touches.set(e.pointerId, e.clientX); updTouch(); });
+addEventListener('pointermove', (e) => { if (touches.has(e.pointerId)) { touches.set(e.pointerId, e.clientX); updTouch(); } });
+const up = (e) => { touches.delete(e.pointerId); updTouch(); };
+addEventListener('pointerup', up);
+addEventListener('pointercancel', up);
+addEventListener('blur', () => { touches.clear(); touchDir = 0; for (const k in keys) keys[k] = false; });
+
+Arcade.init({
+  id: 'lolojump', logo: ['SKY', 'HOP'],
+  tag: 'Froggy bounces all by itself: you steer! Hop from cloud to cloud as high as you can. Orange platforms crumble, white clouds vanish, springs launch you, 🚀 jetpacks fly. Stomp monsters from above and grab every ⭐.',
+  helpDesk: '<b>← →</b> or <b>A D</b> to steer · go off one side to come back on the other',
+  helpTouch: '<b>Hold the left or right side</b> of the screen to steer',
+  start: newGame,
+  playing: () => G && G.mode === 'play',
+});
+Arcade.loop(update, draw);
+</script>
+</body>
+</html>

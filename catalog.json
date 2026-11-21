@@ -21,6 +21,36 @@
       "extra": { "name": "Study the words first", "href": "work/chinese-w6/?mode=learn" }
     },
     {
+      "section": "Math · Column sums",
+      "subtitle": "Write the answer right to left, one digit at a time",
+      "lessons": [
+        { "id": "cm-add-easy", "name": "Easy Column Adding", "emoji": "🐣", "href": "work/math-columns/?lesson=easy", "minutes": 4, "gold": 25,
+          "blurb": "Two-digit sums with no carrying. Start with the ones, then the tens, with help on every digit." },
+        { "id": "cm-add-carry", "name": "Carry the 1", "emoji": "🎒", "href": "work/math-columns/?lesson=carry", "minutes": 5, "gold": 30,
+          "blurb": "When the ones make 10 or more: write one digit, carry the little 1 to the tens." },
+        { "id": "cm-add-three", "name": "Hundreds Tower", "emoji": "🏔️", "href": "work/math-columns/?lesson=three", "minutes": 5, "gold": 30,
+          "blurb": "Three-digit numbers in columns: ones, tens, hundreds." },
+        { "id": "cm-sub-borrow", "name": "Column Take-Away", "emoji": "🪣", "href": "work/math-columns/?lesson=sub", "minutes": 6, "gold": 35,
+          "blurb": "Subtract right to left. Top digit too small? Borrow 10 from its neighbour!" }
+      ],
+      "extra": { "name": "How column sums work", "href": "work/math-columns/?lesson=study" }
+    },
+    {
+      "section": "English · Word Detectives",
+      "subtitle": "Nouns, verbs, adjectives and adverbs",
+      "lessons": [
+        { "id": "gr-what-kind", "name": "What Kind of Word?", "emoji": "🔍", "href": "work/grammar/?lesson=what", "minutes": 4, "gold": 25,
+          "blurb": "One word is highlighted in a sentence: is it a noun, a verb, an adjective or an adverb?" },
+        { "id": "gr-find-it", "name": "Tap It!", "emoji": "👆", "href": "work/grammar/?lesson=find", "minutes": 5, "gold": 30,
+          "blurb": "Tap every verb in the sentence. Then every noun, every adjective, every adverb…" },
+        { "id": "gr-fill-gap", "name": "Fill the Gap", "emoji": "🧩", "href": "work/grammar/?lesson=gap", "minutes": 4, "gold": 25,
+          "blurb": "A word is missing. Pick the one of the right kind to finish the sentence." },
+        { "id": "gr-sort", "name": "Word Sort Speed Round", "emoji": "🗂️", "href": "work/grammar/?lesson=sort", "minutes": 3, "gold": 20,
+          "blurb": "Sixteen words, four kinds. Sort them fast for a lightning combo!" }
+      ],
+      "extra": { "name": "Learn the four word kinds", "href": "work/grammar/?lesson=study" }
+    },
+    {
       "section": "Français · Les sons",
       "subtitle": "French vowels and vowel teams: hear them, find them, say them!",
       "lessons": [
@@ -69,6 +99,12 @@
     }
   ],
   "play": [
+    { "id": "lologems", "name": "GEM POP", "emoji": "💎", "colors": ["#19f7ff", "#ff2fd6"], "price": 8, "round": "25 moves, about 3-4 min",
+      "blurb": "Swap gems to line up 3 or more. Make line blasters, bombs and spinning rainbows, chain combos and get 3 stars in 25 moves!" },
+    { "id": "loloslice", "name": "SLICE STORM", "emoji": "🍉", "colors": ["#7dff2f", "#ff3b55"], "price": 6, "round": "one run, about 2-3 min",
+      "blurb": "Fruit flies up: swipe to slice it in half! Cut 3 at once for a combo, grab ice and frenzy stars, and NEVER slice a bomb." },
+    { "id": "lolojump", "name": "SKY HOP", "emoji": "🐸", "colors": ["#ffe81a", "#7dff2f"], "price": 6, "round": "one climb, about 2-3 min",
+      "blurb": "Froggy bounces by itself, you steer! Hop up through the sky on springs and jetpacks, dodge crumbly platforms and stomp monsters." },
     { "id": "loloswarm", "name": "SWARM", "emoji": "🧟", "colors": ["#7dff2f", "#ff2fd6"], "price": 12, "round": "one run, up to 5 min",
       "blurb": "Monsters everywhere! Your weapons fire by themselves: just move, grab gems, level up and pick new powers. Survive 5 minutes and beat two bosses." },
     { "id": "lolomerge", "name": "MERGE MOON", "emoji": "🪐", "colors": ["#b44cff", "#19f7ff"], "price": 8, "round": "one jar, about 4 min",

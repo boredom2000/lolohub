@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Column Math | Lolo Hub WORK HARD</title>
+<meta name="description" content="Column addition and subtraction on Lolo Hub: write the answer one digit at a time, from right to left, with help on every column.">
+<link rel="icon" href="../../icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Patrick+Hand&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../kit/kit.css">
+<script src="../../core/wallet.js"></script>
+<script src="../kit/kit.js"></script>
+<style>
+  /* the sum, written in columns like on paper */
+  .colsum { display: inline-grid; gap: 4px 6px; margin: 16px auto 6px; font: 900 clamp(40px, 11vw, 64px)/1 'Fraunces', Georgia, serif; }
+  .colsum .c { width: 1.05em; height: 1.2em; display: flex; align-items: center; justify-content: center; border-radius: 10px; position: relative; transition: background 0.2s; }
+  .colsum .carry { height: 0.75em; font-size: 0.5em; color: var(--pink); }
+  .colsum .carry.show { animation: carry-in 0.6s cubic-bezier(0.2, 1.8, 0.4, 1); }
+  .colsum .op { color: var(--soft); }
+  .colsum .line { grid-column: 1 / -1; height: 0; border-top: 5px solid var(--ink); border-radius: 3px; margin: 2px 0 4px; }
+  .colsum .ans { border: 3px dashed #c9d3e0; color: var(--blue); background: #fbfdff; }
+  .colsum .ans.now { border: 4px solid var(--margin); background: #fff4c2; animation: now-pulse 1s ease-in-out infinite; }
+  .colsum .ans.ok { border: 3px solid var(--good); color: var(--good); background: #e9fbee; animation: pop 0.45s; }
+  .colsum .ans.bad { border: 3px solid var(--bad); color: var(--bad); background: #ffe1e1; animation: shake 0.4s; }
+  .colsum .ans.given { border: 3px solid var(--gold); color: var(--gold); background: #fff6c9; }
+  .colsum .hot { background: #fff1d6; }
+  .colsum .crossed { color: #b9c2d3; text-decoration: line-through 4px var(--bad); }
+  .colsum .borrow { position: absolute; top: -0.55em; right: -0.15em; font-size: 0.45em; color: var(--pink); animation: carry-in 0.6s cubic-bezier(0.2, 1.8, 0.4, 1); }
+  .colsum .pl { height: 0.6em; font: 800 14px 'Nunito', sans-serif; color: var(--soft); }
+  .step { min-height: 30px; font-size: clamp(20px, 5vw, 26px); color: var(--soft); }
+  .step b { color: var(--ink); }
+  .arrow { display: inline-block; color: var(--margin); animation: slide-left 1s ease-in-out infinite; }
+  @keyframes now-pulse { 50% { transform: scale(1.08); } }
+  @keyframes carry-in { 0% { transform: translateY(1.5em) scale(0.3); opacity: 0; } }
+  @keyframes slide-left { 50% { transform: translateX(-8px); } }
+</style>
+</head>
+<body>
+<script>
+'use strict';
+const { rnd, pick, tone, burst } = LessonKit;
+const $ = (id) => document.getElementById(id);
+const PLACE = ['ones', 'tens', 'hundreds', 'thousands'];
+
+/* ---------- one column sum, answered right to left, one digit at a time ----------
+   Every digit gets its own feedback: a right digit pops green and shows the carry (or borrow), a wrong digit
+   shakes red with a hint for that column only. Two misses on the same digit: it is filled in and we move on. */
+let active = null; // the keyboard goes to the sum on screen
+addEventListener('keydown', (e) => {
+  if (!active || document.querySelector('.lolo-cele')) return;
+  if (/^[0-9]$/.test(e.key)) { e.preventDefault(); active(+e.key); }
+});
+
+function columnQ(a, b, op) {
+  const res = op === '+' ? a + b : a - b;
+  const width = Math.max(String(a).length, String(b).length, String(res).length);
+  const dig = (n) => String(n).padStart(width, ' ').split('').reverse().map((c) => (c === ' ' ? null : +c)); // [ones, tens, ...]
+  const A = dig(a), B = dig(b), R = dig(res);
+  const cols = width + 1; // + the operator column
+  return {
+    kind: 'custom', tries: 99, reveal: String(res), ans: res,
+    html: `<div class="q">${op === '+' ? 'Add' : 'Take away'} one column at a time, starting on the <b>right</b>!</div>
+      <div class="colsum" id="sum" style="grid-template-columns:repeat(${cols}, auto)"></div>
+      <div class="step" id="step"></div>`,
+    mount(el, api) {
+      const sum = $('sum');
+      // grid: row 0 carries, row 1 top number, row 2 operator + bottom number, line, row 3 answer
+      const cell = (cls, txt = '') => `<div class="c ${cls}">${txt}</div>`;
+      let h = cell('op');
+      for (let k = width - 1; k >= 0; k--) h += `<div class="c carry" id="cy${k}"></div>`;
+      h += cell('op');
+      for (let k = width - 1; k >= 0; k--) h += `<div class="c" id="ta${k}">${A[k] == null ? '' : A[k]}</div>`;
+      h += cell('op', op === '+' ? '+' : '−');
+      for (let k = width - 1; k >= 0; k--) h += `<div class="c" id="tb${k}">${B[k] == null ? '' : B[k]}</div>`;
+      h += '<div class="line"></div>' + cell('op');
+      for (let k = width - 1; k >= 0; k--) h += `<div class="c ans" id="r${k}"></div>`;
+      h += cell('op');
+      for (let k = width - 1; k >= 0; k--) h += `<div class="c pl">${PLACE[k][0].toUpperCase()}</div>`;
+      sum.innerHTML = h;
+      // the digits still to write: leading zeros of the answer are skipped (8 − 3 = 5, not 05)
+      const last = R.length - 1 - [...R].reverse().findIndex((d) => d != null);
+      for (let k = last + 1; k < width; k++) { $('r' + k).style.visibility = 'hidden'; }
+      let k = 0, carry = 0, miss = 0;
+      const top = A.map((d) => d || 0); // top digits after borrowing
+      const pad = document.createElement('div');
+      pad.className = 'pad';
+      ['7', '8', '9', '4', '5', '6', '1', '2', '3', '', '0', ''].forEach((d) => {
+        const bt = document.createElement('button');
+        bt.type = 'button'; bt.textContent = d;
+        if (!d) bt.style.visibility = 'hidden'; else bt.onclick = () => key(+d);
+        pad.appendChild(bt);
+      });
+      el.appendChild(pad);
+
+      function colText() {
+        const x = top[k], y = B[k] || 0;
+        if (op === '+') {
+          const parts = [A[k], B[k]].filter((d) => d != null);
+          if (carry) parts.push(`<span style="color:var(--pink)">${carry}</span>`);
+          return parts.length > 1 ? parts.join(' + ') : `just the ${parts[0]}`;
+        }
+        return B[k] == null ? `just the ${x}` : `${x} − ${y}`;
+      }
+      function focus() {
+        document.querySelectorAll('#sum .hot, #sum .now').forEach((c) => c.classList.remove('hot', 'now'));
+        if (k > last) return;
+        ['ta', 'tb'].forEach((p) => { const c = $(p + k); if (c && c.textContent) c.classList.add('hot'); });
+        $('r' + k).classList.add('now');
+        // subtraction: borrow before the kid writes this column
+        if (op === '-' && B[k] != null && top[k] < B[k]) {
+          let j = k + 1;
+          while (top[j] === 0) j++;
+          for (let m = j; m > k; m--) { borrowMark(m, top[m] - 1 + (m === j ? 0 : 10)); top[m] = top[m] - 1 + (m === j ? 0 : 10); }
+          const was = top[k];
+          top[k] += 10;
+          borrowMark(k, top[k]);
+          $('step').innerHTML = `${was} is smaller than ${B[k]}, so <b>borrow 10</b> from the ${PLACE[k + 1]}! Now the ${PLACE[k]}: <b>${colText()}</b> = ? <span class="arrow">⬅</span>`;
+          tone([700, 500], 'triangle', 0.1, 0.2, 0.08);
+          return;
+        }
+        $('step').innerHTML = `${k === 0 ? 'Start with the' : 'Now the'} <b>${PLACE[k]}</b>: <b>${colText()}</b> = ? <span class="arrow">⬅</span>`;
+      }
+      function borrowMark(m, v) {
+        const c = $('ta' + m);
+        if (!c.dataset.orig) { c.dataset.orig = c.textContent; c.innerHTML = `<span class="crossed">${c.dataset.orig}</span>`; }
+        const old = c.querySelector('.borrow'); if (old) old.remove();
+        c.insertAdjacentHTML('beforeend', `<span class="borrow">${v}</span>`);
+      }
+      function key(d) {
+        if (k > last) return;
+        const colVal = op === '+' ? (A[k] || 0) + (B[k] || 0) + carry : top[k] - (B[k] || 0);
+        const want = R[k];
+        const cellEl = $('r' + k);
+        cellEl.textContent = d;
+        if (d === want) {
+          cellEl.className = 'c ans ok';
+          tone([660 + k * 120, 880 + k * 120], 'triangle', 0.06, 0.14, 0.1);
+          burst(6 + k * 2, ['✔', '★', String(d)]);
+          let msg = `✔ ${colText()} = ${colVal}`;
+          if (op === '+') {
+            carry = colVal >= 10 ? 1 : 0;
+            if (carry && k + 1 <= last) {
+              msg += `: write <b>${d}</b>, <b style="color:var(--pink)">carry the 1</b> ⬆`;
+              const cy = $('cy' + (k + 1)); cy.textContent = '1'; cy.classList.add('show');
+            }
+          }
+          $('fb').innerHTML = msg; $('fb').className = 'feedback good';
+          k++; miss = 0;
+          if (k > last) { active = null; setTimeout(() => { $('step').innerHTML = `${a} ${op === '+' ? '+' : '−'} ${b} = <b style="color:var(--good)">${res}</b>`; api.right(); }, 250); }
+          else focus();
+          return;
+        }
+        // wrong digit: say why, for this column only
+        miss++;
+        cellEl.className = 'c ans bad';
+        let hint;
+        if (op === '+') {
+          if (colVal >= 10 && d === Math.floor(colVal / 10)) hint = `${colVal} has two digits: write the <b>${colVal % 10}</b> here and carry the 1.`;
+          else if (carry && d === (colVal - 1) % 10) hint = `Don't forget the little <b style="color:var(--pink)">1</b> you carried!`;
+          else if (colVal >= 10) hint = `${colText()} = ${colVal}. Write only the ${PLACE[k]} digit.`;
+          else hint = `Count it: ${colText()} = ?`;
+        } else {
+          const y = B[k] || 0;
+          if (d === y - (top[k] - 10) && top[k] >= 10) hint = `Not backwards! It's <b>${top[k]} − ${y}</b>, the top number minus the bottom.`;
+          else hint = `${colText()} = ? Count back from ${top[k]}.`;
+        }
+        if (miss >= 2) {
+          setTimeout(() => {
+            cellEl.className = 'c ans given'; cellEl.textContent = want;
+            api.wrong(`${colText()} = ${colVal}, so it's a <b>${want}</b>. Keep going!`);
+            if (op === '+') { carry = colVal >= 10 ? 1 : 0; if (carry && k + 1 <= last) { const cy = $('cy' + (k + 1)); cy.textContent = '1'; cy.classList.add('show'); } }
+            k++; miss = 0;
+            if (k > last) { active = null; setTimeout(api.right, 600); } else focus();
+          }, 450);
+          return;
+        }
+        api.wrong(hint);
+        setTimeout(() => { if (cellEl.classList.contains('bad')) { cellEl.className = 'c ans now'; cellEl.textContent = ''; } }, 600);
+      }
+      active = key;
+      focus();
+    },
+    onDone() { active = null; },
+  };
+}
+
+/* ---------- the sums: each lesson a little harder ---------- */
+let used = new Set();
+function fresh(make) { let r, g = 0; do { r = make(); } while (used.has(r.join()) && g++ < 40); used.add(r.join()); return r; }
+function twoDigitNoCarry() {
+  return fresh(() => { const t1 = rnd(1, 8), t2 = rnd(1, 9 - t1), o1 = rnd(0, 9), o2 = rnd(0, 9 - o1); return [t1 * 10 + o1, t2 * 10 + o2]; });
+}
+function twoDigitCarry() {
+  return fresh(() => { const o1 = rnd(2, 9), o2 = rnd(10 - o1, 9), t1 = rnd(1, 6), t2 = rnd(1, 8 - t1); return [t1 * 10 + o1, t2 * 10 + o2]; });
+}
+function makeEasy(i) {
+  // warm-up: one-digit on two-digit, then two two-digit numbers, never a carry
+  if (i < 3) { const [a, b] = fresh(() => { const o = rnd(0, 7); return [rnd(1, 8) * 10 + o, rnd(1, 9 - o)]; }); return columnQ(a, b, '+'); }
+  const [a, b] = twoDigitNoCarry();
+  return columnQ(a, b, '+');
+}
+function makeCarry(i) {
+  if (i < 2) { const [a, b] = twoDigitNoCarry(); return columnQ(a, b, '+'); }
+  if (i === 9) { const [a, b] = fresh(() => [rnd(5, 9) * 10 + rnd(5, 9), rnd(3, 9) * 10 + rnd(5, 9)]); return columnQ(a, b, '+'); } // over 100!
+  const [a, b] = twoDigitCarry();
+  return columnQ(a, b, '+');
+}
+function makeThree(i) {
+  const [a, b] = fresh(() => {
+    if (i < 3) { const a = rnd(100, 799); return [a, rnd(10, 99)]; }
+    const a = rnd(100, 699); return [a, rnd(100, 899 - a)];
+  });
+  return columnQ(a, b, '+');
+}
+function makeSub(i) {
+  const [a, b] = fresh(() => {
+    if (i < 3) { const t1 = rnd(2, 9), o1 = rnd(3, 9); return [t1 * 10 + o1, rnd(1, t1 - 1) * 10 + rnd(0, o1)]; } // no borrowing
+    if (i < 8) { const t1 = rnd(3, 9), o1 = rnd(0, 7); return [t1 * 10 + o1, rnd(1, t1 - 1) * 10 + rnd(o1 + 1, 9)]; } // borrow once
+    const a = rnd(3, 9) * 100 + rnd(0, 9) * 10 + rnd(0, 5); return [a, rnd(110, a - 100)];
+  });
+  return columnQ(a, b, '-');
+}
+
+LessonKit.run({
+  title: 'Column Math',
+  sub: 'Write the answer from right to left, one digit at a time.',
+  bits: ['➕', '★', '✦', '1', '2', '3', '✔'],
+  study: {
+    title: 'How column sums work',
+    sub: 'Ones first, then tens, then hundreds.',
+    render(el) {
+      el.innerHTML = `<div class="card" style="text-align:left;padding-top:20px">
+        <h2>1. Line up the numbers</h2><p>Ones under ones, tens under tens. The <b>right</b> side always lines up.</p>
+        <h2>2. Start on the right</h2><p>Add the <b>ones</b> column first and write that digit under the line.</p>
+        <h2>3. Too big? Carry!</h2><p>If a column makes 10 or more, write the ones digit and put a little <b style="color:var(--pink)">1</b> on top of the next column. 7 + 5 = 12: write 2, carry 1.</p>
+        <h2>4. Taking away? Borrow!</h2><p>If the top digit is smaller, borrow 10 from the column on its left: that digit goes down by 1, and yours gets +10.</p>
+        <h2>5. Keep going left</h2><p>Tens next, then hundreds, and don't forget the carry!</p></div>`;
+    },
+  },
+  lessons: {
+    easy: { id: 'cm-add-easy', emoji: '🐣', title: 'Easy Column Adding', sub: 'Two-digit sums, no carrying.', count: 8, make: makeEasy, reset: () => { used = new Set(); } },
+    carry: { id: 'cm-add-carry', emoji: '🎒', title: 'Carry the 1', sub: 'When the ones make 10 or more.', count: 10, make: makeCarry, reset: () => { used = new Set(); } },
+    three: { id: 'cm-add-three', emoji: '🏔️', title: 'Hundreds Tower', sub: 'Three-digit column adding.', count: 8, make: makeThree, reset: () => { used = new Set(); } },
+    sub: { id: 'cm-sub-borrow', emoji: '🪣', title: 'Column Take-Away', sub: 'Subtract right to left, with borrowing.', count: 10, make: makeSub, reset: () => { used = new Set(); } },
+  },
+});
+</script>
+</body>
+</html>

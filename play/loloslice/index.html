@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#12001f">
+  <title>Slice Storm</title>
+  <link rel="icon" href="../../icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Orbitron:wght@500;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../core/arcade.css">
+  <script src="../../core/ads.js"></script>
+  <script src="../../core/wallet.js"></script>
+  <script src="../../core/arcade.js"></script>
+  <style>
+    .arc-hud { display: none; }
+    body.playing .arc-hud { display: flex; }
+    .arc-logo { --c1: var(--lime); }
+    #sLives span { letter-spacing: 2px; }
+    .arc-hud { gap: 30px; }
+  </style>
+</head>
+<body>
+  <div class="arc-hud">
+    <div class="arc-stat" id="sLives"><small>LIVES</small><span>❤️❤️❤️</span></div>
+    <div class="arc-stat" id="sScore"><small>SCORE</small><span>0</span></div>
+  </div>
+<script>
+'use strict';
+const { rnd, irnd, pick, clamp, sfx } = Arcade;
+let sprites = {};
+const view = Arcade.canvas(() => { sprites = {}; });
+const ctx = view.ctx;
+const EMOJI_FONT = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+
+/* ---------- things that fly ---------- */
+const FRUIT = [
+  { em: '🍉', juice: '#ff3b55' }, { em: '🍎', juice: '#ff2f4a' }, { em: '🍊', juice: '#ff9a1a' }, { em: '🍋', juice: '#ffe81a' },
+  { em: '🍍', juice: '#ffd23f' }, { em: '🥝', juice: '#7dff2f' }, { em: '🍑', juice: '#ffad8a' }, { em: '🍇', juice: '#b44cff' },
+  { em: '🥥', juice: '#ffffff' }, { em: '🍓', juice: '#ff2f6d' }, { em: '🍌', juice: '#fff36b' },
+];
+const SPECIAL = {
+  ice: { em: '🧊', juice: '#9be7ff' },     // slow motion
+  star: { em: '🌟', juice: '#ffe81a' },    // fruit frenzy
+  bomb: { em: '💣', juice: '#ff7a1a' },
+};
+function sprite(em, size) {
+  const key = em + size;
+  if (sprites[key]) return sprites[key];
+  const c = document.createElement('canvas'), d = Math.ceil(size * 1.4);
+  c.width = c.height = Math.ceil(d * view.dpr);
+  const g = c.getContext('2d');
+  g.scale(view.dpr, view.dpr);
+  g.font = `${size}px ${EMOJI_FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(em, d / 2, d / 2 + size * 0.06);
+  return (sprites[key] = { c, d });
+}
+
+/* ---------- state ---------- */
+let G = null;
+function newGame() {
+  G = { mode: 'play', items: [], halves: [], splats: [], parts: [], pops: [], trail: [], score: 0, lives: 3, t: 0, spawnT: 1, wave: 0,
+    slow: 0, frenzy: 0, flash: 0, shake: 0, sliced: 0, bestCombo: 0, cutsThisSwipe: [], swipeT: 0 };
+  document.body.classList.add('playing');
+  hud();
+  sfx.up();
+}
+function hud() {
+  Arcade.stat('sLives', '❤️'.repeat(G.lives) + '🖤'.repeat(Math.max(0, 3 - G.lives)));
+  Arcade.stat('sScore', G.score);
+}
+const R = () => clamp(Math.min(view.w, view.h) * 0.075, 30, 54); // fruit radius
+const GRAV = () => view.h * 1.05;
+function launch(kind) {
+  const w = view.w, h = view.h, r = R();
+  const x = rnd(w * 0.15, w * 0.85);
+  const peak = rnd(h * 0.45, h * 0.85);
+  const vy = -Math.sqrt(2 * GRAV() * peak);
+  const tFly = 2 * -vy / GRAV();
+  const tx = clamp(x + rnd(-w * 0.35, w * 0.35), w * 0.1, w * 0.9);
+  const f = kind === 'fruit' ? pick(FRUIT) : SPECIAL[kind];
+  G.items.push({ kind, em: f.em, juice: f.juice, x, y: h + r, vx: (tx - x) / tFly, vy, r: kind === 'fruit' ? r * rnd(0.9, 1.15) : r, ang: rnd(0, 6), av: rnd(-4, 4), gold: kind === 'fruit' && Math.random() < 0.04 });
+}
+function spawnWave() {
+  G.wave++;
+  const lvl = Math.min(1, G.t / 120); // ramps up over 2 minutes
+  if (G.frenzy > 0) { for (let i = 0; i < 3; i++) launch('fruit'); G.spawnT = 0.35; return; }
+  const n = irnd(1, 2 + Math.round(lvl * 3));
+  const burstLaunch = Math.random() < 0.3 + lvl * 0.3;
+  for (let i = 0; i < n; i++) {
+    const kind = Math.random() < 0.06 + lvl * 0.16 && G.wave > 2 ? 'bomb' : Math.random() < 0.035 ? pick(['ice', 'star']) : 'fruit';
+    if (burstLaunch) launch(kind); else setTimeout(() => G && G.mode === 'play' && launch(kind), i * rnd(180, 380));
+  }
+  G.spawnT = rnd(1.5, 2.4) - lvl * 0.7;
+}
+
+/* ---------- slicing ---------- */
+function segHitsCircle(ax, ay, bx, by, cx, cy, r) {
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+  const t = clamp(((cx - ax) * dx + (cy - ay) * dy) / l2, 0, 1);
+  const px = ax + dx * t - cx, py = ay + dy * t - cy;
+  return px * px + py * py < r * r;
+}
+function trySlice(ax, ay, bx, by) {
+  if (G.mode !== 'play') return;
+  const speed = Math.hypot(bx - ax, by - ay);
+  if (speed < 3) return;
+  for (const it of G.items) {
+    if (it.cut || !segHitsCircle(ax, ay, bx, by, it.x, it.y, it.r)) continue;
+    if (it.gold && performance.now() - (it.hitAt || 0) < 140) continue;
+    if (it.gold && (it.hitAt = performance.now()) && (it.hits = (it.hits || 0) + 1) < 5) { // golden fruit takes 5 hits
+      G.score += 2; hud(); juice(it.x, it.y, '#ffe81a', 10); sfx.coin();
+      G.pops.push({ x: it.x, y: it.y - it.r, t: '+2', life: 0.7 }); it.vy -= 60;
+      continue;
+    }
+    it.cut = true;
+    const ang = Math.atan2(by - ay, bx - ax);
+    if (it.kind === 'bomb') { bombHit(it); continue; }
+    cutApart(it, ang);
+    if (it.kind === 'ice') { G.slow = 5; Arcade.banner('FREEZE!', 'slow motion', '#9be7ff'); sfx.arp([1318, 1046, 1318, 1568], 0.06, 'sine', 0.12); }
+    else if (it.kind === 'star') { G.frenzy = 4; G.spawnT = 0; Arcade.banner('FRUIT FRENZY!', 'slice everything!', '#ffe81a'); sfx.fanfare(); }
+    else {
+      G.sliced++;
+      const pts = it.gold ? 10 : 1;
+      G.score += pts; hud();
+      G.cutsThisSwipe.push(it);
+      sfx.noise(0.12, 0.25, 3200); sfx.tone(rnd(500, 800), 0.08, 'triangle', 0.1, -200);
+    }
+  }
+}
+function cutApart(it, ang) {
+  const nx = Math.cos(ang + Math.PI / 2), ny = Math.sin(ang + Math.PI / 2), push = 90;
+  for (const side of [1, -1]) {
+    G.halves.push({ em: it.em, x: it.x, y: it.y, vx: it.vx + nx * push * side, vy: it.vy + ny * push * side - 40, r: it.r, ang: it.ang, av: it.av + side * 3, rel: ang - it.ang, side, life: 2.5 });
+  }
+  juice(it.x, it.y, it.juice, 22);
+  G.splats.push({ x: it.x, y: it.y, r: it.r * rnd(1.1, 1.6), col: it.juice, life: 3, a: rnd(0, 6) });
+}
+function bombHit(it) {
+  G.flash = 1; G.shake = 0.6;
+  sfx.boom();
+  juice(it.x, it.y, '#ff7a1a', 60); juice(it.x, it.y, '#ffffff', 30);
+  G.lives--; hud();
+  // the blast clears everything on screen (no points)
+  for (const o of G.items) if (!o.cut && o !== it) { o.cut = true; juice(o.x, o.y, '#888', 8); }
+  Arcade.banner('BOOM!', G.lives > 0 ? 'watch out for bombs!' : '', '#ff7a1a');
+  if (G.lives <= 0) gameOver();
+}
+function endSwipe() {
+  const n = G ? G.cutsThisSwipe.length : 0;
+  if (n >= 3) {
+    const bonus = n * 2;
+    G.score += bonus; hud();
+    const c = G.cutsThisSwipe[n - 1];
+    G.pops.push({ x: c.x, y: c.y - 30, t: `${n} FRUIT COMBO +${bonus}`, life: 1.3, big: true });
+    G.bestCombo = Math.max(G.bestCombo, n);
+    if (n >= 5) Arcade.banner('MEGA COMBO!', `${n} in one swipe`, '#7dff2f');
+    sfx.up();
+  }
+  if (G) G.cutsThisSwipe = [];
+}
+function juice(x, y, col, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = rnd(60, 380);
+    G.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, life: rnd(0.4, 0.9), col, s: rnd(3, 7) });
+  }
+}
+function gameOver() {
+  G.mode = 'over';
+  document.body.classList.remove('playing');
+  setTimeout(() => Arcade.over({
+    title: 'SLICED OUT!', lose: true, score: G.score,
+    stats: `Score <b>${G.score}</b> · fruit sliced <b>${G.sliced}</b>${G.bestCombo >= 3 ? ` · best combo <b>${G.bestCombo}</b>` : ''} · ${Arcade.fmtTime(G.t)}`,
+  }), 1100);
+}
+
+/* ---------- update ---------- */
+function update(dt) {
+  if (!G) return;
+  const real = dt;
+  G.slow = Math.max(0, G.slow - real);
+  if (G.slow > 0) dt *= 0.4;
+  G.flash = Math.max(0, G.flash - real * 2);
+  G.shake = Math.max(0, G.shake - real);
+  const g = GRAV();
+  if (G.mode === 'play') {
+    G.t += real;
+    G.frenzy = Math.max(0, G.frenzy - real);
+    G.spawnT -= dt;
+    if (G.spawnT <= 0) spawnWave();
+  }
+  for (const it of G.items) {
+    it.vy += g * dt; it.x += it.vx * dt; it.y += it.vy * dt; it.ang += it.av * dt;
+    if (!it.cut && it.vy > 0 && it.y > view.h + it.r * 1.5) {
+      it.cut = true;
+      if (it.kind === 'fruit' && G.mode === 'play') {
+        G.lives--; hud(); sfx.tone(180, 0.3, 'sawtooth', 0.1, -80);
+        G.pops.push({ x: clamp(it.x, 40, view.w - 40), y: view.h - 30, t: '✖ MISSED', life: 1, bad: true });
+        if (G.lives <= 0) gameOver();
+      }
+    }
+  }
+  G.items = G.items.filter((it) => !it.cut);
+  for (const hf of G.halves) { hf.vy += g * dt; hf.x += hf.vx * dt; hf.y += hf.vy * dt; hf.ang += hf.av * dt; hf.life -= dt; }
+  G.halves = G.halves.filter((hf) => hf.life > 0 && hf.y < view.h + 100);
+  for (const p of G.parts) { p.vy += g * 0.6 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+  G.parts = G.parts.filter((p) => p.life > 0);
+  for (const s of G.splats) s.life -= real;
+  G.splats = G.splats.filter((s) => s.life > 0);
+  for (const p of G.pops) { p.y -= 40 * real; p.life -= real; }
+  G.pops = G.pops.filter((p) => p.life > 0);
+  const now = performance.now();
+  G.trail = G.trail.filter((p) => now - p.t < 160);
+}
+
+/* ---------- drawing ---------- */
+const DOTS = Array.from({ length: 50 }, () => ({ x: Math.random(), y: Math.random(), s: Math.random() * 2 + 1, p: Math.random() * 6 }));
+function draw() {
+  const w = view.w, h = view.h, now = performance.now() / 1000;
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#1a0033'); bg.addColorStop(1, '#3a0a2a');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+  // neon wood-ish stripes
+  ctx.strokeStyle = 'rgba(255,47,214,0.07)'; ctx.lineWidth = 2;
+  for (let x = -h; x < w; x += 70) { ctx.beginPath(); ctx.moveTo(x, h); ctx.lineTo(x + h * 0.6, 0); ctx.stroke(); }
+  for (const s of DOTS) { ctx.globalAlpha = 0.25 + 0.25 * Math.sin(now * 2 + s.p); ctx.fillStyle = '#19f7ff'; ctx.fillRect(s.x * w, s.y * h, s.s, s.s); }
+  ctx.globalAlpha = 1;
+  if (!G) return;
+  ctx.save();
+  if (G.shake) ctx.translate(rnd(-12, 12) * G.shake, rnd(-12, 12) * G.shake);
+  for (const s of G.splats) {
+    ctx.globalAlpha = Math.min(0.55, s.life * 0.3); ctx.fillStyle = s.col;
+    ctx.beginPath();
+    for (let k = 0; k < 10; k++) { const a = s.a + k / 10 * Math.PI * 2, rr = s.r * (k % 2 ? 0.55 : 1); ctx.lineTo(s.x + Math.cos(a) * rr, s.y + Math.sin(a) * rr); }
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  for (const hf of G.halves) {
+    const sp = sprite(hf.em, Math.round(hf.r * 2));
+    ctx.save(); ctx.translate(hf.x, hf.y);
+    ctx.globalAlpha = Math.min(1, hf.life);
+    ctx.rotate(hf.ang + hf.rel); ctx.beginPath(); ctx.rect(-sp.d, hf.side > 0 ? 0 : -sp.d, sp.d * 2, sp.d); ctx.clip(); ctx.rotate(-hf.rel);
+    ctx.drawImage(sp.c, -sp.d / 2, -sp.d / 2, sp.d, sp.d);
+    ctx.restore();
+  }
+  for (const it of G.items) {
+    const sp = sprite(it.em, Math.round(it.r * 2));
+    ctx.save(); ctx.translate(it.x, it.y); ctx.rotate(it.ang);
+    if (it.kind === 'bomb') { ctx.shadowColor = '#ff3b55'; ctx.shadowBlur = 18 + Math.sin(now * 12) * 10; }
+    else if (it.gold) { ctx.shadowColor = '#ffe81a'; ctx.shadowBlur = 26; }
+    else if (it.kind !== 'fruit') { ctx.shadowColor = '#fff'; ctx.shadowBlur = 22; }
+    ctx.drawImage(sp.c, -sp.d / 2, -sp.d / 2, sp.d, sp.d);
+    ctx.restore();
+    if (it.kind === 'bomb') { // the fuse spark
+      ctx.fillStyle = Math.sin(now * 30) > 0 ? '#ffe81a' : '#ff7a1a';
+      ctx.beginPath(); ctx.arc(it.x + Math.cos(it.ang - 0.8) * it.r * 0.8, it.y + Math.sin(it.ang - 0.8) * it.r * 0.8, 4 + Math.random() * 3, 0, Math.PI * 2); ctx.fill();
+    }
+    if (it.gold) { ctx.strokeStyle = '#ffe81a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(it.x, it.y, it.r * 1.1, 0, Math.PI * 2 * (1 - (it.hits || 0) / 5)); ctx.stroke(); }
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of G.parts) { ctx.globalAlpha = Math.min(1, p.life * 1.8); ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.s / 2, 0, Math.PI * 2); ctx.fill(); }
+  // the blade
+  const tr = G.trail, tnow = performance.now();
+  for (let i = 1; i < tr.length; i++) {
+    const a = tr[i - 1], b = tr[i], k = 1 - (tnow - b.t) / 160;
+    ctx.globalAlpha = k; ctx.strokeStyle = G.slow ? '#9be7ff' : '#ffffff'; ctx.shadowColor = G.frenzy ? '#ffe81a' : '#19f7ff'; ctx.shadowBlur = 18;
+    ctx.lineWidth = 2 + k * 9 * (i / tr.length); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.textAlign = 'center';
+  for (const p of G.pops) {
+    ctx.globalAlpha = Math.min(1, p.life * 2);
+    ctx.font = `${p.big ? 26 : 18}px Bungee, sans-serif`;
+    ctx.fillStyle = p.bad ? '#ff3b55' : p.big ? '#7dff2f' : '#ffe81a'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
+    ctx.fillText(p.t, clamp(p.x, 120, w - 120), p.y);
+  }
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  ctx.restore();
+  if (G.slow) { ctx.fillStyle = `rgba(155,231,255,${0.12 + 0.04 * Math.sin(now * 4)})`; ctx.fillRect(0, 0, w, h); }
+  if (G.flash) { ctx.fillStyle = `rgba(255,255,255,${G.flash * 0.8})`; ctx.fillRect(0, 0, w, h); }
+}
+
+/* ---------- input: hold and swipe ---------- */
+let blade = null;
+view.cv.addEventListener('pointerdown', (e) => {
+  if (!G || G.mode !== 'play') return;
+  blade = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  G.trail = [{ x: e.clientX, y: e.clientY, t: performance.now() }];
+});
+addEventListener('pointermove', (e) => {
+  if (!blade || e.pointerId !== blade.id || !G) return;
+  const pts = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  for (const p of (pts.length ? pts : [e])) {
+    trySlice(blade.x, blade.y, p.clientX, p.clientY);
+    blade.x = p.clientX; blade.y = p.clientY;
+    G.trail.push({ x: p.clientX, y: p.clientY, t: performance.now() });
+  }
+  if (G.trail.length > 40) G.trail.splice(0, G.trail.length - 40);
+});
+const lift = (e) => { if (blade && e.pointerId === blade.id) { blade = null; endSwipe(); } };
+addEventListener('pointerup', lift);
+addEventListener('pointercancel', lift);
+
+Arcade.init({
+  id: 'loloslice', logo: ['SLICE', 'STORM'],
+  tag: 'Fruit flies up from below: swipe to slice it in half! Cut 3 or more in one swipe for a combo. Don\'t let fruit fall, and NEVER slice a 💣. Grab 🧊 for slow motion and 🌟 for a fruit frenzy.',
+  helpDesk: '<b>Hold the mouse button</b> and <b>swipe</b> across the fruit',
+  helpTouch: '<b>Swipe</b> your finger across the fruit',
+  start: newGame,
+  playing: () => G && G.mode === 'play',
+});
+Arcade.loop(update, draw);
+</script>
+</body>
+</html>

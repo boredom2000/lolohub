@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Word Detectives | Lolo Hub WORK HARD</title>
+<meta name="description" content="Nouns, verbs, adjectives and adverbs on Lolo Hub: learn what each kind of word does, spot them in sentences and fill the gaps.">
+<link rel="icon" href="../../icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Patrick+Hand&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../kit/kit.css">
+<script src="../../core/wallet.js"></script>
+<script src="../kit/kit.js"></script>
+<style>
+  :root { --n: #2f6fd6; --v: #d63a3a; --a: #1f9d55; --r: #8e44ec; }
+  .sent { font-size: clamp(26px, 6.5vw, 38px); line-height: 1.7; margin: 8px 0 4px; }
+  .sent .hl { padding: 0 6px; border-radius: 8px; background: #fff4c2; border-bottom: 4px solid var(--margin); }
+  .sent .gapw { display: inline-block; min-width: 3.2em; border-bottom: 4px dashed var(--margin); color: #c9d3e0; }
+  .sent .gapw.filled { color: var(--good); border-color: var(--good); animation: pop 0.5s; }
+  .words { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 16px auto 0; max-width: 640px; }
+  .words button { padding: 10px 14px; border-radius: 12px; font: 900 clamp(22px, 5.5vw, 30px) 'Nunito', sans-serif; background: #fff; box-shadow: 0 5px 0 #c9d3e0; animation: card-in 0.4s backwards; }
+  .words button.punct { background: none; box-shadow: none; pointer-events: none; padding: 10px 0; margin-left: -8px; }
+  .words button.right { background: #c9f5d3; box-shadow: 0 5px 0 #6cc785; animation: pop 0.5s; }
+  .words button.wrong { background: #ffd0d0; box-shadow: 0 5px 0 #f08a8a; animation: shake 0.4s; }
+  .words button:disabled { cursor: default; }
+  .kind { display: inline-block; padding: 2px 12px; border-radius: 999px; color: #fff; font-family: 'Nunito', sans-serif; font-weight: 900; }
+  .k-n { background: var(--n); } .k-v { background: var(--v); } .k-a { background: var(--a); } .k-r { background: var(--r); }
+  .choices.pos button { font-size: clamp(20px, 5vw, 28px); }
+  .choices.pos button small { font-size: 14px; }
+  .studycards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-top: 14px; }
+  .scard { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 8px 18px rgba(31, 42, 68, 0.14); border-top: 8px solid var(--c); }
+  .scard h2 { margin: 0 0 4px; color: var(--c); }
+  .scard p { font-size: 20px; }
+  .scard .ex { margin-top: 8px; font-size: 22px; color: var(--ink); }
+  .scard .ex b { color: var(--c); }
+</style>
+</head>
+<body>
+<script>
+'use strict';
+const { rnd, pick, shuffle } = LessonKit;
+const $ = (id) => document.getElementById(id);
+
+/* ---------- the four kinds of words ---------- */
+const KINDS = {
+  n: { name: 'noun', emoji: '🧸', job: 'a person, animal, place or thing', test: 'You can put "the" or "a" in front of it.' },
+  v: { name: 'verb', emoji: '🏃', job: 'an action or being: what someone does or is', test: 'You can say "I ___" or "they ___" with it.' },
+  a: { name: 'adjective', emoji: '🎨', job: 'describes a noun: what kind, how many, which colour', test: 'It fits in "the ___ cat".' },
+  r: { name: 'adverb', emoji: '💨', job: 'describes a verb: how, when or where it happens', test: 'Many end in -ly: quickly, softly.' },
+};
+const an = (k) => (/^[aeiou]/.test(KINDS[k].name) ? 'an' : 'a');
+const label = (k, plural) => `<span class="kind k-${k}">${KINDS[k].name}${plural ? 's' : ''}</span>`;
+
+/* ---------- sentences: word/kind for every noun, verb, adjective and adverb; other words (the, a, to, my, he…)
+   carry no tag and are never the answer. Only clear-cut words, so every tagged word has one kind here. */
+const SENTENCES = [
+  'The hungry/a dog/n ate/v his dinner/n quickly/r .',
+  'A tiny/a mouse/n ran/v under the bed/n .',
+  'My sister/n sings/v loudly/r in the shower/n .',
+  'The tall/a giraffe/n eats/v green/a leaves/n .',
+  'We walked/v slowly/r to the park/n .',
+  'The brave/a knight/n fought/v a scary/a dragon/n .',
+  'Grandma/n bakes/v delicious/a cookies/n every Sunday/n .',
+  'The baby/n slept/v peacefully/r in her crib/n .',
+  'Three/a red/a balloons/n floated/v gently/r away/r .',
+  'The happy/a children/n played/v outside/r .',
+  'A fluffy/a cat/n jumped/v onto the sofa/n .',
+  'Dad/n carefully/r painted/v the wooden/a fence/n .',
+  'The old/a car/n stopped/v suddenly/r .',
+  'Lions/n roar/v loudly/r at night/n .',
+  'The shiny/a fish/n swam/v quietly/r .',
+  'My teacher/n reads/v funny/a stories/n .',
+  'The cold/a wind/n blew/v hard/r .',
+  'A clever/a monkey/n climbed/v the tall/a tree/n .',
+  'The kids/n laughed/v happily/r at the clown/n .',
+  'We built/v a huge/a sandcastle/n yesterday/r .',
+  'The busy/a bee/n buzzed/v around the flowers/n .',
+  'Tom/n kicked/v the round/a ball/n .',
+  'The noisy/a parrot/n talks/v all day/n .',
+  'She opened/v the heavy/a door/n slowly/r .',
+  'Little/a ducks/n swim/v in the pond/n .',
+  'The robot/n moved/v very/r carefully/r .',
+  'Penguins/n waddle/v across the icy/a beach/n .',
+  'The sleepy/a bear/n yawned/v loudly/r .',
+  'My brother/n plays/v the guitar/n badly/r .',
+  'The bright/a sun/n shines/v today/r .',
+  'A sneaky/a fox/n crept/v into the farm/n .',
+  'Mum/n quickly/r closed/v the window/n .',
+].map((s) => s.split(' ').map((t) => { const [w, k] = t.split('/'); return { w, k: k || null }; }));
+const KEYS = ['n', 'v', 'a', 'r'];
+const has = (s, k) => s.some((t) => t.k === k);
+const sentText = (s, hl, gap) => s.map((t, i) => (i === gap ? '<span class="gapw" id="gapw">?</span>' : i === hl ? `<span class="hl">${t.w}</span>` : t.w)).join(' ').replace(/ ([.,!?])/g, '$1');
+
+/* ---------- 1. What kind of word is the yellow one? ---------- */
+let usedS = new Set();
+function freshSentence(ok) {
+  let s, g = 0;
+  do { s = pick(SENTENCES); } while ((usedS.has(s) || !ok(s)) && g++ < 60);
+  usedS.add(s);
+  return s;
+}
+function posChoices() {
+  return KEYS.map((k) => ({ label: `${KINDS[k].emoji} ${KINDS[k].name}<small>${KINDS[k].job}</small>`, value: k }));
+}
+function makeWhat(i) {
+  const want = KEYS[i % 4];
+  const s = freshSentence((x) => has(x, want));
+  const idx = pick(s.map((t, j) => (t.k === want ? j : -1)).filter((j) => j >= 0));
+  const k = s[idx].k;
+  return { kind: 'choice', ans: k, cls: 'pos', options: posChoices(),
+    html: `<div class="q">What kind of word is <b>${s[idx].w}</b>?</div><div class="sent">${sentText(s, idx)}</div>`,
+    reveal: `${s[idx].w}: ${KINDS[k].name}`, hint: `Tip: ${KINDS[k].test}`,
+    praise: `<b>${s[idx].w}</b> is ${an(k)} ${KINDS[k].name}: ${KINDS[k].job}.` };
+}
+
+/* ---------- 2. Tap every … in the sentence ---------- */
+function makeFind(i) {
+  const want = KEYS[i % 4];
+  const s = freshSentence((x) => has(x, want));
+  const need = s.filter((t) => t.k === want).length;
+  return {
+    kind: 'custom', tries: 2, reveal: s.filter((t) => t.k === want).map((t) => t.w).join(', '),
+    html: `<div class="q">Tap ${need > 1 ? `<b>all ${need}</b>` : 'the'} ${label(want, need > 1)} in this sentence!</div>
+      <div class="q" style="font-size:18px;color:var(--soft);margin-top:4px">${an(want) === 'an' ? 'An' : 'A'} ${KINDS[want].name} is ${KINDS[want].job}.</div>`,
+    mount(el, api) {
+      const box = document.createElement('div');
+      box.className = 'words';
+      let found = 0;
+      s.forEach((t, j) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = t.w;
+        if (/^[.,!?]$/.test(t.w)) b.className = 'punct';
+        b.style.animationDelay = j * 0.04 + 's';
+        b.onclick = () => {
+          if (b.disabled) return;
+          if (t.k === want) {
+            b.classList.add('right'); b.disabled = true; found++;
+            LessonKit.tone([660 + found * 110], 'triangle', 0, 0.15, 0.1);
+            if (found === need) { box.querySelectorAll('button').forEach((x) => { x.disabled = true; }); api.right(); }
+            else { $('fb').innerHTML = `Yes! ${need - found} more to find.`; $('fb').className = 'feedback good'; }
+          } else {
+            b.classList.add('wrong');
+            setTimeout(() => b.classList.remove('wrong'), 500);
+            api.wrong(t.k ? `<b>${t.w}</b> is ${an(t.k)} ${KINDS[t.k].name}: ${KINDS[t.k].job}. Find the ${KINDS[want].name}!` : `<b>${t.w}</b> is a little helper word. Find the ${KINDS[want].name}!`);
+            if (!$('next').classList.contains('hidden')) { // out of tries: show them
+              box.querySelectorAll('button').forEach((x, m) => { if (s[m].k === want) x.classList.add('right'); x.disabled = true; });
+            }
+          }
+        };
+        box.appendChild(b);
+      });
+      el.appendChild(box);
+    },
+  };
+}
+
+/* ---------- 3. Fill the gap with the right kind of word ---------- */
+const BANK = {
+  n: ['rabbit', 'castle', 'pizza', 'rocket', 'teacher', 'garden', 'banana', 'pirate'],
+  v: ['jumped', 'sang', 'shouted', 'danced', 'slept', 'swam', 'giggled', 'whispered'],
+  a: ['purple', 'giant', 'grumpy', 'sparkly', 'tiny', 'silly', 'muddy', 'brave'],
+  r: ['quickly', 'loudly', 'softly', 'happily', 'slowly', 'bravely', 'sadly', 'gently'],
+};
+function makeGap(i) {
+  const want = KEYS[i % 4];
+  const s = freshSentence((x) => has(x, want));
+  const idx = pick(s.map((t, j) => (t.k === want ? j : -1)).filter((j) => j >= 0));
+  const right = s[idx].w;
+  // one word of each kind: only one fits the gap as a <want>
+  const opts = KEYS.map((k) => (k === want ? right : pick(BANK[k].filter((w) => w !== right))));
+  return { kind: 'choice', ans: right, cols: 2,
+    options: shuffle(opts).map((w) => ({ label: w, value: w })),
+    html: `<div class="q">Which word fits? It must be ${an(want)} ${label(want)}.</div><div class="sent">${sentText(s, -1, idx)}</div>`,
+    reveal: right, hint: `${KINDS[want].emoji} ${an(want) === 'an' ? 'An' : 'A'} ${KINDS[want].name} is ${KINDS[want].job}. ${KINDS[want].test}`,
+    onDone() { const g = $('gapw'); if (g) { g.textContent = right; g.classList.add('filled'); } } };
+}
+
+/* ---------- 4. Mixed sort: is this word a noun, verb, adjective or adverb? ---------- */
+const SORT = Object.entries(BANK).flatMap(([k, ws]) => ws.map((w) => ({ w, k })));
+let usedW = new Set();
+function makeSort() {
+  let t, g = 0;
+  do { t = pick(SORT); } while (usedW.has(t.w) && g++ < 40);
+  usedW.add(t.w);
+  return { kind: 'choice', ans: t.k, cls: 'pos', options: posChoices(),
+    html: `<div class="q">What kind of word is this?</div><div class="big" style="margin:10px 0">${t.w}</div>`,
+    reveal: `${t.w}: ${KINDS[t.k].name}`, hint: KEYS.map((k) => `${KINDS[k].emoji} ${KINDS[k].test}`).join('<br>'), say: t.w, autoSay: false };
+}
+
+LessonKit.run({
+  title: 'Word Detectives',
+  sub: 'Nouns, verbs, adjectives and adverbs!',
+  lang: 'en', voiceWarn: false,
+  bits: ['🔍', '★', 'N', 'V', 'Adj', 'Adv', '✔'],
+  study: {
+    title: 'The four word kinds',
+    sub: 'Every word has a job in a sentence.',
+    render(el) {
+      const ex = {
+        n: 'The <b>dog</b> chased a <b>ball</b> in the <b>park</b>.',
+        v: 'The dog <b>chased</b> the ball. It <b>is</b> happy.',
+        a: 'The <b>fluffy</b> dog chased a <b>red</b> ball.',
+        r: 'The dog ran <b>quickly</b> and barked <b>loudly</b>.',
+      };
+      const col = { n: 'var(--n)', v: 'var(--v)', a: 'var(--a)', r: 'var(--r)' };
+      el.innerHTML = `<div class="studycards">${KEYS.map((k) => `<div class="scard" style="--c:${col[k]}">
+        <h2>${KINDS[k].emoji} ${KINDS[k].name[0].toUpperCase() + KINDS[k].name.slice(1)}</h2>
+        <p>${KINDS[k].job[0].toUpperCase() + KINDS[k].job.slice(1)}.</p>
+        <p><b>Test:</b> ${KINDS[k].test}</p>
+        <div class="ex">${ex[k]}</div></div>`).join('')}</div>
+        <div class="card" style="margin-top:16px;padding-top:20px"><div class="sent">The <b style="color:var(--a)">sleepy</b> <b style="color:var(--n)">cat</b> <b style="color:var(--v)">purred</b> <b style="color:var(--r)">softly</b>.</div>
+        <p style="font-size:20px;color:var(--soft)">${['a', 'n', 'v', 'r'].map(label).join(' ')}</p></div>`;
+    },
+  },
+  lessons: {
+    what: { id: 'gr-what-kind', emoji: '🔍', title: 'What Kind of Word?', sub: 'Look at the yellow word: noun, verb, adjective or adverb?', count: 12, make: makeWhat, reset: () => { usedS = new Set(); } },
+    find: { id: 'gr-find-it', emoji: '👆', title: 'Tap It!', sub: 'Find every verb (or noun, or…) in the sentence.', count: 12, make: makeFind, reset: () => { usedS = new Set(); } },
+    gap: { id: 'gr-fill-gap', emoji: '🧩', title: 'Fill the Gap', sub: 'Pick the word of the right kind.', count: 12, make: makeGap, reset: () => { usedS = new Set(); } },
+    sort: { id: 'gr-sort', emoji: '🗂️', title: 'Word Sort Speed Round', sub: 'One word, four kinds. Be fast!', count: 16, make: makeSort, fast: 5000, reset: () => { usedW = new Set(); } },
+  },
+});
+</script>
+</body>
+</html>
