@@ -65,7 +65,8 @@
     let fresh = 0;
     // exam sections live on their own page (exam/): one big link here instead
     const exam = cat.work.some((s) => s.exam)
-      ? '<div class="section"><a class="extra" href="exam/" style="font-size:1.15em">📝 EXAM PREP: English &amp; 中文, from easy to 👑 BOSS →</a></div>' : '';
+      ? `<a class="exam-banner" href="exam/"><span class="eb-icon">📝</span><span class="eb-text"><b>EXAM PREP</b>
+          <span>English &amp; 中文 tests · from ⭐ easy to 👑 BOSS · BOSS pays the most gold!</span></span><span class="eb-go">GO ➜</span></a>` : '';
     $('workList').innerHTML = exam + cat.work.filter((s) => !s.exam).map((sec) => `
       <div class="section">
         <h3>${esc(sec.section)}</h3>
@@ -88,6 +89,7 @@
     $('workTeaser').innerHTML = fresh
       ? `<span class="big">${fresh}</span> lesson${fresh > 1 ? 's' : ''} still pay${fresh > 1 ? '' : 's'} full gold!<br>Tap to study ✏️`
       : 'Every lesson done this week. Wow! 🏆<br>Tap to keep going';
+    if (exam) $('workTeaser').innerHTML += '<br>📝 <b>Exam prep</b> inside!';
   }
 
   // ---------- PLAY HARD ----------
