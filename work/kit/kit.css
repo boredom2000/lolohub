@@ -106,6 +106,32 @@ h1 { margin-top: 18px; font: 900 clamp(30px, 7vw, 48px)/1 'Fraunces', Georgia, s
 .tools .del { background: #ffe1e1; box-shadow: 0 4px 0 #f0a8a8; }
 .tools .go { background: var(--good); color: #fff; box-shadow: 0 4px 0 #136b39; }
 
+.spell-box span.sp { width: 22px; border: 0; background: none; }
+/* the whole alphabet on big keys (tablet friendly) */
+.tiles.keyboard { display: grid; grid-template-columns: repeat(7, 1fr); max-width: 620px; gap: 8px; }
+.tiles.keyboard button { width: auto; height: 64px; font-size: 34px; background: #fff; box-shadow: 0 5px 0 #c9d3e0; }
+.tiles.keyboard button.hit { animation: key-hit 0.25s; background: #fff4c2; }
+.tiles.keyboard button.space { grid-column: span 3; font: 900 20px 'Nunito', sans-serif; }
+/* sentence building */
+.build-line { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; min-height: 84px; margin: 14px auto 0; max-width: 680px;
+  padding: 10px; border: 3px dashed #c9d3e0; border-radius: 14px; background: #fbfdff; }
+.build-line .hint { font-size: 20px; color: #9aa6bb; }
+.build-line .placed { padding: 8px 14px; border-radius: 12px; font: 900 clamp(22px, 5vw, 30px) 'Nunito', sans-serif; background: #dbe8ff; box-shadow: 0 4px 0 #9bb8ec; animation: pop 0.3s; }
+.build-line .tail { font: 900 32px 'Nunito', sans-serif; margin-left: -4px; }
+.build-line.right { border-style: solid; border-color: var(--good); background: #e9fbee; }
+.build-line.right .placed { background: #c9f5d3; box-shadow: 0 4px 0 #6cc785; }
+.build-line.wrong { border-color: var(--bad); animation: shake 0.4s; }
+.wordbank { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 680px; margin: 16px auto 0; }
+.wordbank button { min-width: 64px; min-height: 60px; padding: 8px 16px; border-radius: 14px; font: 900 clamp(22px, 5.5vw, 30px) 'Nunito', sans-serif;
+  background: #fff4c2; box-shadow: 0 5px 0 #e6cf6b; animation: card-in 0.4s backwards; }
+.wordbank button:active { transform: translateY(3px); }
+.wordbank button.used { opacity: 0.2; pointer-events: none; }
+.wordbank.zh button, .build-line.zh .placed { font: 700 clamp(36px, 9vw, 52px)/1.1 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', sans-serif; min-width: 76px; }
+/* level badges */
+.lvl { display: inline-block; margin-bottom: 6px; padding: 2px 10px; border-radius: 999px; font: 900 14px 'Nunito', sans-serif; font-style: normal; color: #fff; background: #6cc785; }
+.lvl2 { background: #2f6fd6; } .lvl3 { background: #e8590c; } .lvl4 { background: linear-gradient(90deg, #8e44ec, #d63aa0); box-shadow: 0 0 12px #d63aa088; }
+.menu a.boss { background: linear-gradient(135deg, #fff6c9, #ffe0f4); outline: 3px solid #d63aa0; }
+
 .next { display: block; margin: 16px auto 0; padding: 12px 34px; border-radius: 999px; font: 900 22px 'Nunito', sans-serif; color: #fff; background: var(--blue); box-shadow: 0 5px 0 #1d4a96; }
 .hidden { display: none !important; }
 
@@ -142,6 +168,8 @@ h1 { margin-top: 18px; font: 900 clamp(30px, 7vw, 48px)/1 'Fraunces', Georgia, s
   .tiles button { width: 46px; height: 54px; font-size: 28px; }
   .spell-box span { width: 42px; height: 58px; font-size: 34px; line-height: 52px; }
 }
+@media (max-width: 520px) { .tiles.keyboard { grid-template-columns: repeat(6, 1fr); } .tiles.keyboard button { height: 54px; font-size: 28px; } }
+@keyframes key-hit { 50% { transform: scale(0.88); } }
 @keyframes stamp-in { from { transform: scale(2.4) rotate(-12deg); opacity: 0; } }
 @keyframes card-in { from { transform: translateX(60px) rotate(4deg); opacity: 0; } }
 @keyframes shake { 20% { transform: translateX(-14px) rotate(-2deg); } 40% { transform: translateX(12px) rotate(2deg); } 60% { transform: translateX(-8px); } 80% { transform: translateX(5px); } }

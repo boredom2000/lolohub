@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chinese Exam Prep | Lolo Exam</title>
+<meta name="description" content="Chinese words review (lessons 11-14): meaning, listening, characters, pinyin and tones, building words and sentences, dictation.">
+<link rel="icon" href="../../icons/icon-192.png">
+<link rel="manifest" href="../manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Patrick+Hand&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../work/kit/kit.css">
+<script src="../../core/wallet.js"></script>
+<script src="../../work/kit/kit.js"></script>
+<script src="../exam.js"></script>
+<style>
+  .zh { font-family: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', 'Heiti SC', sans-serif; font-weight: 700; }
+  .hz { font-size: clamp(64px, 17vw, 110px); line-height: 1.1; margin: 6px 0; }
+  .py { font: 800 clamp(26px, 6vw, 36px) 'Nunito', sans-serif; color: var(--blue); }
+  .en { font-size: clamp(30px, 7vw, 44px); line-height: 1.15; }
+  .emo { font-size: clamp(50px, 12vw, 74px); line-height: 1.1; }
+  .choices button .zh { font-size: clamp(36px, 9vw, 52px); display: block; }
+  .choices.py-opts button { font: 800 clamp(26px, 6vw, 34px) 'Nunito', sans-serif; text-transform: none; }
+  .match { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 600px; margin: 16px auto 0; }
+  .match .col { display: flex; flex-direction: column; gap: 10px; }
+  .match button { min-height: 76px; border-radius: 14px; background: #fff; box-shadow: 0 5px 0 #c9d3e0; font: 900 clamp(20px, 4.8vw, 26px) 'Nunito', sans-serif; padding: 6px; animation: card-in 0.4s backwards; }
+  .match button .zh { font-size: clamp(34px, 8vw, 46px); }
+  .match button.sel { background: #fff4c2; box-shadow: 0 5px 0 #e6cf6b; transform: translateY(-3px); }
+  .match button.done { background: #c9f5d3; box-shadow: 0 5px 0 #6cc785; opacity: 0.55; pointer-events: none; }
+  .match button.wrong { background: #ffd0d0; animation: shake 0.4s; }
+  .zh-study { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
+  .zh-study button { padding: 12px 8px; border-radius: 10px; background: #fff; box-shadow: 0 6px 14px rgba(31, 42, 68, 0.15); text-align: center; }
+  .zh-study button:active { transform: scale(0.95); }
+  .zh-study .zh { font-size: 40px; display: block; }
+  .zh-study .p { font: 800 18px 'Nunito', sans-serif; color: var(--blue); display: block; }
+  .zh-study .e { font-size: 18px; color: var(--soft); display: block; }
+</style>
+</head>
+<body>
+<script>
+'use strict';
+const { rnd, pick, shuffle } = LessonKit;
+const $ = (id) => document.getElementById(id);
+function deck(items) { let d = []; return () => { if (!d.length) d = shuffle(items); return d.pop(); }; }
+
+/* ---------- the words: 第11、12、13和14课 字词复习 ---------- [characters, pinyin, English, picture] */
+const WORDS = [
+  ['眼睛', 'yǎn jing', 'eye', '👁️'], ['鼻子', 'bí zi', 'nose', '👃'], ['那是', 'nà shì', 'that is', '👉'], ['耳朵', 'ěr duo', 'ear', '👂'],
+  ['口', 'kǒu', 'mouth', '👄'], ['手', 'shǒu', 'hand', '✋'], ['脚', 'jiǎo', 'foot', '🦶'], ['谁', 'shuí', 'who', '🧑❓'],
+  ['很高', 'hěn gāo', 'very tall / high', '🦒'], ['头发', 'tóu fà', 'hair', '💇'], ['长大', 'zhǎng dà', 'grow up', '🌱➡️🌳'], ['很长', 'hěn cháng', 'very long', '📏'],
+  ['哪儿', 'nǎ ér', 'where', '🗺️❓'], ['去学校', 'qù xué xiào', 'go to school', '🏫'], ['再见', 'zài jiàn', 'goodbye', '👋'], ['这里', 'zhè lǐ', 'here', '📍'],
+  ['在商店', 'zài shāng diàn', 'in the shop', '🏪'], ['买苹果', 'mǎi píng guǒ', 'buy apples', '🍎'], ['很多', 'hěn duō', 'many', '🔢'], ['学生', 'xué shēng', 'student', '🧑‍🎓'],
+  ['喝水', 'hē shuǐ', 'drink water', '🥤'], ['牛奶', 'niú nǎi', 'milk', '🥛'], ['那里', 'nà lǐ', 'there', '👉🏞️'], ['那儿', 'nà ér', 'there', '👉🏠'],
+  ['那个', 'nà ge', 'that (one)', '👉📦'], ['今天', 'jīn tiān', 'today', '📅'], ['几月', 'jǐ yuè', 'which month', '🗓️❓'], ['几号', 'jǐ hào', 'what date', '📆❓'],
+  ['几点', 'jǐ diǎn', 'what time', '⏰❓'], ['星期', 'xīng qī', 'week', '7️⃣'], ['明天', 'míng tiān', 'tomorrow', '🌅'], ['要', 'yào', 'want', '🙏'],
+  ['现在', 'xiàn zài', 'now', '⏱️'], ['我们', 'wǒ men', 'we', '👨‍👩‍👧'], ['吃饭', 'chī fàn', 'eat a meal', '🍽️'], ['米饭', 'mǐ fàn', 'rice', '🍚'],
+  ['不', 'bù', 'no / not', '🚫'], ['面条', 'miàn tiáo', 'noodles', '🍜'], ['认识', 'rèn shi', 'know (someone)', '🤝'], ['朋友', 'péng yǒu', 'friend', '🧑‍🤝‍🧑'],
+  ['吗', 'ma', 'question word (…?)', '❔'], ['中国', 'zhōng guó', 'China', '🇨🇳'], ['同学', 'tóng xué', 'classmate', '🧒🧒'], ['美国', 'měi guó', 'the United States', '🇺🇸'],
+  ['回来', 'huí lái', 'come back', '↩️'], ['看医生', 'kàn yī shēng', 'see a doctor', '🩺'], ['谢谢', 'xiè xie', 'thank you', '🙏😊'],
+].map(([h, p, e, pic]) => ({ h, p, e, pic }));
+const MULTI = WORDS.filter((w) => w.h.length > 1);
+const zh = (h) => `<span class="zh">${h}</span>`;
+// distractors never mean the same thing (那里 / 那儿 are both "there")
+function others(w, n, pool = WORDS) { return shuffle(pool.filter((x) => x !== w && x.e !== w.e)).slice(0, n); }
+
+/* ---------- pinyin tones ---------- */
+const MARKS = { a: 'āáǎà', e: 'ēéěè', i: 'īíǐì', o: 'ōóǒò', u: 'ūúǔù', 'ü': 'ǖǘǚǜ' };
+const plain = (s) => s.normalize('NFD').replace(/[̀-̂̄̌]/g, '').normalize('NFC');
+function toneOf(syl) { for (const [v, m] of Object.entries(MARKS)) { const k = m.split('').findIndex((c) => syl.includes(c)); if (k >= 0) return k + 1; } return 0; }
+function withTone(base, t) {
+  if (!t) return base;
+  const v = base.includes('a') ? 'a' : base.includes('e') ? 'e' : base.includes('ou') ? 'o' : [...base].reverse().find((c) => 'aeiouü'.includes(c));
+  return v ? base.replace(v, MARKS[v][t - 1]) : base;
+}
+function wrongTones(p, n) {
+  const syls = p.split(' '), out = new Set();
+  let g = 0;
+  while (out.size < n && g++ < 60) {
+    const s = syls.map((x) => { const b = plain(x); return Math.random() < 0.6 || syls.length === 1 ? withTone(b, rnd(1, 4)) : x; }).join(' ');
+    if (s !== p) out.add(s);
+  }
+  return [...out];
+}
+
+/* ---------- the ways to learn ---------- */
+let used = new Set();
+function fresh(pool = WORDS) { const f = pool.filter((w) => !used.has(w)); const w = pick(f.length ? f : pool); used.add(w); return w; }
+const reset = () => { used = new Set(); };
+
+// L1 · see the characters, pick the meaning
+function makeMeaning(i) {
+  const w = fresh(), n = i < 5 ? 3 : 4;
+  const opts = shuffle([w].concat(others(w, n - 1)));
+  return { kind: 'choice', ans: w.e, cols: n === 3 ? 1 : 2, say: w.h, autoSay: true,
+    options: opts.map((x) => ({ label: `${x.pic} ${x.e}`, value: x.e })),
+    html: `<div class="q">What does it mean?</div><div class="hz">${zh(w.h)}</div><div class="py">${w.p}</div>` };
+}
+// L1 · listen, pick the characters
+function makeListen(i) {
+  const w = fresh(), n = i < 5 ? 3 : 4;
+  const opts = shuffle([w].concat(others(w, n - 1)));
+  return { kind: 'choice', ans: w.h, cols: n === 3 ? 3 : 2, say: w.h,
+    options: opts.map((x) => ({ label: `${zh(x.h)}<small>${x.p}</small>`, value: x.h })),
+    html: '<div class="q">Listen! 🔊 Which word do you hear?</div>', reveal: `${w.h} (${w.p}) = ${w.e}`, sayAfter: w.h };
+}
+// L1 · matching board: characters ↔ meaning
+function makeMatch(i) {
+  const n = i < 3 ? 4 : 5;
+  const set = [];
+  for (let k = 0; k < n; k++) { const w = fresh(); if (!set.some((x) => x.e === w.e)) set.push(w); }
+  return { kind: 'custom', tries: 3, reveal: set.map((w) => `${w.h} = ${w.e}`).join(' · '),
+    html: '<div class="q">Match the Chinese with the meaning! Tap one on each side.</div>',
+    mount(el, api) {
+      const box = document.createElement('div');
+      box.className = 'match';
+      const L = document.createElement('div'), R = document.createElement('div');
+      L.className = R.className = 'col';
+      let sel = null, left = set.length, misses = 0;
+      const mk = (col, w, side, html, j) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.innerHTML = html; b.style.animationDelay = j * 0.05 + 's';
+        b.onclick = () => {
+          if (side === 'L') LessonKit.say(w.h, 'zh');
+          if (!sel || sel.side === side) { if (sel) sel.b.classList.remove('sel'); sel = { b, w, side }; b.classList.add('sel'); return; }
+          if (sel.w === w) {
+            b.classList.add('done'); sel.b.classList.add('done'); sel = null;
+            LessonKit.tone([660 + (set.length - left) * 110], 'triangle', 0, 0.15, 0.1);
+            if (--left === 0) { if (misses > 1) api.wrong('Some mistakes on the way, but all matched!'); api.right(); }
+          } else {
+            misses++;
+            [b, sel.b].forEach((x) => { x.classList.add('wrong'); setTimeout(() => x.classList.remove('wrong', 'sel'), 450); });
+            sel = null;
+            $('fb').innerHTML = 'Not a pair. Try again!'; $('fb').className = 'feedback bad';
+          }
+        };
+        col.appendChild(b);
+      };
+      shuffle(set).forEach((w, j) => mk(L, w, 'L', `${zh(w.h)}`, j));
+      shuffle(set).forEach((w, j) => mk(R, w, 'R', `${w.pic}<br>${w.e}`, j));
+      box.append(L, R);
+      el.appendChild(box);
+    } };
+}
+// L2 · see the meaning, pick the characters (no pinyin to help)
+function makeHanzi(i) {
+  const w = fresh(), n = 4;
+  // look-alike distractors first: words that share a character
+  const alike = shuffle(WORDS.filter((x) => x !== w && x.e !== w.e && [...x.h].some((c) => w.h.includes(c))));
+  const opts = shuffle([w].concat(alike.concat(others(w, 6)).filter((x, k, a) => a.indexOf(x) === k).slice(0, n - 1)));
+  return { kind: 'choice', ans: w.h, cols: 2, options: opts.map((x) => ({ label: zh(x.h), value: x.h })),
+    html: `<div class="q">Which one means…</div><div class="emo">${w.pic}</div><div class="en"><b>${w.e}</b></div>`,
+    reveal: `${w.h} (${w.p})`, sayAfter: w.h };
+}
+// L2 · the right pinyin, with the right tones
+function makePinyin() {
+  const w = fresh(WORDS.filter((x) => x.p !== 'ma'));
+  const opts = shuffle([w.p].concat(wrongTones(w.p, 3)));
+  return { kind: 'choice', ans: w.p, cols: 2, cls: 'py-opts', options: opts.map((p) => ({ label: p, value: p })),
+    html: `<div class="q">Which pinyin is right? Watch the tones! ¯ ´ ˇ \`</div><div class="hz">${zh(w.h)}</div><div class="en" style="font-size:24px">${w.pic} ${w.e}</div>`,
+    hint: 'Tap 🔊 and listen to how the voice goes: flat ¯, up ´, down-up ˇ, down `.', say: w.h, autoSay: false };
+}
+// L3 · build the word from character tiles
+function makeBuild() {
+  const w = fresh(MULTI);
+  const extra = shuffle([...new Set(WORDS.flatMap((x) => [...x.h]))].filter((c) => !w.h.includes(c))).slice(0, w.h.length + 2);
+  return { kind: 'build', joiner: '', ans: [...w.h], tiles: extra,
+    html: `<div class="q">Build the word with the characters!</div><div class="emo">${w.pic}</div><div class="en"><b>${w.e}</b></div><div class="py">${w.p}</div>`,
+    reveal: `${w.h} (${w.p})`, sayAfter: w.h };
+}
+// L3 · write the pinyin letters (like the 汉语拼音 column)
+function makeWrite() {
+  const w = fresh(WORDS.filter((x) => x.p !== 'ma'));
+  return { kind: 'spell', keyboard: true, ans: plain(w.p),
+    html: `<div class="q">Write the pinyin (letters only, no tones).</div><div class="hz">${zh(w.h)}</div><div class="en" style="font-size:24px">${w.pic} ${w.e}</div>`,
+    say: w.h, autoSay: true, reveal: w.p, hint: 'Listen again 🔊 and write each sound. Use space between the syllables.' };
+}
+// L4 BOSS · build a whole Chinese sentence
+const SENTENCES = [
+  [['我们', '去', '学校'], '。', 'We go to school.', ['商店', '你']],
+  [['那是', '我的', '朋友'], '。', 'That is my friend.', ['同学', '他']],
+  [['你', '要', '喝水', '吗'], '？', 'Do you want to drink water?', ['不', '牛奶']],
+  [['今天', '几月', '几号'], '？', 'What is the date today?', ['明天', '几点']],
+  [['现在', '几点'], '？', 'What time is it now?', ['几号', '今天']],
+  [['我们', '在商店', '买苹果'], '。', 'We buy apples in the shop.', ['喝水', '学校']],
+  [['我', '认识', '你的', '同学'], '。', 'I know your classmate.', ['朋友', '不']],
+  [['她的', '头发', '很长'], '。', 'Her hair is very long.', ['很高', '眼睛']],
+  [['我', '不', '要', '米饭'], '。', 'I don\'t want rice.', ['面条', '吗']],
+  [['谢谢', '再见'], '！', 'Thank you, goodbye!', ['回来', '那儿']],
+  [['明天', '我', '去', '看医生'], '。', 'Tomorrow I go to see the doctor.', ['今天', '吃饭'], [['我', '明天', '去', '看医生']]],
+  [['他', '是', '谁'], '？', 'Who is he?', ['哪儿', '那个']],
+  [['你', '在', '哪儿'], '？', 'Where are you?', ['这里', '谁']],
+  [['我', '是', '中国', '学生'], '。', 'I am a Chinese student.', ['美国', '朋友']],
+  [['我们', '吃', '面条'], '。', 'We eat noodles.', ['喝', '米饭']],
+  [['他', '长大', '了'], '。', 'He has grown up.', ['很高', '不']],
+];
+const sDeck = deck(SENTENCES);
+function makeSentence() {
+  const s = sDeck();
+  return { kind: 'build', joiner: '', ans: s[0], alts: s[4], tiles: s[3], tail: s[1],
+    html: `<div class="q">Build the sentence in Chinese!</div><div class="en"><b>${s[2]}</b></div>`,
+    reveal: s[0].join('') + s[1], sayAfter: s[0].join('') };
+}
+// L4 BOSS · dictation: only the sound, build the characters
+function makeDictation() {
+  const w = fresh(MULTI);
+  const extra = shuffle([...new Set(WORDS.flatMap((x) => [...x.h]))].filter((c) => !w.h.includes(c))).slice(0, w.h.length + 3);
+  return { kind: 'build', joiner: '', ans: [...w.h], tiles: extra, say: w.h,
+    html: '<div class="q">听写 Dictation! 🔊 Listen and build the word.</div>', reveal: `${w.h} (${w.p}) = ${w.e}` };
+}
+const FINAL = [makeHanzi, makePinyin, makeBuild, makeWrite, makeSentence, makeDictation];
+const makeFinal = (i) => FINAL[i % FINAL.length](i);
+
+LessonKit.run({
+  title: '中文 Chinese Exam Prep',
+  sub: '第11-14课 字词复习 · 47 words',
+  lang: 'zh',
+  home: { href: '../', label: '⬅ EXAM PREP' },
+  bits: ['好', '★', '✔', '🏮', '⭐', '棒'],
+  cheers: ['好!', '很好!', '太棒了!', 'BOOM!', 'YES!!', '对!'],
+  study: {
+    title: '学一学 Study the words', sub: 'Tap a word to hear it.',
+    render(el) {
+      el.innerHTML = `<div class="zh-study">${WORDS.map((w, k) => `<button type="button" data-k="${k}"><span class="zh">${w.h}</span><span class="p">${w.p}</span><span class="e">${w.pic} ${w.e}</span></button>`).join('')}</div>`;
+      el.querySelectorAll('button[data-k]').forEach((b) => { b.onclick = () => LessonKit.say(WORDS[b.dataset.k].h, 'zh'); });
+    },
+  },
+  lessons: {
+    meaning: { id: 'ex-zh-meaning', level: 1, emoji: '👀', title: 'What Does It Mean?', sub: 'See the characters, pick the meaning.', count: 10, make: makeMeaning, reset },
+    listen: { id: 'ex-zh-listen', level: 1, emoji: '👂', title: 'Listen & Pick', sub: 'Hear the word, tap the characters.', count: 10, make: makeListen, reset },
+    match: { id: 'ex-zh-match', level: 1, emoji: '🔗', title: 'Match Them Up', sub: 'Pair the Chinese with the meaning.', count: 6, make: makeMatch, reset },
+    hanzi: { id: 'ex-zh-hanzi', level: 2, emoji: '🀄', title: 'Find the Characters', sub: 'From the meaning, no pinyin to help!', count: 10, make: makeHanzi, reset },
+    pinyin: { id: 'ex-zh-pinyin', level: 2, emoji: '🎵', title: 'Tone Detective', sub: 'Pick the pinyin with the right tones.', count: 10, make: makePinyin, reset },
+    build: { id: 'ex-zh-build', level: 3, emoji: '🧱', title: 'Build the Word', sub: 'Put the characters in the right order.', count: 10, make: makeBuild, reset },
+    write: { id: 'ex-zh-write', level: 3, emoji: '⌨️', title: 'Write the Pinyin', sub: 'Type the sounds with the big letters.', count: 10, make: makeWrite, reset },
+    sentence: { id: 'ex-zh-sentence', level: 4, emoji: '🐉', title: 'Sentence Dragon BOSS', sub: 'Build real Chinese sentences.', count: 8, make: makeSentence, reset },
+    dictation: { id: 'ex-zh-dictation', level: 4, emoji: '🎧', title: 'Dictation BOSS 听写', sub: 'Only the sound. Build the characters!', count: 10, make: makeDictation, reset },
+    final: { id: 'ex-zh-final', level: 4, emoji: '🏆', title: 'THE BIG CHINESE EXAM', sub: 'Every skill, the hardest way. Huge gold!', count: 12, make: makeFinal, reset },
+  },
+});
+</script>
+</body>
+</html>

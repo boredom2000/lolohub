@@ -97,6 +97,97 @@
         { "id": "math-words", "name": "Word Problems", "emoji": "📖", "href": "work/math-g3/?lesson=words", "minutes": 6, "gold": 35,
           "blurb": "Read the story, find the numbers, solve it." }
       ]
+    },
+    {
+      "section": "English 1 · Prepositions & more",
+      "subtitle": "Homework 1: in, on, under, between… syllables, away / up, was / were",
+      "exam": "english",
+      "lessons": [
+        { "id": "ex-prep-pick", "name": "Pick the Preposition", "emoji": "📍", "href": "exam/english/?lesson=pick", "minutes": 3, "gold": 20, "level": 1,
+          "blurb": "Look at the picture, choose in, on, under… out of three." },
+        { "id": "ex-syllables", "name": "Clap the Syllables", "emoji": "👏", "href": "exam/english/?lesson=syl", "minutes": 3, "gold": 20, "level": 1,
+          "blurb": "win-dow, but-ter-fly, al-li-ga-tor: how many beats?" },
+        { "id": "ex-prep-bank", "name": "Preposition Blanks", "emoji": "🗺️", "href": "exam/english/?lesson=bank", "minutes": 4, "gold": 30, "level": 2,
+          "blurb": "Fill the blank with more prepositions to choose from." },
+        { "id": "ex-was-were", "name": "Was / Were · Away / Up", "emoji": "⏳", "href": "exam/english/?lesson=waswere", "minutes": 4, "gold": 30, "level": 2,
+          "blurb": "There was or there were? Ran away or ran up?" },
+        { "id": "ex-prep-spell", "name": "Write the Preposition", "emoji": "⌨️", "href": "exam/english/?lesson=pspell", "minutes": 5, "gold": 45, "level": 3,
+          "blurb": "Spell the missing preposition on the big letter keyboard." },
+        { "id": "ex-prep-boss", "name": "Sentence Builder BOSS", "emoji": "🏗️", "href": "exam/english/?lesson=pboss", "minutes": 7, "gold": 80, "level": 4,
+          "blurb": "Build whole sentences from word tiles: where things are, there was / there were." }
+      ],
+      "extra": { "name": "English study sheet", "href": "exam/english/?lesson=study" }
+    },
+    {
+      "section": "English 2 · Word Kinds",
+      "subtitle": "Find the noun, verb, adjective and adverb, then swap the adjective",
+      "exam": "english",
+      "lessons": [
+        { "id": "ex-wk-tap", "name": "Tap the Word", "emoji": "👆", "href": "exam/english/?lesson=tap", "minutes": 3, "gold": 20, "level": 1,
+          "blurb": "Tap the noun (or verb, adjective, adverb) in a short sentence." },
+        { "id": "ex-wk-what", "name": "What Kind of Word?", "emoji": "🔍", "href": "exam/english/?lesson=what", "minutes": 4, "gold": 30, "level": 2,
+          "blurb": "One word is yellow: is it a noun, verb, adjective or adverb?" },
+        { "id": "ex-wk-swap", "name": "Swap the Adjective", "emoji": "🔄", "href": "exam/english/?lesson=swap", "minutes": 5, "gold": 45, "level": 3,
+          "blurb": "Replace the adjective with another one, or with its opposite." },
+        { "id": "ex-wk-boss", "name": "Word Detective BOSS", "emoji": "🕵️", "href": "exam/english/?lesson=wboss", "minutes": 7, "gold": 80, "level": 4,
+          "blurb": "Find every word of a kind, then write the opposite adjective yourself." }
+      ],
+      "extra": { "name": "English study sheet", "href": "exam/english/?lesson=study" }
+    },
+    {
+      "section": "English 3 · Whose is it? May I?",
+      "subtitle": "Homework 3: mine, yours, his, hers, ours, theirs · may / can · reading",
+      "exam": "english",
+      "lessons": [
+        { "id": "ex-poss-pick", "name": "Whose Is It?", "emoji": "👜", "href": "exam/english/?lesson=ppick", "minutes": 3, "gold": 20, "level": 1,
+          "blurb": "It belongs to her, so it is… hers or his?" },
+        { "id": "ex-may-can", "name": "May or Can?", "emoji": "🙏", "href": "exam/english/?lesson=maycan", "minutes": 4, "gold": 30, "level": 2,
+          "blurb": "Asking politely (May I…?) or being able to (Fish can swim)." },
+        { "id": "ex-reading", "name": "Story Time Questions", "emoji": "📖", "href": "exam/english/?lesson=read", "minutes": 5, "gold": 30, "level": 2,
+          "blurb": "Read (or listen to) a short story and answer six questions." },
+        { "id": "ex-poss-spell", "name": "Write Whose It Is", "emoji": "✍️", "href": "exam/english/?lesson=pspell2", "minutes": 5, "gold": 45, "level": 3,
+          "blurb": "Anna has a hat. The hat is… type it!" },
+        { "id": "ex-may-boss", "name": "Polite Questions BOSS", "emoji": "🧱", "href": "exam/english/?lesson=mboss", "minutes": 7, "gold": 80, "level": 4,
+          "blurb": "Build \"May I…?\" questions and \"The bag is hers.\" sentences from tiles." }
+      ],
+      "extra": { "name": "English study sheet", "href": "exam/english/?lesson=study" }
+    },
+    {
+      "section": "中文 Chinese · Lessons 11-14",
+      "subtitle": "第11、12、13和14课 字词复习 · 47 words, 9 ways to learn them",
+      "exam": "chinese",
+      "lessons": [
+        { "id": "ex-zh-meaning", "name": "What Does It Mean?", "emoji": "👀", "href": "exam/chinese/?lesson=meaning", "minutes": 3, "gold": 20, "level": 1,
+          "blurb": "See the characters and pinyin, pick the meaning." },
+        { "id": "ex-zh-listen", "name": "Listen & Pick", "emoji": "👂", "href": "exam/chinese/?lesson=listen", "minutes": 3, "gold": 20, "level": 1,
+          "blurb": "Hear a word and tap its characters." },
+        { "id": "ex-zh-match", "name": "Match Them Up", "emoji": "🔗", "href": "exam/chinese/?lesson=match", "minutes": 3, "gold": 20, "level": 1,
+          "blurb": "Pair each Chinese word with its meaning." },
+        { "id": "ex-zh-hanzi", "name": "Find the Characters", "emoji": "🀄", "href": "exam/chinese/?lesson=hanzi", "minutes": 4, "gold": 30, "level": 2,
+          "blurb": "From the meaning only: which characters are right?" },
+        { "id": "ex-zh-pinyin", "name": "Tone Detective", "emoji": "🎵", "href": "exam/chinese/?lesson=pinyin", "minutes": 4, "gold": 30, "level": 2,
+          "blurb": "Four pinyin, only one with the right tones." },
+        { "id": "ex-zh-build", "name": "Build the Word", "emoji": "🧱", "href": "exam/chinese/?lesson=build", "minutes": 5, "gold": 45, "level": 3,
+          "blurb": "Put the character tiles in the right order." },
+        { "id": "ex-zh-write", "name": "Write the Pinyin", "emoji": "⌨️", "href": "exam/chinese/?lesson=write", "minutes": 5, "gold": 45, "level": 3,
+          "blurb": "Type the pinyin letters on the big keyboard." },
+        { "id": "ex-zh-sentence", "name": "Sentence Dragon BOSS", "emoji": "🐉", "href": "exam/chinese/?lesson=sentence", "minutes": 7, "gold": 80, "level": 4,
+          "blurb": "Build real Chinese sentences from word tiles." },
+        { "id": "ex-zh-dictation", "name": "Dictation BOSS 听写", "emoji": "🎧", "href": "exam/chinese/?lesson=dictation", "minutes": 7, "gold": 80, "level": 4,
+          "blurb": "Only the sound: build the characters you hear." }
+      ],
+      "extra": { "name": "学一学 Study the words", "href": "exam/chinese/?lesson=study" }
+    },
+    {
+      "section": "🏆 The Big Exams",
+      "subtitle": "Mixed questions, the hardest way. Do these when you are ready!",
+      "exam": "final",
+      "lessons": [
+        { "id": "ex-eng-final", "name": "THE BIG ENGLISH EXAM", "emoji": "🏆", "href": "exam/english/?lesson=final", "minutes": 10, "gold": 130, "level": 4,
+          "blurb": "Sixteen hard questions from all three English units." },
+        { "id": "ex-zh-final", "name": "THE BIG CHINESE EXAM", "emoji": "🏮", "href": "exam/chinese/?lesson=final", "minutes": 10, "gold": 130, "level": 4,
+          "blurb": "Characters, tones, pinyin, sentences and dictation, all mixed." }
+      ]
     }
   ],
   "play": [

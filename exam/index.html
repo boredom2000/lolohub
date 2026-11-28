@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lolo Exam Prep</title>
+<meta name="description" content="WORK HARD for the exams: English (prepositions, word kinds, possessive pronouns, reading) and Chinese words, from easy to BOSS, with gold rewards.">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f2a44">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Patrick+Hand&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../work/kit/kit.css">
+<script src="../core/wallet.js"></script>
+<script src="exam.js"></script>
+<style>
+  .wrap { max-width: 1100px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .top .who { font: 800 16px 'Nunito', sans-serif; color: var(--soft); }
+  .top .who a { color: var(--blue); }
+  .hero { margin-top: 10px; }
+  .hero h1 { margin-top: 6px; }
+  .hero h1 span { color: var(--margin); }
+  .tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; position: sticky; top: 0; z-index: 5; padding: 8px 0; background: linear-gradient(var(--paper) 80%, transparent); }
+  .tabs button { padding: 12px 22px; border-radius: 999px; font: 900 20px 'Nunito', sans-serif; background: #fff; box-shadow: 0 4px 0 #c9d3e0; }
+  .tabs button.on { background: var(--ink); color: #ffe81a; box-shadow: 0 4px 0 #000; }
+  .section { margin-top: 26px; }
+  .section h2 { font: 900 clamp(24px, 5vw, 32px) 'Fraunces', serif; }
+  .section .s-sub { font-size: 20px; color: var(--soft); }
+  .section .extra { display: inline-block; margin-top: 8px; padding: 8px 16px; border-radius: 999px; background: #fff6c9; color: var(--ink); text-decoration: none; font: 900 17px 'Nunito', sans-serif; box-shadow: 0 3px 0 #e0a80066; }
+  .lessons { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 14px; }
+  .lesson { position: relative; display: flex; flex-direction: column; padding: 16px; min-height: 170px; border-radius: 8px; background: #fff; color: var(--ink); text-decoration: none;
+    box-shadow: 0 10px 20px rgba(31, 42, 68, 0.15); transform: rotate(var(--t, 0deg)); transition: transform 0.2s; animation: card-in 0.45s backwards; }
+  .lesson:hover, .lesson:active { transform: rotate(0) translateY(-4px) scale(1.02); }
+  .lesson .name { font: 900 22px/1.15 'Fraunces', serif; margin: 2px 0 4px; }
+  .lesson .name .e { font-size: 30px; margin-right: 4px; }
+  .lesson p { font-size: 19px; color: var(--soft); flex: 1; }
+  .lesson .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font: 800 16px 'Nunito', sans-serif; color: var(--soft); }
+  .lesson .pay { display: flex; align-items: center; gap: 4px; font: 900 22px 'Nunito', sans-serif; color: var(--gold); }
+  .lesson.lv4 { background: linear-gradient(135deg, #fff6c9, #ffe0f4); outline: 3px solid #d63aa0; }
+  .lesson.lv4 .pay { font-size: 26px; animation: pulse-say 1.6s ease-in-out infinite; }
+  .lesson.final { background: linear-gradient(135deg, #1f2a44, #4b1d6e); color: #fff; outline: 3px solid #ffd23f; }
+  .lesson.final p, .lesson.final .foot { color: #e9ddff; }
+  .lesson.final .pay { color: #ffd23f; }
+  .stamp { position: absolute; right: 10px; top: 10px; padding: 2px 8px; border: 3px solid var(--good); border-radius: 6px; color: var(--good); font: 900 13px 'Nunito', sans-serif; transform: rotate(8deg); }
+  .stamp.tired { border-color: #9aa6bb; color: #9aa6bb; }
+  .howto { margin-top: 30px; padding: 16px; border-radius: 10px; background: #fff; box-shadow: 0 6px 14px rgba(31, 42, 68, 0.12); font-size: 19px; }
+  .howto b { color: var(--margin); }
+  .offline { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .offline button { padding: 12px 22px; border-radius: 999px; font: 900 18px 'Nunito', sans-serif; color: #fff; background: var(--good); box-shadow: 0 4px 0 #136b39; }
+  .offline span { font-size: 17px; color: var(--soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <span class="who" id="who"></span>
+    <span class="gold" id="gold"></span>
+  </div>
+  <div class="hero">
+    <h1>📝 WORK HARD <span>for the exams!</span></h1>
+    <div class="sub">Start with ⭐ Easy, climb to 👑 BOSS. The harder it is, the more gold you win!</div>
+  </div>
+  <div class="tabs" id="tabs">
+    <button type="button" data-f="all" class="on">⭐ All</button>
+    <button type="button" data-f="english">🔤 English</button>
+    <button type="button" data-f="chinese">🏮 中文</button>
+    <button type="button" data-f="final">🏆 Big Exams</button>
+  </div>
+  <div id="list"></div>
+  <div class="howto">
+    <b>How it works:</b> every lesson pays gold when you get at least half right. A lesson pays <b>full gold</b> the first time each week,
+    then a bit less each time, so try them all! 👑 BOSS lessons and 🏆 Big Exams pay the most.
+    <div class="offline" id="offline" hidden><button type="button" id="saveBtn">⬇ SAVE FOR OFFLINE</button><span id="saveMsg">Keep the lessons on this tablet, even without internet. Then use "Add to Home screen".</span></div>
+  </div>
+</div>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const LV = { 1: '⭐ Easy', 2: '⭐⭐ Medium', 3: '⭐⭐⭐ Hard', 4: '👑 BOSS' };
+let filter = 'all';
+try { filter = sessionStorage.getItem('exam-tab') || 'all'; } catch (e) { /* none */ }
+
+function render(W) {
+  $('gold').innerHTML = `${W.coin(26)} ${W.gold}`;
+  $('who').innerHTML = W.user ? `👤 ${esc(W.user.name)} · gold saved on your profile`
+    : W.server ? 'Playing as a guest · <a href="../">log in on LoloHub</a> to keep your gold'
+    : 'Guest · gold lasts while this tab is open';
+  const secs = W.catalog.work.filter((s) => s.exam && (filter === 'all' || s.exam === filter));
+  $('list').innerHTML = secs.map((s) => `
+    <div class="section">
+      <h2>${esc(s.section)}</h2>${s.subtitle ? `<div class="s-sub">${esc(s.subtitle)}</div>` : ''}
+      ${s.extra ? `<a class="extra" href="../${esc(s.extra.href)}">📖 ${esc(s.extra.name)}</a>` : ''}
+      <div class="lessons">${s.lessons.map((l, i) => {
+        const v = W.lessonValue(l);
+        const stamp = v.done === 0 ? '<span class="stamp">FULL GOLD</span>' : v.level === 0 ? '<span class="stamp tired">DONE A LOT</span>' : '';
+        const cls = s.exam === 'final' ? 'final lv4' : l.level === 4 ? 'lv4' : '';
+        return `<a class="lesson ${cls}" href="../${esc(l.href)}" style="--t:${((i * 37) % 5) - 2}deg; animation-delay:${i * 0.05}s">${stamp}
+          <span><i class="lvl lvl${l.level}">${LV[l.level]}</i></span>
+          <div class="name"><span class="e">${l.emoji}</span>${esc(l.name)}</div>
+          <p>${esc(l.blurb)}</p>
+          <div class="foot"><span class="pay">${W.coin(24)} +${v.gold}</span><span>~${l.minutes} min${v.done ? ` · done ${v.done}×` : ''}</span></div></a>`;
+      }).join('')}</div>
+    </div>`).join('');
+}
+$('tabs').querySelectorAll('button').forEach((b) => {
+  b.classList.toggle('on', b.dataset.f === filter);
+  b.onclick = () => {
+    filter = b.dataset.f;
+    try { sessionStorage.setItem('exam-tab', filter); } catch (e) { /* none */ }
+    $('tabs').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    render(LoloWallet);
+  };
+});
+LoloWallet.onChange(render);
+
+// offline: service workers need https or localhost
+if (LoloExam.supported && (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname))) {
+  $('offline').hidden = false;
+  const btn = $('saveBtn'), msg = $('saveMsg');
+  if (LoloExam.saved()) { btn.textContent = '✔ SAVED FOR OFFLINE'; msg.textContent = 'Works without internet on this device. It updates itself when online.'; }
+  btn.onclick = () => {
+    btn.disabled = true; btn.textContent = 'SAVING…';
+    LoloExam.save().then((r) => {
+      btn.disabled = false;
+      btn.textContent = r.ok ? '✔ SAVED FOR OFFLINE' : '⚠ TRY AGAIN';
+      msg.textContent = r.ok ? 'Done! Works without internet now. Tip: browser menu → "Add to Home screen".' : 'Could not save everything. Check the internet and try again.';
+    });
+  };
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "Lolo Exam Prep",
+  "short_name": "Exam Prep",
+  "description": "English and Chinese exam practice with gold rewards.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fbf6e9",
+  "theme_color": "#1f2a44",
+  "icons": [
+    { "src": "../icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "../icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

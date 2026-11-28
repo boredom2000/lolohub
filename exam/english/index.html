@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>English Exam Prep | Lolo Exam</title>
+<meta name="description" content="English exam practice for grade 2-3: prepositions, syllables, was/were, nouns verbs adjectives adverbs, possessive pronouns, may/can and reading.">
+<link rel="icon" href="../../icons/icon-192.png">
+<link rel="manifest" href="../manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Patrick+Hand&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../work/kit/kit.css">
+<script src="../../core/wallet.js"></script>
+<script src="../../work/kit/kit.js"></script>
+<script src="../exam.js"></script>
+<style>
+  :root { --n: #2f6fd6; --v: #d63a3a; --a: #1f9d55; --r: #8e44ec; }
+  .sent { font-size: clamp(26px, 6.5vw, 38px); line-height: 1.6; margin: 8px 0 4px; }
+  .sent .hl { padding: 0 6px; border-radius: 8px; background: #fff4c2; border-bottom: 4px solid var(--margin); }
+  .sent s { color: var(--bad); }
+  .sent .gapw { display: inline-block; min-width: 3.2em; border-bottom: 4px dashed var(--margin); color: #c9d3e0; }
+  .sent .gapw.filled { color: var(--good); border-color: var(--good); animation: pop 0.5s; }
+  .scene { font-size: clamp(44px, 11vw, 70px); line-height: 1.1; margin-bottom: 4px; }
+  .cue { font-size: clamp(22px, 5vw, 28px); color: var(--soft); margin-bottom: 4px; }
+  .bankline { font-size: 18px; color: var(--soft); margin-top: 8px; }
+  .words { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 16px auto 0; max-width: 680px; }
+  .words button { padding: 12px 16px; border-radius: 12px; font: 900 clamp(24px, 5.5vw, 32px) 'Nunito', sans-serif; background: #fff; box-shadow: 0 5px 0 #c9d3e0; animation: card-in 0.4s backwards; }
+  .words button.punct { background: none; box-shadow: none; pointer-events: none; padding: 12px 0; margin-left: -8px; }
+  .words button.right { background: #c9f5d3; box-shadow: 0 5px 0 #6cc785; animation: pop 0.5s; }
+  .words button.wrong { background: #ffd0d0; box-shadow: 0 5px 0 #f08a8a; animation: shake 0.4s; }
+  .kind { display: inline-block; padding: 2px 12px; border-radius: 999px; color: #fff; font-family: 'Nunito', sans-serif; font-weight: 900; }
+  .k-n { background: var(--n); } .k-v { background: var(--v); } .k-a { background: var(--a); } .k-r { background: var(--r); }
+  .choices.pos button { font-size: clamp(20px, 5vw, 28px); }
+  .story { text-align: left; max-height: 260px; overflow-y: auto; margin: 6px auto 12px; max-width: 640px; padding: 12px 16px; border-radius: 10px; background: #fffbea;
+    border: 2px solid #f0dc8c; font-size: clamp(19px, 4.4vw, 23px); line-height: 1.45; }
+  .story h3 { font: 900 22px 'Fraunces', serif; margin-bottom: 4px; }
+  .syl { letter-spacing: 0.04em; color: var(--blue); }
+  .studycards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; margin-top: 14px; }
+  .scard { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 8px 18px rgba(31, 42, 68, 0.14); border-top: 8px solid var(--c, var(--blue)); }
+  .scard h2 { margin: 0 0 6px; color: var(--c, var(--blue)); font: 900 24px 'Fraunces', serif; }
+  .scard p, .scard li { font-size: 20px; }
+  .scard ul { padding-left: 22px; }
+  .scard b { color: var(--c, var(--blue)); }
+</style>
+</head>
+<body>
+<script>
+'use strict';
+const { rnd, pick, shuffle } = LessonKit;
+const $ = (id) => document.getElementById(id);
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+// a shuffled deck that deals every item once before repeating
+function deck(items) { let d = []; return () => { if (!d.length) d = shuffle(items); return d.pop(); }; }
+
+/* =====================================================================
+   UNIT 1 · Homework 1: prepositions, syllables, away/up, was/were
+   ===================================================================== */
+const PREPS = ['in', 'on', 'under', 'above', 'below', 'between', 'among', 'next to', 'behind', 'in front of', 'across from'];
+// prepositions that could also fit each other's sentences are never offered together
+const CLOSE = { in: ['among'], among: ['in', 'between'], on: ['above'], above: ['on', 'over'], under: ['below'], below: ['under'],
+  between: ['among', 'next to'], 'next to': ['between', 'behind', 'in front of'], behind: ['next to'], 'in front of': ['across from', 'next to'], 'across from': ['in front of'] };
+const PREP_S = [
+  ['🎒📚', 'My books are ___ my school backpack.', 'in'],
+  ['🖼️🧱', 'Please put the posters ___ the wall.', 'on'],
+  ['⏰⬆️', 'The clock is ___ the whiteboard.', 'above'],
+  ['🏦☕📚', 'The café is ___ the bank and the bookstore.', 'between'],
+  ['🐱🛏️', 'The cat is hiding ___ the bed.', 'under'],
+  ['💡🍽️', 'The lamp hangs ___ the dining table.', 'above'],
+  ['🧒👦🧒', 'He sat ___ his two best friends.', 'between'],
+  ['🦡🕳️', 'The badger is hiding ___ the tunnel.', 'in'],
+  ['🗿🚪', 'The statue is ___ the museum door.', 'in front of'],
+  ['📚🛣️🍔', 'The library is ___ the cafeteria, on the other side of the road.', 'across from'],
+  ['🧥🪝', 'Hang your coat ___ the hook.', 'on'],
+  ['🏠🌾', 'There is a field ___ my house.', 'next to'],
+  ['🐶🪟', 'The puppy is hiding ___ the curtain.', 'behind'],
+  ['🐠🫙', 'The goldfish swims ___ the bowl.', 'in'],
+  ['🐦🌳', 'The bird is flying ___ the trees.', 'above'],
+  ['⚽🪑', 'The ball rolled ___ the chair.', 'under'],
+  ['🐝🌸🌼', 'The bee is buzzing ___ the flowers.', 'among'],
+  ['🏤🛣️🌳', 'The road is ___ the post office and the park.', 'between'],
+  ['🚗🏠', 'The car is parked ___ the house.', 'in front of'],
+  ['💐🪟', 'The flower vase is ___ the window.', 'next to'],
+  ['✈️☁️', 'The plane flies ___ the clouds.', 'above'],
+  ['🐟🚤', 'The fish swim ___ the boat.', 'below'],
+  ['🧒🧒', 'My friend sits ___ me in class.', 'next to'],
+  ['👩‍🏫🧑‍🎓', 'The teacher stands ___ the class.', 'in front of'],
+  ['🌙☁️', 'The moon is hiding ___ the clouds.', 'behind'],
+  ['🥛🧊', 'The milk is ___ the fridge.', 'in'],
+  ['☕🍽️', 'Your cup is ___ the table.', 'on'],
+  ['🐑🐑🐺🐑', 'The wolf is hiding ___ the sheep.', 'among'],
+  ['🏫🛣️🏞️', 'The school is ___ the park, on the other side of the street.', 'across from'],
+  ['🧺🌳', 'We had a picnic ___ a big tree.', 'under'],
+  ['🎈⬆️🏠', 'The balloon floated ___ the roof.', 'above'],
+  ['🚲🚗', 'My bike is ___ the car, at the back.', 'behind'],
+];
+const prepDeck = deck(PREP_S);
+function prepOptions(ans, n) {
+  const pool = shuffle(PREPS.filter((p) => p !== ans && !(CLOSE[ans] || []).includes(p)));
+  return shuffle([ans].concat(pool.slice(0, n - 1)));
+}
+const prepHtml = (s, gapText) => `<div class="scene">${s[0]}</div><div class="sent">${s[1].replace('___', `<span class="gapw" id="gapw">${gapText || '?'}</span>`)}</div>`;
+const fillGap = (w) => () => { const g = $('gapw'); if (g) { g.textContent = w; g.classList.add('filled'); } };
+
+function makePrepPick(i) {
+  const s = prepDeck();
+  return { kind: 'choice', ans: s[2], options: prepOptions(s[2], 3).map((p) => ({ label: p, value: p })), cols: 3,
+    html: `<div class="q">Choose the best preposition!</div>${prepHtml(s)}`, onDone: fillGap(s[2]), say: s[1].replace('___', s[2]), autoSay: false, sayAfter: s[1].replace('___', s[2]) };
+}
+function makePrepBank(i) {
+  const s = prepDeck();
+  const n = i < 4 ? 4 : 6;
+  return { kind: 'choice', ans: s[2], options: prepOptions(s[2], n).map((p) => ({ label: p, value: p })), cols: n === 4 ? 2 : 3,
+    html: `<div class="q">Fill in the blank.</div>${prepHtml(s)}`, onDone: fillGap(s[2]), sayAfter: s[1].replace('___', s[2]) };
+}
+function makePrepSpell() {
+  const s = prepDeck();
+  return { kind: 'spell', keyboard: true, ans: s[2],
+    html: `<div class="q">Write the missing preposition.</div>${prepHtml(s)}<div class="bankline">Use: ${PREPS.join(', ')}</div>`,
+    hint: `It starts with <b>${s[2][0]}</b>. Look at the picture!`, sayAfter: s[1].replace('___', s[2]) };
+}
+
+// syllables: the split shows how to clap it
+const SYL = ['win-dow', 'but-ter-fly', 'com-pu-ter', 'pa-per', 'fam-i-ly', 'glass', 'mon-key', 'to-ma-to', 'cal-cu-la-tor', 'al-li-ga-tor',
+  'cat', 'ap-ple', 'ba-na-na', 'el-e-phant', 'wa-ter-mel-on', 'pen-cil', 'di-no-saur', 'school', 'rab-bit', 'um-brel-la', 'cat-er-pil-lar',
+  'hel-i-cop-ter', 'sun', 'teach-er', 'ham-bur-ger', 'kan-ga-roo', 'tel-e-vi-sion', 'oc-to-pus', 'ti-ger', 'frog', 'pine-ap-ple', 'lad-der',
+  'spi-der', 'croc-o-dile', 'fish', 'bread', 'gar-den', 'po-ta-to', 'av-o-ca-do', 'bas-ket-ball', 'sand-wich', 'hip-po-pot-a-mus'];
+const sylDeck = deck(SYL);
+function makeSyl(i) {
+  let s = sylDeck();
+  if (i < 4) { let g = 0; while (s.split('-').length > 3 && g++ < 20) s = sylDeck(); } // easy ones first
+  const w = s.replace(/-/g, ''), n = s.split('-').length;
+  const max = Math.max(4, n);
+  return { kind: 'choice', ans: n, options: Array.from({ length: max }, (_, k) => ({ label: `${k + 1} 👏`, value: k + 1 })), cols: max > 4 ? 3 : 4,
+    html: `<div class="q">How many syllables? Clap it! 👏</div><div class="big" style="margin:10px 0">${w}</div>`, say: w,
+    reveal: `${n} (<span class="syl">${s}</span>)`, praise: `<span class="syl">${s}</span>:` };
+}
+
+// away / up / down… and was / were
+const PHRASAL = [
+  ['The cat ran ___ from the dog.', 'away', 'up'], ['Mike and Ann cleaned ___ the living room.', 'up', 'down'],
+  ['I fell ___ and hurt my knee.', 'down', 'into'], ['Claire put ___ her toys.', 'away', 'up'],
+  ['Please sit ___ on your chair.', 'down', 'up'], ['Wake ___! It is morning.', 'up', 'down'],
+  ['Pick ___ your pencil from the floor.', 'up', 'away'], ['Look ___! A car is coming.', 'out', 'in'],
+  ['Give ___ my toy, please!', 'back', 'down'], ['Come ___ the stairs carefully.', 'down', 'away'],
+  ['Stand ___ when the teacher says hello.', 'up', 'away'], ['The bird flew ___ into the sky.', 'away', 'down'],
+];
+const WASWERE = [
+  ['There ___ a statue.', 'was'], ['There ___ trees and flowers.', 'were'], ['There ___ children in the park.', 'were'],
+  ['I ___ happy yesterday.', 'was'], ['We ___ at school on Monday.', 'were'], ['The dogs ___ hungry.', 'were'],
+  ['She ___ late for class.', 'was'], ['They ___ my friends.', 'were'], ['It ___ cold last night.', 'was'],
+  ['You ___ very brave!', 'were'], ['My mum ___ in the kitchen.', 'was'], ['___ there a cake at the party?', 'Was'],
+  ['___ there many people at the zoo?', 'Were'], ['He ___ tired after football.', 'was'], ['The books ___ on the shelf.', 'were'],
+];
+const phDeck = deck(PHRASAL), wwDeck = deck(WASWERE);
+function makeWasWere(i) {
+  if (i % 2) {
+    const p = phDeck();
+    return { kind: 'choice', ans: p[1], options: shuffle([p[1], p[2]]).map((w) => ({ label: w, value: w })), cols: 2,
+      html: `<div class="q">Circle the correct word.</div><div class="sent">${p[0].replace('___', '<span class="gapw" id="gapw">?</span>')}</div>`,
+      onDone: fillGap(p[1]), sayAfter: p[0].replace('___', p[1]) };
+  }
+  const w = wwDeck();
+  const opts = w[1][0] === w[1][0].toUpperCase() ? ['Was', 'Were'] : ['was', 'were'];
+  return { kind: 'choice', ans: w[1], options: opts.map((x) => ({ label: x, value: x })), cols: 2,
+    html: `<div class="q">Was or were?</div><div class="sent">${w[0].replace('___', '<span class="gapw" id="gapw">?</span>')}</div>`,
+    hint: 'One thing (I, he, she, it, a…) → <b>was</b>. Many things (we, you, they, trees…) → <b>were</b>.',
+    onDone: fillGap(w[1]), sayAfter: w[0].replace('___', w[1]) };
+}
+
+// BOSS: build whole sentences from word tiles
+const PREP_BUILD = [
+  ['🐱⬇️🪑', 'Where is the cat?', 'The cat is under the table', '.', ['on', 'in']],
+  ['🧒🧒', 'Who are you sitting next to?', 'I am sitting next to my friend', '.', ['between', 'is']],
+  ['⛲🛝', 'Where is the fountain?', 'The fountain is in front of the playground', '.', ['behind', 'on']],
+  ['🐶🪟', 'Where is the puppy?', 'The puppy is hiding behind the curtain', '.', ['under', 'are']],
+  ['🗿', 'Was there a statue? Answer: yes!', 'Yes, there was a statue', '.', ['were', 'no']],
+  ['🧒👧🧒', 'Were there children? Answer: yes!', 'Yes, there were children', '.', ['was', 'childrens']],
+  ['🌳🌸', 'Were there trees and flowers? Answer: no!', 'No, there were no trees and flowers', '.', ['was', 'yes']],
+  ['🏦☕📚', 'Where is the café?', 'The café is between the bank and the bookstore', '.', ['next', 'on']],
+  ['💡🍽️', 'Where is the lamp?', 'The lamp hangs above the table', '.', ['under', 'in']],
+  ['📚🛣️🏫', 'Where is the library?', 'The library is across from the school', '.', ['behind', 'on']],
+  ['🧺🍎', 'Where are the apples?', 'The apples are in the basket', '.', ['is', 'on']],
+  ['🐝🌸🌼', 'Where is the bee?', 'The bee is among the flowers', '.', ['under', 'are']],
+];
+const pbDeck = deck(PREP_BUILD);
+function buildQ(b, what) {
+  return { kind: 'build', ans: b[2].split(' '), tiles: b[4], tail: b[3], tries: 2,
+    html: `<div class="scene">${b[0]}</div><div class="cue">${b[1]}</div><div class="q">${what || 'Build the sentence with the word tiles.'}</div>`,
+    reveal: b[2] + b[3], sayAfter: b[2] };
+}
+const makePrepBoss = () => buildQ(pbDeck());
+
+/* =====================================================================
+   UNIT 2 · (the missing sheet) nouns, verbs, adjectives, adverbs + swapping adjectives
+   word/n noun · word/v verb · word/a adjective (word/a:opposite) · word/r adverb · untagged = helper word
+   ===================================================================== */
+const KINDS = {
+  n: { name: 'noun', emoji: '🧸', job: 'a person, animal, place or thing', test: 'You can put "the" or "a" in front of it.' },
+  v: { name: 'verb', emoji: '🏃', job: 'an action: what someone does', test: 'You can say "I ___" or "they ___" with it.' },
+  a: { name: 'adjective', emoji: '🎨', job: 'describes a noun: what is it like?', test: 'It fits in "the ___ cat".' },
+  r: { name: 'adverb', emoji: '💨', job: 'describes a verb: how, when or where', test: 'Many end in -ly: quickly, softly.' },
+};
+const KEYS = ['n', 'v', 'a', 'r'];
+const an = (k) => (/^[aeiou]/.test(KINDS[k].name) ? 'an' : 'a');
+const label = (k, plural) => `<span class="kind k-${k}">${KINDS[k].name}${plural ? 's' : ''}</span>`;
+const WK = [
+  'The big/a:small dog/n runs/v fast/r .',
+  'A small/a:big cat/n sleeps/v quietly/r .',
+  'The happy/a:sad girl/n sings/v loudly/r .',
+  'My old/a:new car/n moves/v slowly/r .',
+  'The tall/a:short boy/n jumps/v high/r .',
+  'We eat/v hot/a:cold soup/n .',
+  'The sad/a:happy baby/n cries/v softly/r .',
+  'A fast/a:slow rabbit/n hops/v away/r .',
+  'The dirty/a:clean pig/n rolls/v happily/r in the mud/n .',
+  'The cold/a:hot wind/n blows/v hard/r .',
+  'A heavy/a:light box/n fell/v suddenly/r .',
+  'The new/a:old teacher/n smiles/v kindly/r .',
+  'The loud/a:quiet lion/n roars/v at night/n .',
+  'The wet/a:dry dog/n shakes/v quickly/r .',
+  'A strong/a:weak man/n lifts/v the heavy/a:light rock/n .',
+  'I hug/v my soft/a:hard pillow/n .',
+  'Mum/n fills/v the empty/a:full glass/n .',
+  'The young/a:old bird/n flies/v slowly/r .',
+  'The clean/a:dirty cat/n licks/v its paws/n .',
+  'A long/a:short snake/n slides/v quietly/r .',
+  'The angry/a:calm bear/n growls/v loudly/r .',
+  'The kind/a:mean nurse/n helps/v the little/a:big boy/n .',
+  'The slow/a:fast turtle/n walks/v carefully/r .',
+  'We play/v in the big/a:small park/n .',
+  'The quiet/a:loud mouse/n eats/v cheese/n .',
+  'Grandpa/n reads/v the long/a:short story/n slowly/r .',
+  'The noisy/a:quiet clown/n jumps/v around/r .',
+  'Dad/n hangs/v the dry/a:wet towel/n outside/r .',
+  'A brave/a:scared knight/n fights/v bravely/r .',
+].map((s) => s.split(' ').map((t) => { const [w, tag] = t.split('/'); const [k, opp] = (tag || '').split(':'); return { w, k: k || null, opp: opp || null }; }));
+const ADJ_BANK = ['purple', 'giant', 'grumpy', 'sparkly', 'tiny', 'silly', 'muddy', 'fluffy', 'shiny', 'funny', 'pretty', 'noisy', 'sleepy', 'red', 'huge'];
+const OTHER = { n: ['rabbit', 'castle', 'pizza', 'rocket', 'garden', 'banana'], v: ['jumped', 'sang', 'shouted', 'danced', 'swims', 'reads'],
+  r: ['quickly', 'loudly', 'softly', 'happily', 'slowly', 'gently'] };
+const has = (s, k) => s.some((t) => t.k === k);
+const count = (s, k) => s.filter((t) => t.k === k).length;
+const sentText = (s, mark) => s.map((t, i) => (mark && mark[i] !== undefined ? mark[i] : t.w)).join(' ').replace(/ ([.,!?])/g, '$1');
+let wkUsed = new Set();
+function wkSentence(ok) {
+  const fits = WK.filter(ok), fresh = fits.filter((s) => !wkUsed.has(s));
+  const s = pick(fresh.length ? fresh : fits);
+  wkUsed.add(s);
+  return s;
+}
+
+// tap every word of one kind (easy: exactly one to find)
+function tapQ(want, s) {
+  const need = count(s, want);
+  return {
+    kind: 'custom', tries: 2, reveal: s.filter((t) => t.k === want).map((t) => t.w).join(', '),
+    html: `<div class="q">Tap ${need > 1 ? `<b>all ${need}</b>` : 'the'} ${label(want, need > 1)} in this sentence!</div>
+      <div class="q" style="font-size:18px;color:var(--soft);margin-top:4px">${KINDS[want].emoji} ${cap(an(want))} ${KINDS[want].name} is ${KINDS[want].job}.</div>`,
+    mount(el, api) {
+      const box = document.createElement('div');
+      box.className = 'words';
+      let found = 0;
+      s.forEach((t, j) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = t.w;
+        if (/^[.,!?]$/.test(t.w)) b.className = 'punct';
+        b.style.animationDelay = j * 0.04 + 's';
+        b.onclick = () => {
+          if (b.disabled) return;
+          if (t.k === want) {
+            b.classList.add('right'); b.disabled = true; found++;
+            LessonKit.tone([660 + found * 110], 'triangle', 0, 0.15, 0.1);
+            if (found === need) { box.querySelectorAll('button').forEach((x) => { x.disabled = true; }); api.right(); }
+            else { $('fb').innerHTML = `Yes! ${need - found} more to find.`; $('fb').className = 'feedback good'; }
+          } else {
+            b.classList.add('wrong');
+            setTimeout(() => b.classList.remove('wrong'), 500);
+            api.wrong(t.k ? `<b>${t.w}</b> is ${an(t.k)} ${KINDS[t.k].name}. Find the ${KINDS[want].name}!` : `<b>${t.w}</b> is a little helper word. Find the ${KINDS[want].name}!`);
+            if (!$('next').classList.contains('hidden')) box.querySelectorAll('button').forEach((x, m) => { if (s[m].k === want) x.classList.add('right'); x.disabled = true; });
+          }
+        };
+        box.appendChild(b);
+      });
+      el.appendChild(box);
+    },
+  };
+}
+function makeWkTap(i) { const want = KEYS[i % 4]; return tapQ(want, wkSentence((x) => count(x, want) === 1)); }
+function makeWkWhat(i) {
+  const want = KEYS[i % 4];
+  const s = wkSentence((x) => has(x, want));
+  const idx = pick(s.map((t, j) => (t.k === want ? j : -1)).filter((j) => j >= 0));
+  return { kind: 'choice', ans: want, cls: 'pos', options: KEYS.map((k) => ({ label: `${KINDS[k].emoji} ${KINDS[k].name}<small>${KINDS[k].job}</small>`, value: k })),
+    html: `<div class="q">What kind of word is <b>${s[idx].w}</b>?</div><div class="sent">${sentText(s, { [idx]: `<span class="hl">${s[idx].w}</span>` })}</div>`,
+    reveal: `${s[idx].w}: ${KINDS[want].name}`, hint: `Tip: ${KINDS[want].test}`, praise: `<b>${s[idx].w}</b> is ${an(want)} ${KINDS[want].name}!` };
+}
+// replace the adjective: any other adjective, or (harder) its opposite
+function makeWkSwap(i) {
+  const s = wkSentence((x) => has(x, 'a'));
+  const idx = pick(s.map((t, j) => (t.k === 'a' ? j : -1)).filter((j) => j >= 0));
+  const t = s[idx];
+  const opposite = i % 2 === 1;
+  let ans, opts;
+  if (opposite) {
+    ans = t.opp;
+    const others = shuffle(ADJ_BANK.concat(WK.flat().filter((x) => x.k === 'a').map((x) => x.w)).filter((w) => w !== ans && w !== t.w && w !== t.opp));
+    opts = [ans].concat([...new Set(others)].slice(0, 3));
+  } else {
+    ans = pick(ADJ_BANK.filter((w) => w !== t.w));
+    opts = [ans, pick(OTHER.n), pick(OTHER.v), pick(OTHER.r)];
+  }
+  return { kind: 'choice', ans, options: shuffle(opts).map((w) => ({ label: w, value: w })), cols: 2,
+    html: `<div class="q">${opposite ? `Swap <b>${t.w}</b> for its <b>opposite</b>!` : `Swap the ${label('a')} <b>${t.w}</b> for another ${label('a')}!`}</div>
+      <div class="sent">${sentText(s, { [idx]: `<span class="hl" id="swapw">${t.w}</span>` })}</div>`,
+    hint: opposite ? `Opposite = it means the other way round, like up ↔ down.` : `Only one of these words describes a noun. ${KINDS.a.test}`,
+    onDone() { const w = $('swapw'); if (w) { w.innerHTML = `<s>${t.w}</s> ${ans}`; w.style.background = '#c9f5d3'; } } };
+}
+// BOSS: find all the words of one kind, or write the opposite adjective on the keyboard
+function makeWkBoss(i) {
+  if (i % 2 === 0) {
+    const want = ['a', 'r', 'n', 'v'][(i / 2) % 4];
+    return tapQ(want, wkSentence((x) => has(x, want)));
+  }
+  const s = wkSentence((x) => has(x, 'a'));
+  const idx = pick(s.map((t, j) => (t.k === 'a' ? j : -1)).filter((j) => j >= 0));
+  const t = s[idx];
+  return { kind: 'spell', keyboard: true, ans: t.opp,
+    html: `<div class="q">Change the ${label('a')} to its <b>opposite</b>. Write it!</div>
+      <div class="sent">${sentText(s, { [idx]: `<s>${t.w}</s> <span class="gapw">?</span>` })}</div>`,
+    hint: `The opposite of <b>${t.w}</b> starts with <b>${t.opp[0]}</b>.`, reveal: `${t.w} → ${t.opp}` };
+}
+
+/* =====================================================================
+   UNIT 3 · Homework 3: possessive pronouns, may/can, reading
+   ===================================================================== */
+const OWN = [
+  { who: 'me', pic: '🙋', p: 'mine', name: 'I have', pair: 'his' },
+  { who: 'you', pic: '👉', p: 'yours', name: 'You have', pair: 'theirs' },
+  { who: 'him', pic: '👦', p: 'his', name: 'Tom has', pair: 'ours' },
+  { who: 'her', pic: '👧', p: 'hers', name: 'Anna has', pair: 'his' },
+  { who: 'us', pic: '👨‍👩‍👧', p: 'ours', name: 'We have', pair: 'mine' },
+  { who: 'them', pic: '👫', p: 'theirs', name: 'They have', pair: 'yours' },
+];
+const POSS = OWN.map((o) => o.p);
+const THINGS = [['book', '📖'], ['bag', '👜'], ['phone', '📱'], ['blue car', '🚙'], ['shoes', '👟', 1], ['house', '🏠'], ['red backpack', '🎒'], ['pen', '🖊️'],
+  ['jackets', '🧥', 1], ['umbrella', '☂️'], ['snacks', '🍪', 1], ['laptop', '💻'], ['bicycles', '🚲', 1], ['notebook', '📓'], ['ball', '⚽'], ['dog', '🐶']];
+const ownDeck = deck(OWN), thingDeck = deck(THINGS);
+function makePossPick(i) {
+  const o = ownDeck(), t = thingDeck();
+  const be = t[2] ? 'are' : 'is', pron = t[2] ? 'They' : 'It';
+  const other = i < 5 ? o.pair : pick(POSS.filter((p) => p !== o.p));
+  return { kind: 'choice', ans: o.p, options: shuffle([o.p, other]).map((p) => ({ label: p, value: p })), cols: 2,
+    html: `<div class="scene">${o.pic} ${t[1]}</div><div class="sent">The ${t[0]} belong${t[2] ? '' : 's'} to <b>${o.who}</b>.<br>${pron} ${be} <span class="gapw" id="gapw">?</span>.</div>`,
+    onDone: fillGap(o.p), hint: 'me → mine · you → yours · him → his · her → hers · us → ours · them → theirs' };
+}
+function makePossSpell() {
+  const o = ownDeck(), t = thingDeck();
+  const be = t[2] ? 'are' : 'is', a = t[2] ? 'some' : /^[aeiou]/.test(t[0]) ? 'an' : 'a';
+  return { kind: 'spell', keyboard: true, ans: o.p,
+    html: `<div class="scene">${o.pic} ${t[1]}</div><div class="sent">${o.name} ${a} ${t[0]}.<br>The ${t[0]} ${be} <span class="gapw">?</span>.</div>`,
+    hint: 'I → mine · you → yours · he → his · she → hers · we → ours · they → theirs' };
+}
+const MAYCAN = [
+  ['___ I use your computer, please?', 'May'], ['Fish ___ swim.', 'can'], ['___ we leave early today?', 'May'], ['My baby brother ___ walk now.', 'can'],
+  ['___ I borrow your book?', 'May'], ['Birds ___ fly high.', 'can'], ['___ she call her friend?', 'May'], ['I ___ ride a bike.', 'can'],
+  ['___ they join the class trip?', 'May'], ['A cheetah ___ run very fast.', 'can'], ['___ I go to the toilet, please?', 'May'], ['She ___ count to one hundred.', 'can'],
+  ['___ I have some water, please?', 'May'], ['Penguins ___ swim but not fly.', 'can'], ['___ we play outside, Miss?', 'May'], ['My dad ___ cook pancakes.', 'can'],
+];
+const mcDeck = deck(MAYCAN);
+function makeMayCan() {
+  const m = mcDeck();
+  const opts = m[1][0] === 'M' ? ['May', 'Can'] : ['may', 'can'];
+  return { kind: 'choice', ans: m[1], options: opts.map((x) => ({ label: x, value: x })), cols: 2,
+    html: `<div class="q">Asking for permission politely → <b>May</b>. Being able to do it → <b>can</b>.</div><div class="sent">${m[0].replace('___', '<span class="gapw" id="gapw">?</span>')}</div>`,
+    onDone: fillGap(m[1]), sayAfter: m[0].replace('___', m[1]) };
+}
+const MAY_BUILD = [
+  ['🙋💻', 'You want to use the computer. Ask politely!', 'May I use your computer', '?', ['can', 'my']],
+  ['👨‍👩‍👧🚪', 'We want to leave early today. Ask politely!', 'May we leave early today', '?', ['us', 'can']],
+  ['🙋📖', 'You want to borrow your friend\'s book. Ask politely!', 'May I borrow your book', '?', ['mine', 'can']],
+  ['👧📞', 'She wants to call her friend. Ask politely!', 'May she call her friend', '?', ['hers', 'can']],
+  ['👫🚌', 'They want to join the class trip. Ask politely!', 'May they join the class trip', '?', ['theirs', 'can']],
+  ['🙋📖', 'The book belongs to me.', 'This book is mine', '.', ['my', 'me']],
+  ['👧👜', 'The bag belongs to her.', 'The bag is hers', '.', ['her', 'his']],
+  ['👫🚲', 'The bicycles belong to them.', 'The bicycles are theirs', '.', ['is', 'their']],
+  ['👨‍👩‍👧🏠', 'The house belongs to us.', 'This house is ours', '.', ['our', 'us']],
+  ['👉📓', 'The notebook belongs to you.', 'The notebook is yours', '.', ['your', 'you']],
+];
+const mbDeck = deck(MAY_BUILD);
+const makeMayBoss = () => buildQ(mbDeck());
+
+// reading: our own short stories, read it (or listen 🔊) and answer
+const STORIES = [
+  { title: 'Leo and the Lost Kite', text: 'Leo had a red kite with a long yellow tail. On Saturday, he went to the park with his grandpa. The wind was strong, and the kite flew high above the trees. Suddenly, the string broke! The kite flew away over the pond. Leo was very sad. Leo and Grandpa walked around the pond and looked behind every bush. At last, they found the kite in a tall tree next to the playground. A kind park worker used a long ladder to get it down. Leo said, "Thank you!" On the way home, they bought ice cream to celebrate.',
+    qs: [['What colour was Leo\'s kite?', 'red', ['blue', 'green']], ['Who went to the park with Leo?', 'his grandpa', ['his sister', 'his teacher']],
+      ['Why did the kite fly away?', 'The string broke.', ['Leo let go.', 'A dog pulled it.']], ['Where did they find the kite?', 'in a tall tree', ['in the pond', 'under a bench']],
+      ['Who got the kite down?', 'a park worker', ['Grandpa', 'Leo']], ['What did they do on the way home?', 'They bought ice cream.', ['They flew the kite again.', 'They went swimming.']]] },
+  { title: 'Mia\'s Class Pet', text: 'Mia\'s class has a little hamster called Peanut. Peanut lives in a cage next to the window. Every Friday, one student takes Peanut home for the weekend. This week, it was Mia\'s turn! She was very excited. At home, Mia gave Peanut fresh water and a piece of carrot. At night, Peanut ran on his wheel and made a lot of noise. Mia\'s little brother laughed and laughed. On Sunday, Mia cleaned the cage carefully. On Monday, she carried Peanut back to school, and her teacher said, "Great job, Mia!"',
+    qs: [['What is the class pet called?', 'Peanut', ['Cookie', 'Mia']], ['What kind of animal is the class pet?', 'a hamster', ['a rabbit', 'a fish']],
+      ['Where is the cage?', 'next to the window', ['under the desk', 'behind the door']], ['What did Mia give Peanut?', 'water and carrot', ['milk and bread', 'cake and apples']],
+      ['What did Peanut do at night?', 'He ran on his wheel.', ['He slept quietly.', 'He ate a book.']], ['How did Mia feel when it was her turn?', 'excited', ['sad', 'angry']]] },
+  { title: 'The Snowman Surprise', text: 'One cold morning, Sam looked out of the window. The garden was white with snow! He put on his warm coat, his hat and his boots, and ran outside with his sister Lily. Together, they made a big snowman. Lily gave it two stones for eyes and a carrot for a nose. Sam put his old scarf around its neck. The next day, the sun was hot and bright. Sam ran to the window, but the snowman was much smaller. "It is melting!" said Lily. They took a photo so they could remember their snowman forever.',
+    qs: [['What was the weather like that morning?', 'cold and snowy', ['hot and sunny', 'rainy']], ['Who made the snowman with Sam?', 'his sister Lily', ['his dad', 'his friend Tom']],
+      ['What did they use for the nose?', 'a carrot', ['a stone', 'a button']], ['What did Sam put around its neck?', 'his old scarf', ['his hat', 'a rope']],
+      ['Why did the snowman get smaller?', 'The sun melted it.', ['A dog ate it.', 'Sam kicked it.']], ['What did they do to remember the snowman?', 'They took a photo.', ['They drew a picture.', 'They built a new one.']]] },
+];
+let storyN = Math.floor(Math.random() * STORIES.length), story = null;
+function makeRead(i) {
+  if (i === 0) story = STORIES[storyN++ % STORIES.length];
+  const [q, ans, wrongs] = story.qs[i % story.qs.length];
+  return { kind: 'choice', ans, options: shuffle([ans].concat(wrongs)).map((x) => ({ label: x, value: x })), cols: 1,
+    html: `<div class="story"><h3>${story.title}</h3>${story.text}</div><div class="q"><b>${q}</b></div>`,
+    say: story.text, autoSay: false, hint: 'Look for the answer in the story. Tap 🔊 to hear it!' };
+}
+
+/* ---------- the big English exam: a bit of everything, the hardest kind ---------- */
+const FINAL = [makePrepSpell, makePrepBoss, (i) => makeWkBoss(0), (i) => makeWkBoss(1), makePossSpell, makeMayBoss, (i) => makeWkSwap(1), makeWasWere];
+const makeFinal = (i) => FINAL[i % FINAL.length](i);
+
+/* ---------- study sheet ---------- */
+function study(el) {
+  el.innerHTML = `<div class="studycards">
+    <div class="scard" style="--c:#2f6fd6"><h2>📍 Prepositions</h2><p>They show <b>where</b> or <b>when</b>.</p>
+      <ul><li>🐱 <b>in</b> the box · <b>on</b> the box · <b>under</b> the box</li><li>💡 <b>above</b> · 🐟 <b>below</b></li><li>🧒👦🧒 <b>between</b> two · 🐝 <b>among</b> many</li>
+      <li><b>next to</b> · <b>behind</b> · <b>in front of</b> · <b>across from</b></li><li>⏰ Time: <b>at</b> 3 p.m. · <b>on</b> Monday · <b>in</b> May</li></ul></div>
+    <div class="scard" style="--c:#e8590c"><h2>👏 Syllables</h2><p>Clap each beat of the word:</p><ul><li>glass = 1 👏</li><li>win-dow = 2 👏👏</li><li>but-ter-fly = 3 👏👏👏</li><li>al-li-ga-tor = 4 👏👏👏👏</li></ul></div>
+    <div class="scard" style="--c:#1f9d55"><h2>⏳ Was / were</h2><ul><li>One: I, he, she, it → <b>was</b></li><li>Many: we, you, they → <b>were</b></li><li>Yes, there <b>was</b> a statue.</li><li>Yes, there <b>were</b> children. (not childrens!)</li></ul></div>
+    <div class="scard" style="--c:#8e44ec"><h2>🧩 Word kinds</h2><ul><li>🧸 <b>noun</b>: dog, park, teacher</li><li>🏃 <b>verb</b>: runs, eats, sings</li><li>🎨 <b>adjective</b>: big, happy, cold</li><li>💨 <b>adverb</b>: quickly, loudly, slowly</li></ul>
+      <p>The <b style="color:var(--a)">big</b> <b style="color:var(--n)">dog</b> <b style="color:var(--v)">runs</b> <b style="color:var(--r)">fast</b>.</p></div>
+    <div class="scard" style="--c:#d63aa0"><h2>🔄 Opposite adjectives</h2><ul><li>big ↔ small · hot ↔ cold</li><li>happy ↔ sad · fast ↔ slow</li><li>clean ↔ dirty · wet ↔ dry</li><li>loud ↔ quiet · heavy ↔ light</li></ul></div>
+    <div class="scard" style="--c:#b07a00"><h2>👜 Whose is it?</h2><ul><li>me → <b>mine</b> · you → <b>yours</b></li><li>him → <b>his</b> · her → <b>hers</b></li><li>us → <b>ours</b> · them → <b>theirs</b></li></ul><p>The bag is <b>hers</b>. (not her bag is)</p></div>
+    <div class="scard" style="--c:#2f6fd6"><h2>🙏 May / can</h2><ul><li>Asking politely: <b>May</b> I use your computer?</li><li>Able to: Fish <b>can</b> swim.</li></ul></div>
+  </div>`;
+}
+
+const reset = () => { wkUsed = new Set(); };
+LessonKit.run({
+  title: 'English Exam Prep',
+  sub: 'Three units, easy to BOSS',
+  lang: 'en', voiceWarn: false,
+  home: { href: '../', label: '⬅ EXAM PREP' },
+  bits: ['★', '✔', 'A+', '📚', '🎉', '⭐'],
+  study: { title: 'English study sheet', sub: 'Everything for the test on one page.', render: study },
+  lessons: {
+    pick: { id: 'ex-prep-pick', level: 1, emoji: '📍', title: 'Pick the Preposition', sub: 'in, on, under… choose the best one.', count: 10, make: makePrepPick },
+    syl: { id: 'ex-syllables', level: 1, emoji: '👏', title: 'Clap the Syllables', sub: 'How many beats in the word?', count: 12, make: makeSyl },
+    bank: { id: 'ex-prep-bank', level: 2, emoji: '🗺️', title: 'Preposition Blanks', sub: 'More choices, trickier places.', count: 10, make: makePrepBank },
+    waswere: { id: 'ex-was-were', level: 2, emoji: '⏳', title: 'Was / Were · Away / Up', sub: 'Circle the correct word.', count: 12, make: makeWasWere },
+    pspell: { id: 'ex-prep-spell', level: 3, emoji: '⌨️', title: 'Write the Preposition', sub: 'Type it with the big letters.', count: 10, make: makePrepSpell },
+    pboss: { id: 'ex-prep-boss', level: 4, emoji: '🏗️', title: 'Sentence Builder BOSS', sub: 'Build whole sentences with prepositions and was/were.', count: 8, make: makePrepBoss },
+    tap: { id: 'ex-wk-tap', level: 1, emoji: '👆', title: 'Tap the Word', sub: 'Find the noun, verb, adjective or adverb.', count: 12, make: makeWkTap, reset },
+    what: { id: 'ex-wk-what', level: 2, emoji: '🔍', title: 'What Kind of Word?', sub: 'Noun, verb, adjective or adverb?', count: 12, make: makeWkWhat, reset },
+    swap: { id: 'ex-wk-swap', level: 3, emoji: '🔄', title: 'Swap the Adjective', sub: 'Replace it with another one, or its opposite.', count: 10, make: makeWkSwap, reset },
+    wboss: { id: 'ex-wk-boss', level: 4, emoji: '🕵️', title: 'Word Detective BOSS', sub: 'Find them all, then write the opposite adjective.', count: 10, make: makeWkBoss, reset },
+    ppick: { id: 'ex-poss-pick', level: 1, emoji: '👜', title: 'Whose Is It?', sub: 'mine, yours, his, hers, ours, theirs.', count: 10, make: makePossPick },
+    maycan: { id: 'ex-may-can', level: 2, emoji: '🙏', title: 'May or Can?', sub: 'Polite asking or being able to.', count: 12, make: makeMayCan },
+    read: { id: 'ex-reading', level: 2, emoji: '📖', title: 'Story Time Questions', sub: 'Read a short story and answer.', count: 6, make: makeRead },
+    pspell2: { id: 'ex-poss-spell', level: 3, emoji: '✍️', title: 'Write Whose It Is', sub: 'Type the possessive pronoun.', count: 10, make: makePossSpell },
+    mboss: { id: 'ex-may-boss', level: 4, emoji: '🧱', title: 'Polite Questions BOSS', sub: 'Build May… questions and whose-is-it sentences.', count: 8, make: makeMayBoss },
+    final: { id: 'ex-eng-final', level: 4, emoji: '🏆', title: 'THE BIG ENGLISH EXAM', sub: 'Everything, the hardest way. Huge gold!', count: 16, make: makeFinal, reset },
+  },
+});
+</script>
+</body>
+</html>

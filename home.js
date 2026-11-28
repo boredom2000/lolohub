@@ -63,7 +63,10 @@
   function renderWork() {
     const cat = W.catalog;
     let fresh = 0;
-    $('workList').innerHTML = cat.work.map((sec) => `
+    // exam sections live on their own page (exam/): one big link here instead
+    const exam = cat.work.some((s) => s.exam)
+      ? '<div class="section"><a class="extra" href="exam/" style="font-size:1.15em">📝 EXAM PREP: English &amp; 中文, from easy to 👑 BOSS →</a></div>' : '';
+    $('workList').innerHTML = exam + cat.work.filter((s) => !s.exam).map((sec) => `
       <div class="section">
         <h3>${esc(sec.section)}</h3>
         ${sec.subtitle ? `<div class="sub">${esc(sec.subtitle)}</div>` : ''}

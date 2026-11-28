@@ -9,8 +9,12 @@
 // make(i) returns one question: { html, say?, lang?, tries? (2), reveal? (html), hint?, lenient?, sayAfter? } plus
 //   kind 'num'    ans: number              (html may hold '{?}' where the answer goes, number pad)
 //   kind 'choice' ans + options [{ label, value }], cols?, huge?
-//   kind 'spell'  ans: string, tiles?: letters
+//   kind 'spell'  ans: string, tiles?: letters, keyboard?: true (the whole a-z on big keys, + space if needed)
+//   kind 'build'  ans: [tokens] (alts?: [[tokens]…]), tiles?: extra tokens, joiner? (' ', '' for Chinese),
+//                 tail? ('.' / '?' shown after the line): tap word tiles to build a sentence, tap a placed one to undo
 //   kind 'custom' mount(el, api)           api: { right(), wrong(msg), say(slow), q }
+// Optional: cfg.home = { href, label } (the top-left link, default the hub's WORK HARD), lesson.level 1-4
+// (4 = BOSS: shown on the menu, bigger party at the end).
 (function () {
   'use strict';
   const K = window.LessonKit = {};
@@ -104,11 +108,14 @@
 
   /* ---------- page skeleton ---------- */
   let C, L, curKey, qs, qi, typed, tries, firstTry, results, combo, best, askedAt, locked, q;
+  const homeHref = () => (C.home && C.home.href) || '../../?tab=work';
+  const LEVELS = { 1: '⭐ Easy', 2: '⭐⭐ Medium', 3: '⭐⭐⭐ Hard', 4: '👑 BOSS' };
+  K.levelBadge = (lv) => (lv ? `<i class="lvl lvl${lv}">${LEVELS[lv]}</i>` : '');
   function skeleton() {
     const wrap = document.createElement('div');
     wrap.className = 'wrap';
     wrap.innerHTML = `
-      <div class="bar"><a href="../../?tab=work">⬅ WORK HARD</a><span class="gold" id="gold"></span></div>
+      <div class="bar"><a href="${homeHref()}">${C.home && C.home.label || '⬅ WORK HARD'}</a><span class="gold" id="gold"></span></div>
       <h1 id="title"></h1><div class="sub" id="sub"></div>
       <div class="voice-warn hidden" id="voiceWarn"></div>
       <div class="menu" id="menu"></div>
@@ -190,6 +197,7 @@
     if (q.kind === 'num') buildPad(inp);
     else if (q.kind === 'choice') buildChoices(inp);
     else if (q.kind === 'spell') buildSpell(inp);
+    else if (q.kind === 'build') buildBuild(inp);
     else if (q.kind === 'custom') q.mount(inp, { right, wrong, q, say: sayQ });
     askedAt = performance.now();
   }
@@ -263,15 +271,18 @@
 
   // spelling with letter tiles
   let tileUse = [];
+  const kb = () => !!(q.keyboard || (L && L.keyboard));
   function buildSpell(el) {
     const word = q.ans;
-    const letters = q.tiles || shuffle(word.split('').concat(shuffle('abcdefghiklmnoprstuwy'.split('').filter((c) => !word.includes(c))).slice(0, 3)));
-    el.innerHTML = `<div class="spell-box" id="spellBox"></div><div class="tiles" id="tiles"></div>
+    const letters = kb() ? 'abcdefghijklmnopqrstuvwxyz'.split('').concat(word.includes(' ') ? [' '] : [])
+      : q.tiles || shuffle(word.split('').concat(shuffle('abcdefghiklmnoprstuwy'.split('').filter((c) => !word.includes(c))).slice(0, 3)));
+    el.innerHTML = `<div class="spell-box" id="spellBox"></div><div class="tiles${kb() ? ' keyboard' : ''}" id="tiles"></div>
       <div class="tools"><button type="button" class="del" id="spDel">⌫ Oops</button><button type="button" class="go" id="spGo">✔ Check</button></div>`;
     tileUse = [];
     letters.forEach((c, i) => {
       const b = document.createElement('button');
-      b.type = 'button'; b.textContent = c; b.dataset.i = i;
+      b.type = 'button'; b.textContent = c === ' ' ? 'space' : c; b.dataset.i = i;
+      if (c === ' ') b.className = 'space';
       b.onclick = () => spellType(c, b);
       $('tiles').appendChild(b);
     });
@@ -281,14 +292,24 @@
   }
   function renderSpell() {
     const n = Math.max(q.ans.length, typed.length);
-    $('spellBox').innerHTML = Array.from({ length: n }, (_, i) => `<span class="${typed[i] ? 'has' : ''}">${typed[i] || ''}</span>`).join('');
+    $('spellBox').innerHTML = Array.from({ length: n }, (_, i) => {
+      const c = typed[i];
+      if (c === ' ' || (!c && q.ans[i] === ' ')) return '<span class="sp"></span>';
+      return `<span class="${c ? 'has' : ''}">${c || ''}</span>`;
+    }).join('');
   }
   function spellType(c, btn) {
     if (locked || typed.length >= q.ans.length + 2) return;
-    if (!btn) btn = [...document.querySelectorAll('#tiles button:not(.used)')].find((b) => b.textContent === c);
-    if (!btn) return;
-    btn.classList.add('used');
-    tileUse.push(btn);
+    if (kb()) {
+      if (!/^[a-z ]$/.test(c) || (c === ' ' && !q.ans.includes(' '))) return;
+      if (btn) { btn.classList.remove('hit'); void btn.offsetWidth; btn.classList.add('hit'); }
+      tileUse.push(null);
+    } else {
+      if (!btn) btn = [...document.querySelectorAll('#tiles button:not(.used)')].find((b) => b.textContent === c);
+      if (!btn) return;
+      btn.classList.add('used');
+      tileUse.push(btn);
+    }
     typed += c;
     renderSpell();
     tone([660 + typed.length * 40], 'square', 0, 0.05, 0.03);
@@ -304,7 +325,61 @@
     if (typed === q.ans) { $('spellBox').classList.add('right'); right(); return; }
     wrong(typed.length !== q.ans.length ? `It has ${q.ans.length} letters. Listen again!` : 'Check the letters. Listen again!');
     if (locked) { typed = q.ans; renderSpell(); $('spellBox').classList.add('right'); }
-    else { typed = ''; tileUse.forEach((b) => b.classList.remove('used')); tileUse = []; setTimeout(renderSpell, 300); setTimeout(() => sayQ(true), 500); }
+    else { typed = ''; tileUse.forEach((b) => b && b.classList.remove('used')); tileUse = []; setTimeout(renderSpell, 300); setTimeout(() => sayQ(true), 500); }
+  }
+
+  // sentence (or word) building with big tiles
+  let placed = [];
+  function buildBuild(el) {
+    const tokens = shuffle(q.ans.concat(q.tiles || []));
+    el.innerHTML = `<div class="build-line${q.joiner === '' ? ' zh' : ''}" id="bLine"></div><div class="wordbank${q.joiner === '' ? ' zh' : ''}" id="bBank"></div>
+      <div class="tools"><button type="button" class="del" id="bDel">⌫ Oops</button><button type="button" class="go" id="bGo">✔ Check</button></div>`;
+    placed = [];
+    tokens.forEach((t, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = t; b.dataset.i = i;
+      b.style.animationDelay = i * 0.03 + 's';
+      b.onclick = () => {
+        if (locked || b.classList.contains('used')) return;
+        b.classList.add('used');
+        placed.push(b);
+        tone([620 + placed.length * 35], 'square', 0, 0.05, 0.03);
+        renderBuild();
+      };
+      $('bBank').appendChild(b);
+    });
+    $('bDel').onclick = () => { if (!locked && placed.length) { placed.pop().classList.remove('used'); renderBuild(); } };
+    $('bGo').onclick = () => checkBuild();
+    renderBuild();
+  }
+  function renderBuild() {
+    const line = $('bLine');
+    line.innerHTML = '';
+    placed.forEach((b, i) => {
+      const s = document.createElement('button');
+      s.type = 'button'; s.textContent = b.textContent; s.className = 'placed';
+      s.onclick = () => { if (locked) return; placed.splice(i, 1); b.classList.remove('used'); renderBuild(); };
+      line.appendChild(s);
+    });
+    if (!placed.length) line.innerHTML = '<span class="hint">Tap the words below in the right order</span>';
+    else if (q.tail) line.insertAdjacentHTML('beforeend', `<span class="tail">${q.tail}</span>`);
+  }
+  const buildText = (arr) => arr.join(q.joiner === undefined ? ' ' : q.joiner);
+  function checkBuild() {
+    if (locked || !placed.length) return;
+    const got = buildText(placed.map((b) => b.textContent));
+    const ok = [q.ans].concat(q.alts || []).some((a) => buildText(a) === got);
+    if (ok) { $('bLine').classList.add('right'); right(); return; }
+    const need = q.ans.length;
+    wrong(placed.length !== need ? `It needs ${need} ${q.joiner === '' ? 'pieces' : 'words'}. Try again!` : 'Some words are in the wrong place. Try again!');
+    if (locked) {
+      placed = [];
+      $('bLine').innerHTML = q.ans.map((t) => `<button type="button" class="placed">${t}</button>`).join('') + (q.tail ? `<span class="tail">${q.tail}</span>` : '');
+      $('bLine').classList.add('right');
+    } else {
+      $('bLine').classList.add('wrong');
+      setTimeout(() => { const l = $('bLine'); if (l) l.classList.remove('wrong'); }, 450);
+    }
   }
 
   /* ---------- right / wrong ---------- */
@@ -346,6 +421,7 @@
     if (q.onDone) q.onDone(!missed);
     if (q.sayAfter) setTimeout(() => K.say(q.sayAfter, q.lang), 400);
     if (q.kind === 'num' || q.kind === 'spell') $('input').classList.add('hidden');
+    if (q.kind === 'build') { const b = $('bBank'), t = document.querySelector('#input .tools'); if (b) b.classList.add('hidden'); if (t) t.classList.add('hidden'); }
     $('next').classList.remove('hidden');
     $('next').focus({ preventScroll: true });
   }
@@ -368,9 +444,14 @@
     r.classList.remove('hidden');
     r.innerHTML = `<div class="grade" style="${score >= 0.7 ? 'color:var(--good);border-color:var(--good)' : ''}">${grade}</div>
       <p>${right} of ${qs.length} right${L.lenientAll ? '' : ' on the first try'}${best >= 3 ? ` · best combo 🔥 ×${best}` : ''}</p>
-      <div class="row"><button id="again">🔁 Again</button><a class="alt" href="./">Other lessons</a><a class="alt" href="../../?tab=work">WORK HARD</a></div>`;
+      <div class="row"><button id="again">🔁 Again</button><a class="alt" href="./">Other lessons</a><a class="alt" href="${homeHref()}">${C.home ? 'All lessons' : 'WORK HARD'}</a></div>`;
     $('again').onclick = () => K.start(curKey);
     if (score === 1) { burst(40, ['🏆', '⭐', 'A+', '💯', '🎉']); yay(6); }
+    if (L.level === 4 && score >= 0.7) {
+      boom('👑 BOSS BEATEN!');
+      setTimeout(() => burst(50, ['👑', '💎', '🏆', '⭐', '🪙']), 300);
+      setTimeout(() => burst(40, ['👑', '💎', '🪙', '🎉']), 650);
+    }
     const L0 = L;
     setTimeout(() => LoloWallet.lessonDone(L0.id, score, {
       message: score === 1 ? (C.perfect || 'A perfect sheet! Full gold!') : score >= 0.5 ? `${right} of ${qs.length}. Nice work!` : undefined,
@@ -380,13 +461,16 @@
   /* ---------- keyboard ---------- */
   addEventListener('keydown', (e) => {
     if ($('play').classList.contains('hidden') || document.querySelector('.lolo-cele')) return;
-    if (e.key === 'Enter') { e.preventDefault(); if (locked) return next(); if (q.kind === 'num') checkNum(); else if (q.kind === 'spell') checkSpell(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); if (locked) return next(); if (q.kind === 'num') checkNum(); else if (q.kind === 'spell') checkSpell(); else if (q.kind === 'build') checkBuild(); return; }
     if (locked) return;
     if (q.kind === 'num') {
       if (/^[0-9]$/.test(e.key)) padKey(e.key);
       else if (e.key === 'Backspace') { e.preventDefault(); padKey('del'); }
+    } else if (q.kind === 'build') {
+      if (e.key === 'Backspace') { e.preventDefault(); $('bDel').click(); }
     } else if (q.kind === 'spell') {
       if (/^[a-z]$/i.test(e.key)) spellType(e.key.toLowerCase());
+      else if (e.key === ' ' && kb()) { e.preventDefault(); spellType(' '); }
       else if (e.key === 'Backspace') { e.preventDefault(); spellDel(); }
     } else if (q.kind === 'choice' && /^[1-9]$/.test(e.key)) {
       const b = document.querySelector(`.choices button[data-i="${+e.key - 1}"]`);
@@ -415,7 +499,7 @@
       $('menu').innerHTML = study + Object.entries(C.lessons).map(([k, l], i) => {
         const c = w.lesson(l.id);
         const v = c ? w.lessonValue(c) : { gold: 0 };
-        return `<a href="?lesson=${k}" style="--t:${(i % 2 ? 1.5 : -1.5)}deg"><b>${c ? c.emoji : l.emoji || ''} ${l.title}</b><span>${l.sub}</span><br><span style="color:var(--gold)">+${v.gold} gold</span></a>`;
+        return `<a href="?lesson=${k}" class="${l.level === 4 ? 'boss' : ''}" style="--t:${(i % 2 ? 1.5 : -1.5)}deg">${K.levelBadge(l.level)}<b>${c ? c.emoji : l.emoji || ''} ${l.title}</b><span>${l.sub}</span><br><span style="color:var(--gold)">+${v.gold} gold</span></a>`;
       }).join('');
     });
     const key = new URLSearchParams(location.search).get('lesson');
